@@ -107,10 +107,10 @@ export function ComplaintsDataTable() {
 
   if (loading) {
     return (
-      <Card className="p-8">
+      <Card className="border border-slate-200/80 bg-slate-50 p-8 shadow-none">
         <div className="flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          <span className="ml-3 text-gray-600">Loading complaints...</span>
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          <span className="ml-3 text-slate-600">Loading complaints...</span>
         </div>
       </Card>
     );
@@ -118,7 +118,7 @@ export function ComplaintsDataTable() {
 
   if (error) {
     return (
-      <Card className="p-8 border-red-200 bg-red-50">
+      <Card className="border border-red-200 bg-red-50 p-8">
         <p className="text-red-700">Error: {error}</p>
       </Card>
     );
@@ -126,8 +126,8 @@ export function ComplaintsDataTable() {
 
   if (complaints.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-gray-600">No complaints found for your hostel</p>
+      <Card className="border border-slate-200/80 bg-slate-50 p-8 text-center shadow-none">
+        <p className="text-slate-600">No complaints found for your hostel</p>
       </Card>
     );
   }
@@ -142,26 +142,28 @@ export function ComplaintsDataTable() {
   ];
 
   return (
-    <Card className="border-0 overflow-hidden">
+    <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-none">
       <Table>
-        <TableHeader className="bg-gray-50">
+        <TableHeader className="bg-slate-50">
           <TableRow>
-            <TableHead className="font-semibold">Student Name</TableHead>
-            <TableHead className="font-semibold">Room</TableHead>
-            <TableHead className="font-semibold">Category</TableHead>
-            <TableHead className="font-semibold">Priority</TableHead>
-            <TableHead className="font-semibold">Status</TableHead>
-            <TableHead className="font-semibold text-right">Date</TableHead>
+            <TableHead className="font-semibold text-slate-700">Student Name</TableHead>
+            <TableHead className="font-semibold text-slate-700">Room</TableHead>
+            <TableHead className="font-semibold text-slate-700">Category</TableHead>
+            <TableHead className="font-semibold text-slate-700">Priority</TableHead>
+            <TableHead className="font-semibold text-slate-700">Status</TableHead>
+            <TableHead className="text-right font-semibold text-slate-700">Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {complaints.map((complaint) => (
             <TableRow
               key={complaint.id}
-              className="hover:bg-gray-50 transition-colors"
+              className="transition-colors hover:bg-slate-50"
             >
-              <TableCell className="font-medium">{complaint.student.name}</TableCell>
-              <TableCell>{complaint.room.roomNumber}</TableCell>
+              <TableCell className="font-medium text-slate-800">
+                {complaint.student.name}
+              </TableCell>
+              <TableCell className="text-slate-700">{complaint.room.roomNumber}</TableCell>
               <TableCell>
                 {categoryLabels[complaint.category] || complaint.category}
               </TableCell>
@@ -171,7 +173,7 @@ export function ComplaintsDataTable() {
                     {priorityLabels[complaint.priority]}
                   </Badge>
                 ) : (
-                  <span className="text-gray-400 text-sm">Not Set</span>
+                  <span className="text-sm text-slate-400">Not Set</span>
                 )}
               </TableCell>
               <TableCell>
@@ -200,7 +202,7 @@ export function ComplaintsDataTable() {
                   </SelectContent>
                 </Select>
               </TableCell>
-              <TableCell className="text-right text-sm text-gray-600">
+              <TableCell className="text-right text-sm text-slate-600">
                 {new Date(complaint.createdAt).toLocaleDateString()}
               </TableCell>
             </TableRow>

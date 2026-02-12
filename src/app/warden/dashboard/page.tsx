@@ -5,41 +5,23 @@ import { Card } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Clock, FileText } from "lucide-react";
 import { ComplaintsDataTable } from "@/components/warden/ComplaintsDataTable";
 
-type StatCardColor = "blue" | "orange" | "red" | "green";
-
 function StatCard({
   label,
   value,
   icon: Icon,
-  color,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
-  color: StatCardColor;
 }) {
-  const colorMap: Record<StatCardColor, string> = {
-    blue: "bg-blue-50 text-blue-700",
-    orange: "bg-orange-50 text-orange-700",
-    red: "bg-red-50 text-red-700",
-    green: "bg-green-50 text-green-700",
-  };
-
-  const iconColorMap: Record<StatCardColor, string> = {
-    blue: "text-blue-600",
-    orange: "text-orange-600",
-    red: "text-red-600",
-    green: "text-green-600",
-  };
-
   return (
-    <Card className={`${colorMap[color]} border-0`}>
-      <div className="flex items-start justify-between p-6">
+    <Card className="border border-slate-200/80 bg-slate-50 shadow-none">
+      <div className="flex items-start justify-between p-5">
         <div>
-          <p className="text-sm font-medium opacity-75">{label}</p>
-          <p className="mt-2 text-3xl font-bold">{value}</p>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="mt-2 text-3xl font-bold text-slate-800">{value}</p>
         </div>
-        <Icon className={`${iconColorMap[color]} h-8 w-8`} />
+        <Icon className="h-7 w-7 text-blue-600" />
       </div>
     </Card>
   );
@@ -114,72 +96,66 @@ export default async function WardenDashboard() {
     ]);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Welcome back, Warden! Manage {hostel.name} hostel complaints
-        </p>
-      </div>
+    <main className="min-h-screen p-4 md:p-8">
+      <div className="mx-auto max-w-7xl space-y-6 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-4 shadow-sm md:p-6">
+        <header className="rounded-xl bg-slate-800 px-6 py-5">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-100">
+            Management Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-slate-300">
+            Monitor and manage complaints for {hostel.name}
+          </p>
+        </header>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Total Complaints"
-          value={totalComplaints}
-          icon={FileText}
-          color="blue"
-        />
-        <StatCard
-          label="Pending Today"
-          value={pendingToday}
-          icon={Clock}
-          color="orange"
-        />
-        <StatCard
-          label="Urgent Issues"
-          value={urgentIssues}
-          icon={AlertCircle}
-          color="red"
-        />
-        <StatCard
-          label="Resolved This Week"
-          value={resolvedThisWeek}
-          icon={CheckCircle}
-          color="green"
-        />
-      </div>
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">Key Metrics</h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Complaints"
+              value={totalComplaints}
+              icon={FileText}
+            />
+            <StatCard
+              label="Pending Today"
+              value={pendingToday}
+              icon={Clock}
+            />
+            <StatCard
+              label="Urgent Issues"
+              value={urgentIssues}
+              icon={AlertCircle}
+            />
+            <StatCard
+              label="Resolved This Week"
+              value={resolvedThisWeek}
+              icon={CheckCircle}
+            />
+          </div>
+        </section>
 
-      {/* Hostel Information */}
-      <Card className="p-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Hostel Name</p>
-            <p className="font-semibold text-lg">{hostel.name}</p>
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">Hostel Overview</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-slate-500">Hostel Name</p>
+              <p className="text-lg font-semibold text-slate-800">{hostel.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Warden ID</p>
+              <p className="text-lg font-semibold text-slate-800">{session.user.id}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Total Rooms</p>
+              <p className="text-lg font-semibold text-slate-800">Coming Soon</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-gray-600">Location</p>
-            <p className="font-semibold text-lg">
-              {hostel.city}, {hostel.state}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Capacity</p>
-            <p className="font-semibold text-lg">{hostel.capacity}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Total Rooms</p>
-            <p className="font-semibold text-lg">Coming Soon</p>
-          </div>
-        </div>
-      </Card>
+        </section>
 
-      {/* Complaints Data Table */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight mb-4">All Complaints</h2>
-        <ComplaintsDataTable />
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">All Complaints</h2>
+          <ComplaintsDataTable />
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
