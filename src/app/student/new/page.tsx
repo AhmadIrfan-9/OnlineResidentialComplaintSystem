@@ -65,9 +65,9 @@ export default function NewComplaintPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-200 to-slate-300 p-4 md:p-10">
-      <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-slate-100/95 p-6 shadow-xl md:p-8">
-        <h1 className="mb-8 text-center text-4xl font-bold tracking-tight text-slate-800">
+    <main className="min-h-screen p-4 md:p-10">
+      <section className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm md:p-8">
+        <h1 className="mb-8 text-center text-3xl font-bold tracking-tight text-slate-800 md:text-4xl">
           Submit a Complaint
         </h1>
 
@@ -192,7 +192,7 @@ export default function NewComplaintPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 border-blue-300 text-blue-700 hover:bg-blue-50"
+                className="h-10 border-blue-200 text-blue-700 hover:bg-blue-50"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Paperclip className="mr-2 h-4 w-4" />
@@ -267,7 +267,7 @@ export default function NewComplaintPage() {
           <div className="pt-5 text-center">
             <Button
               type="submit"
-              className="h-11 min-w-40 bg-blue-500 text-base font-semibold hover:bg-blue-600"
+              className="h-11 min-w-40 bg-blue-600 text-base font-semibold hover:bg-blue-700"
             >
               Submit
             </Button>

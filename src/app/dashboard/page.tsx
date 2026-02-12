@@ -10,49 +10,49 @@ export default function DashboardPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-slate-200 p-4 md:p-8">
-      <div className="mx-auto max-w-6xl space-y-4 rounded-sm bg-slate-100 p-4 md:p-6">
-        <header className="rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 px-6 py-5">
-          <h1 className="text-2xl font-semibold text-slate-100">
+    <main className="min-h-screen p-4 md:p-8">
+      <div className="mx-auto max-w-6xl space-y-4 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-4 shadow-sm md:p-6">
+        <header className="rounded-xl bg-slate-800 px-6 py-5">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-100 md:text-2xl">
             Complaint Tracking Dashboard - Student View
           </h1>
         </header>
 
-        <section className="rounded-lg bg-slate-200 p-5">
-          <h2 className="mb-4 text-3xl font-semibold text-slate-700">Key Metrics</h2>
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">Key Metrics</h2>
           <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="mb-2 text-lg text-slate-700">Status</p>
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-500">Status</p>
               <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <ShieldCheck className="h-7 w-7" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                  <ShieldCheck className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="text-base font-medium text-slate-700">Under Review</p>
+                  <p className="text-base font-medium text-slate-800">Under Review</p>
                   <p className="text-sm text-slate-500">Acknowledged</p>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="mb-2 text-lg text-slate-700">Submitted Date</p>
-              <p className="text-2xl font-semibold text-slate-700">2024-03-15</p>
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-500">Submitted Date</p>
+              <p className="text-xl font-semibold text-slate-800">2024-03-15</p>
             </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="mb-2 text-lg text-slate-700">Ticket ID</p>
-              <p className="text-2xl font-semibold text-slate-700">#20240315-007B</p>
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-500">Ticket ID</p>
+              <p className="text-xl font-semibold text-slate-800">#20240315-007B</p>
             </div>
 
-            <div className="rounded-xl bg-slate-100 p-4">
-              <p className="mb-2 text-lg text-slate-700">Days Pending</p>
-              <p className="text-2xl font-semibold text-slate-700">10</p>
+            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-500">Days Pending</p>
+              <p className="text-xl font-semibold text-slate-800">10</p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-lg bg-slate-200 p-5">
-          <h2 className="mb-6 text-3xl font-semibold text-slate-700">
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-6 text-xl font-semibold text-slate-800">
             Complaint Timeline
           </h2>
 
@@ -60,14 +60,14 @@ export default function DashboardPage() {
             {timeline.map((step, index) => (
               <div key={`${step.title}-${index}`} className="relative flex-1">
                 {index < timeline.length - 1 && (
-                  <span className="absolute left-5 right-0 top-4 block h-[2px] bg-slate-300" />
+                  <span className="absolute left-5 right-0 top-4 block h-[2px] bg-slate-200" />
                 )}
                 <span
                   className={`relative z-10 block h-8 w-8 rounded-full border-4 ${
                     step.current
-                      ? "border-orange-400 bg-slate-100"
+                      ? "border-blue-500 bg-slate-100"
                       : step.active
-                        ? "border-slate-600 bg-slate-100"
+                        ? "border-slate-500 bg-slate-100"
                         : "border-slate-400 bg-slate-100"
                   }`}
                 />
@@ -85,12 +85,12 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-lg bg-slate-200 p-5">
-          <h2 className="mb-5 text-3xl font-semibold text-slate-700">Message Exchange</h2>
+        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
+          <h2 className="mb-5 text-xl font-semibold text-slate-800">Message Exchange</h2>
 
           <div className="space-y-4">
             <div className="flex justify-start">
-              <div className="max-w-[70%] rounded-2xl rounded-bl-sm bg-blue-500 px-4 py-3 text-sm text-white shadow-sm">
+              <div className="max-w-[70%] rounded-2xl rounded-bl-sm bg-blue-600 px-4 py-3 text-sm text-white shadow-sm">
                 <p>
                   Hi, I submitted a complaint about the noisy construction near the dorms.
                   Any updates?
