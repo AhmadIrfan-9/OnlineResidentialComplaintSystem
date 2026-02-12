@@ -1,0 +1,166 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+enum ComplaintCategory {
+  PLUMBING
+  WIFI
+  ELECTRIC
+  CLEANING
+  FURNITURE
+  MAINTENANCE
+  NOISE
+  SECURITY
+  OTHER
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum PriorityLevel {
+  LOW
+  HIGH
+  URGENT
+}
+
+enum UserRole {
+  STUDENT
+  WARDEN
+  STAFF
+}
+
+// User model - represents all user types (Students, Wardens, Staff)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole
+  phone     String?
+  avatar    String?
+
+  // Relations
+  studentProfile   StudentProfile?
+  wardenHostels    Hostel[]  @relation("WardenToHostel")
+  complaintUpdates ComplaintUpdate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// StudentProfile model - extends User with student-specific data
+model StudentProfile {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+
+  // Student's current room assignment
+  room   Room   @relation(fields: [roomId], references: [id])
+  roomId String
+
+  // Relations
+  complaints Complaint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("student_profiles")
+}
+
+// Hostel model - represents a student residence
+model Hostel {
+  id   String @id @default(cuid())
+  name String @unique
+
+  // Warden managing this hostel
+  warden   User   @relation("WardenToHostel", fields: [wardenId], references: [id])
+  wardenId String
+
+  // Relations
+  rooms      Room[]
+  complaints Complaint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("hostels")
+}
+
+// Room model - represents a room within a hostel
+model Room {
+  id         String @id @default(cuid())
+  roomNumber String
+  floor      Int
+
+  // Links to hostel
+  hostel   Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  hostelId String
+
+  // Relations
+  studentProfiles StudentProfile[]
+  complaints      Complaint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomNumber, hostelId])
+  @@map("rooms")
+}
+
+// Complaint model - represents a student complaint
+model Complaint {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  category    ComplaintCategory
+  status      ComplaintStatus @default(OPEN)
+  priority    PriorityLevel   @default(HIGH)
+
+  // Relations
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  studentProfileId String
+
+  room   Room   @relation(fields: [roomId], references: [id])
+  roomId String
+
+  hostel   Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  hostelId String
+
+  complaintUpdates ComplaintUpdate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("complaints")
+}
+
+// ComplaintUpdate model - tracks comments and status changes
+model ComplaintUpdate {
+  id      String @id @default(cuid())
+  content String @db.Text
+
+  // Relations
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaintId String
+
+  updatedBy   User   @relation(fields: [updatedById], references: [id])
+  updatedById String
+
+  createdAt DateTime @default(now())
+
+  @@map("complaint_updates")
+}
