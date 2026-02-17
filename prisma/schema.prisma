@@ -22,7 +22,7 @@ enum ComplaintCategory {
   OTHER
 }
 
-enum ComplaintStatus {
+enum Status {
   SUBMITTED
   ACKNOWLEDGED
   UNDER_REVIEW
@@ -31,7 +31,7 @@ enum ComplaintStatus {
   CLOSED
 }
 
-enum PriorityLevel {
+enum Priority {
   ROUTINE
   URGENT
   EMERGENCY
@@ -57,6 +57,7 @@ model User {
   studentProfile   StudentProfile?
   wardenHostels    Hostel[]  @relation("WardenToHostel")
   complaintUpdates ComplaintUpdate[]
+  notifications    Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -129,12 +130,16 @@ model Complaint {
   title       String
   description String   @db.Text
   category    ComplaintCategory
-  status      ComplaintStatus @default(OPEN)
-  priority    PriorityLevel   @default(HIGH)
+  status      Status   @default(SUBMITTED)
+  priority    Priority @default(ROUTINE)
+  studentId   Int?
+  isAnonymous Boolean  @default(false)
+  resolvedAt  DateTime?
+  closedAt    DateTime?
 
   // Relations
-  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  studentProfileId String
+  studentProfile   StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  studentProfileId String?
 
   room   Room   @relation(fields: [roomId], references: [id])
   roomId String
@@ -143,6 +148,7 @@ model Complaint {
   hostelId String
 
   complaintUpdates ComplaintUpdate[]
+  evidences        Evidence[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -165,4 +171,30 @@ model ComplaintUpdate {
   createdAt DateTime @default(now())
 
   @@map("complaint_updates")
+}
+
+model Evidence {
+  id       String @id @default(cuid())
+  fileUrl  String
+  fileType String
+
+  // Relations
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaintId String
+
+  @@map("evidences")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@map("notifications")
 }
