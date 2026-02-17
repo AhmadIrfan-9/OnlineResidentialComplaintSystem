@@ -23,22 +23,24 @@ enum ComplaintCategory {
 }
 
 enum ComplaintStatus {
-  OPEN
+  SUBMITTED
+  ACKNOWLEDGED
+  UNDER_REVIEW
   IN_PROGRESS
   RESOLVED
-  REJECTED
+  CLOSED
 }
 
 enum PriorityLevel {
-  LOW
-  HIGH
+  ROUTINE
   URGENT
+  EMERGENCY
 }
 
 enum UserRole {
   STUDENT
-  WARDEN
-  STAFF
+  MANAGEMENT
+  IT STAFF/ADMIN
 }
 
 // User model - represents all user types (Students, Wardens, Staff)
