@@ -3,18 +3,22 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { complaintSubmissionSchema } from "@/lib/validations";
 
+const inferFileTypeFromUrl = (fileUrl: string): string => {
+  const cleanUrl = fileUrl.split("?")[0].toLowerCase();
+  if (cleanUrl.endsWith(".png")) return "image/png";
+  if (cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".jpeg")) return "image/jpeg";
+  if (cleanUrl.endsWith(".webp")) return "image/webp";
+  if (cleanUrl.endsWith(".gif")) return "image/gif";
+  return "application/octet-stream";
+};
+
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    // Only students can submit complaints
     if (session.user.role !== "STUDENT") {
       return NextResponse.json(
         { message: "Only students can submit complaints" },
@@ -22,44 +26,61 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
     const body = await request.json();
-
-    // Validate input
     const validatedData = complaintSubmissionSchema.parse(body);
 
-    // Verify room exists
+    const studentProfile = await db.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (!studentProfile) {
+      return NextResponse.json(
+        { message: "Student profile not found" },
+        { status: 404 }
+      );
+    }
+
     const room = await db.room.findUnique({
       where: { id: validatedData.roomId },
       include: { hostel: true },
     });
 
     if (!room) {
-      return NextResponse.json(
-        { message: "Room not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Room not found" }, { status: 404 });
     }
 
-    // Create complaint
     const complaint = await db.complaint.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,
         category: validatedData.category,
         priority: validatedData.priority,
-        status: "OPEN",
-        attachments: validatedData.attachments || [],
-        studentId: session.user.id,
+        status: "SUBMITTED",
+        studentProfileId: studentProfile.id,
+        isAnonymous: false,
         hostelId: room.hostelId,
         roomId: validatedData.roomId,
+        evidences: validatedData.attachments?.length
+          ? {
+              create: validatedData.attachments.map((fileUrl) => ({
+                fileUrl,
+                fileType: inferFileTypeFromUrl(fileUrl),
+              })),
+            }
+          : undefined,
       },
       include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        studentProfile: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
           },
         },
         room: {
@@ -74,24 +95,31 @@ export async function POST(request: NextRequest) {
             name: true,
           },
         },
+        evidences: {
+          select: {
+            id: true,
+            fileUrl: true,
+            fileType: true,
+          },
+        },
       },
     });
 
-    // Log activity (optional - implement if you have an activity log)
     console.log(`[Complaint Created] ${session.user.id} - ${complaint.id}`);
 
     return NextResponse.json(
       {
         id: complaint.id,
         message: "Complaint submitted successfully",
-        complaint,
+        complaint: {
+          ...complaint,
+          student: complaint.studentProfile?.user ?? null,
+        },
       },
       { status: 201 }
     );
   } catch (error) {
     console.error("[Complaint API Error]", error);
-
-    // Handle validation errors
     if (error instanceof Error && error.message.includes("Validation")) {
       return NextResponse.json(
         { message: "Invalid input data", details: error.message },
@@ -99,22 +127,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { message: "Failed to submit complaint" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to submit complaint" }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -125,40 +146,46 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = parseInt(searchParams.get("skip") || "0");
 
-    // Build query filters based on role
     const where: Record<string, unknown> = {};
 
     if (session.user.role === "STUDENT") {
-      // Students can only see their own complaints
-      where.studentId = session.user.id;
+      const studentProfile = await db.studentProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json(
+          { message: "Student profile not found", complaints: [] },
+          { status: 200 }
+        );
+      }
+
+      where.studentProfileId = studentProfile.id;
     } else if (session.user.role === "WARDEN") {
-      // Wardens can see complaints in their hostel(s)
-      where.hostel = {
-        wardenId: session.user.id,
-      };
-    } else if (session.user.role === "STAFF") {
-      // Staff can see all complaints or assigned ones (adjust as needed)
-      // For now, show all if no filter is applied
+      where.hostel = { wardenId: session.user.id };
     }
 
-    // Apply optional filters
     if (status) where.status = status;
     if (category) where.category = category;
     if (hostelId) where.hostelId = hostelId;
     if (studentId && session.user.role !== "STUDENT") {
-      where.studentId = studentId;
+      where.studentProfileId = studentId;
     }
 
-    // Fetch complaints
     const complaints = await db.complaint.findMany({
       where,
       include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
+        studentProfile: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
           },
         },
         hostel: {
@@ -174,11 +201,11 @@ export async function GET(request: NextRequest) {
             floor: true,
           },
         },
-        assignedTo: {
+        evidences: {
           select: {
             id: true,
-            name: true,
-            email: true,
+            fileUrl: true,
+            fileType: true,
           },
         },
       },
@@ -189,12 +216,17 @@ export async function GET(request: NextRequest) {
       skip,
     });
 
-    // Get total count
+    const normalizedComplaints = complaints.map((complaint) => ({
+      ...complaint,
+      student: complaint.studentProfile?.user ?? null,
+      attachments: complaint.evidences.map((evidence) => evidence.fileUrl),
+    }));
+
     const total = await db.complaint.count({ where });
 
     return NextResponse.json(
       {
-        complaints,
+        complaints: normalizedComplaints,
         pagination: {
           total,
           limit,
@@ -206,10 +238,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("[Complaints GET Error]", error);
-
-    return NextResponse.json(
-      { message: "Failed to fetch complaints" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to fetch complaints" }, { status: 500 });
   }
 }

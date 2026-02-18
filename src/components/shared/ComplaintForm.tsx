@@ -56,7 +56,7 @@ export function ComplaintSubmissionForm({
     mode: "onChange",
     defaultValues: {
       roomId,
-      priority: "MEDIUM",
+      priority: "ROUTINE",
       attachments: [],
     },
   });
@@ -210,7 +210,7 @@ export function ComplaintSubmissionForm({
               Priority Level
             </Label>
             <Select
-              defaultValue="MEDIUM"
+              defaultValue="ROUTINE"
               onValueChange={(value) =>
                 setValue("priority", value as ComplaintSubmissionInput["priority"])
               }
@@ -220,14 +220,14 @@ export function ComplaintSubmissionForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="LOW">
-                  <span className="text-green-700">Low</span> - Minor issue
+                <SelectItem value="ROUTINE">
+                  <span className="text-green-700">Routine</span> - Minor issue
                 </SelectItem>
-                <SelectItem value="MEDIUM">
-                  <span className="text-yellow-700">Medium</span> - Normal issue
+                <SelectItem value="URGENT">
+                  <span className="text-yellow-700">Urgent</span> - Needs prompt attention
                 </SelectItem>
-                <SelectItem value="HIGH">
-                  <span className="text-red-700">Urgent</span> - Serious issue
+                <SelectItem value="EMERGENCY">
+                  <span className="text-red-700">Emergency</span> - Immediate action required
                 </SelectItem>
               </SelectContent>
             </Select>

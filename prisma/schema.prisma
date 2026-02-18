@@ -40,7 +40,7 @@ enum Priority {
 enum UserRole {
   STUDENT
   MANAGEMENT
-  IT STAFF/ADMIN
+  IT_STAFF_ADMIN @map("IT STAFF/ADMIN")
 }
 
 // User model - represents all user types (Students, Wardens, Staff)

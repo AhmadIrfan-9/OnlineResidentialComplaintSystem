@@ -38,7 +38,7 @@ export interface ComplaintDataRow {
   title: string;
   student: {
     name: string;
-  };
+  } | null;
   room: {
     roomNumber: string;
   };
@@ -134,11 +134,12 @@ export function ComplaintsDataTable() {
 
   // Status options for the dropdown
   const statusOptions = [
-    "OPEN",
-    "ASSIGNED",
+    "SUBMITTED",
+    "ACKNOWLEDGED",
+    "UNDER_REVIEW",
     "IN_PROGRESS",
     "RESOLVED",
-    "REJECTED",
+    "CLOSED",
   ];
 
   return (
@@ -161,7 +162,7 @@ export function ComplaintsDataTable() {
               className="transition-colors hover:bg-slate-50"
             >
               <TableCell className="font-medium text-slate-800">
-                {complaint.student.name}
+                {complaint.student?.name ?? "Anonymous"}
               </TableCell>
               <TableCell className="text-slate-700">{complaint.room.roomNumber}</TableCell>
               <TableCell>

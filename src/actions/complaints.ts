@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import {
   complaintSubmissionSchema,
   ComplaintStatusEnum,
+  type ComplaintSubmissionInput,
 } from "@/lib/validations";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -20,33 +21,44 @@ interface CreateComplaintResult {
   error?: string;
 }
 
+const MANAGEMENT_ROLES = new Set(["MANAGEMENT", "WARDEN", "STAFF"]);
+
+const inferFileTypeFromUrl = (fileUrl: string): string => {
+  const cleanUrl = fileUrl.split("?")[0].toLowerCase();
+  if (cleanUrl.endsWith(".png")) return "image/png";
+  if (cleanUrl.endsWith(".jpg") || cleanUrl.endsWith(".jpeg")) return "image/jpeg";
+  if (cleanUrl.endsWith(".webp")) return "image/webp";
+  if (cleanUrl.endsWith(".gif")) return "image/gif";
+  return "application/octet-stream";
+};
+
 export async function createComplaint(
-  formData: z.infer<typeof complaintSubmissionSchema>
+  formData: ComplaintSubmissionInput
 ): Promise<CreateComplaintResult> {
   try {
-    // Get current session
     const session = await auth();
-
-    // Check authentication
     if (!session?.user) {
-      return {
-        success: false,
-        error: "You must be logged in to submit a complaint",
-      };
+      return { success: false, error: "You must be logged in to submit a complaint" };
     }
 
-    // Check user role
     if (session.user.role !== "STUDENT") {
-      return {
-        success: false,
-        error: "Only students can submit complaints",
-      };
+      return { success: false, error: "Only students can submit complaints" };
     }
 
-    // Validate input data
     const validatedData = complaintSubmissionSchema.parse(formData);
 
-    // Verify room exists and get hostel info
+    const studentProfile = await db.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (!studentProfile) {
+      return {
+        success: false,
+        error: "Student profile not found. Please contact administrator.",
+      };
+    }
+
     const room = await db.room.findUnique({
       where: { id: validatedData.roomId },
       include: {
@@ -60,24 +72,28 @@ export async function createComplaint(
     });
 
     if (!room) {
-      return {
-        success: false,
-        error: "The selected room does not exist",
-      };
+      return { success: false, error: "The selected room does not exist" };
     }
 
-    // Create complaint in database
     const complaint = await db.complaint.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,
         category: validatedData.category,
-        priority: validatedData.priority || "MEDIUM",
-        status: "OPEN",
-        attachments: validatedData.attachments || [],
-        studentId: session.user.id,
+        priority: validatedData.priority ?? "ROUTINE",
+        status: "SUBMITTED",
+        studentProfileId: studentProfile.id,
+        isAnonymous: false,
         hostelId: room.hostelId,
         roomId: validatedData.roomId,
+        evidences: validatedData.attachments?.length
+          ? {
+              create: validatedData.attachments.map((fileUrl) => ({
+                fileUrl,
+                fileType: inferFileTypeFromUrl(fileUrl),
+              })),
+            }
+          : undefined,
       },
       select: {
         id: true,
@@ -95,10 +111,7 @@ export async function createComplaint(
       },
     });
 
-    // Log the complaint creation
-    console.log(
-      `[Complaint Created] User: ${session.user.id}, Complaint: ${complaint.id}`
-    );
+    console.log(`[Complaint Created] User: ${session.user.id}, Complaint: ${complaint.id}`);
 
     return {
       success: true,
@@ -114,17 +127,11 @@ export async function createComplaint(
 
     if (error instanceof z.ZodError) {
       const fieldErrors = error.issues.map((e) => e.message).join(", ");
-      return {
-        success: false,
-        error: `Validation error: ${fieldErrors}`,
-      };
+      return { success: false, error: `Validation error: ${fieldErrors}` };
     }
 
     if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message || "Failed to create complaint",
-      };
+      return { success: false, error: error.message || "Failed to create complaint" };
     }
 
     return {
@@ -149,32 +156,20 @@ export async function updateComplaintStatus(
   newStatus: string
 ): Promise<UpdateComplaintStatusResult> {
   try {
-    // Get current session
     const session = await auth();
-
-    // Check authentication
     if (!session?.user) {
+      return { success: false, error: "You must be logged in to update complaints" };
+    }
+
+    if (!MANAGEMENT_ROLES.has(session.user.role)) {
       return {
         success: false,
-        error: "You must be logged in to update complaints",
+        error: "Only management users can update complaint status",
       };
     }
 
-    // Check user role - only WARDEN and STAFF can update
-    if (
-      session.user.role !== "WARDEN" &&
-      session.user.role !== "STAFF"
-    ) {
-      return {
-        success: false,
-        error: "Only wardens and staff can update complaint status",
-      };
-    }
-
-    // Validate status enum
     const validatedStatus = ComplaintStatusEnum.parse(newStatus);
 
-    // Get the complaint to verify ownership (warden can only update their hostel)
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
       include: {
@@ -187,30 +182,25 @@ export async function updateComplaintStatus(
     });
 
     if (!complaint) {
-      return {
-        success: false,
-        error: "Complaint not found",
-      };
+      return { success: false, error: "Complaint not found" };
     }
 
-    // Authorization check: Warden can only update their hostel's complaints
-    if (
-      session.user.role === "WARDEN" &&
-      complaint.hostel.wardenId !== session.user.id
-    ) {
+    if (session.user.role === "WARDEN" && complaint.hostel.wardenId !== session.user.id) {
       return {
         success: false,
         error: "You can only update complaints from your assigned hostel",
       };
     }
 
-    // Update the complaint
+    const resolvedAt = validatedStatus === "RESOLVED" ? new Date() : complaint.resolvedAt;
+    const closedAt = validatedStatus === "CLOSED" ? new Date() : complaint.closedAt;
+
     const updatedComplaint = await db.complaint.update({
       where: { id: complaintId },
       data: {
         status: validatedStatus,
-        assignedToId: session.user.role === "WARDEN" ? session.user.id : undefined,
-        updatedAt: new Date(),
+        resolvedAt,
+        closedAt,
       },
       select: {
         id: true,
@@ -219,20 +209,16 @@ export async function updateComplaintStatus(
       },
     });
 
-    // Create a ComplaintUpdate record for the status change
     await db.complaintUpdate.create({
       data: {
         complaintId,
-        updateType: "STATUS_CHANGE",
-        message: `Status changed to ${validatedStatus}`,
-        oldStatus: complaint.status,
-        newStatus: validatedStatus,
+        content: `Status changed from ${complaint.status} to ${validatedStatus}`,
         updatedById: session.user.id,
       },
     });
 
-    // Revalidate the warden dashboard to show updated data
     revalidatePath("/warden/dashboard");
+    revalidatePath("/student/complaints");
 
     console.log(
       `[Complaint Updated] User: ${session.user.id}, Complaint: ${complaintId}, New Status: ${validatedStatus}`
@@ -251,17 +237,11 @@ export async function updateComplaintStatus(
 
     if (error instanceof z.ZodError) {
       const fieldErrors = error.issues.map((e) => e.message).join(", ");
-      return {
-        success: false,
-        error: `Validation error: ${fieldErrors}`,
-      };
+      return { success: false, error: `Validation error: ${fieldErrors}` };
     }
 
     if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message || "Failed to update complaint status",
-      };
+      return { success: false, error: error.message || "Failed to update complaint status" };
     }
 
     return {
@@ -285,59 +265,50 @@ interface ComplaintUpdateRecord {
   };
 }
 
+const parseStatusTransition = (content: string): { oldStatus: string | null; newStatus: string | null } => {
+  const match = content.match(/^Status changed from ([A-Z_]+) to ([A-Z_]+)$/);
+  if (!match) {
+    return { oldStatus: null, newStatus: null };
+  }
+  return { oldStatus: match[1], newStatus: match[2] };
+};
+
 export async function getComplaintUpdates(
   complaintId: string
 ): Promise<{ success: boolean; updates?: ComplaintUpdateRecord[]; error?: string }> {
   try {
-    // Get current session
     const session = await auth();
-
-    // Check authentication
     if (!session?.user) {
-      return {
-        success: false,
-        error: "You must be logged in to view updates",
-      };
+      return { success: false, error: "You must be logged in to view updates" };
     }
 
-    // Get the complaint to verify student owns it
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
       select: {
-        studentId: true,
+        studentProfile: {
+          select: {
+            userId: true,
+          },
+        },
       },
     });
 
     if (!complaint) {
-      return {
-        success: false,
-        error: "Complaint not found",
-      };
+      return { success: false, error: "Complaint not found" };
     }
 
-    // Authorization: Students can only view their own complaints' updates
-    // Wardens and staff can view all
-    if (
-      session.user.role === "STUDENT" &&
-      complaint.studentId !== session.user.id
-    ) {
+    if (session.user.role === "STUDENT" && complaint.studentProfile?.userId !== session.user.id) {
       return {
         success: false,
         error: "You can only view updates for your own complaints",
       };
     }
 
-    // Fetch all updates for this complaint
     const updates = await db.complaintUpdate.findMany({
-      where: {
-        complaintId,
-      },
+      where: { complaintId },
       select: {
         id: true,
-        updateType: true,
-        message: true,
-        oldStatus: true,
-        newStatus: true,
+        content: true,
         createdAt: true,
         updatedBy: {
           select: {
@@ -352,9 +323,27 @@ export async function getComplaintUpdates(
       },
     });
 
+    const mappedUpdates: ComplaintUpdateRecord[] = updates.map((update) => {
+      const isStatusChange = update.content.startsWith("Status changed from ");
+      const parsed = parseStatusTransition(update.content);
+      return {
+        id: update.id,
+        updateType: isStatusChange ? "STATUS_CHANGE" : "COMMENT",
+        message: update.content,
+        oldStatus: parsed.oldStatus,
+        newStatus: parsed.newStatus,
+        createdAt: update.createdAt,
+        updatedBy: {
+          name: update.updatedBy.name,
+          role: String(update.updatedBy.role),
+          avatar: update.updatedBy.avatar,
+        },
+      };
+    });
+
     return {
       success: true,
-      updates,
+      updates: mappedUpdates,
     };
   } catch (error) {
     console.error("[Get Complaint Updates Error]", error);
@@ -379,71 +368,48 @@ export async function addComplaintComment(
   message: string
 ): Promise<AddCommentResult> {
   try {
-    // Get current session
     const session = await auth();
-
-    // Check authentication
     if (!session?.user) {
+      return { success: false, error: "You must be logged in to add comments" };
+    }
+
+    if (!MANAGEMENT_ROLES.has(session.user.role)) {
       return {
         success: false,
-        error: "You must be logged in to add comments",
+        error: "Only management users can add comments",
       };
     }
 
-    // Check user role - only WARDEN and STAFF can add comments
-    if (
-      session.user.role !== "WARDEN" &&
-      session.user.role !== "STAFF"
-    ) {
-      return {
-        success: false,
-        error: "Only wardens and staff can add comments",
-      };
-    }
-
-    // Validate message
     if (!message || message.trim().length === 0) {
-      return {
-        success: false,
-        error: "Comment cannot be empty",
-      };
+      return { success: false, error: "Comment cannot be empty" };
     }
 
     if (message.length > 2000) {
-      return {
-        success: false,
-        error: "Comment must not exceed 2000 characters",
-      };
+      return { success: false, error: "Comment must not exceed 2000 characters" };
     }
 
-    // Get the complaint to verify existence
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
+      select: { id: true },
     });
 
     if (!complaint) {
-      return {
-        success: false,
-        error: "Complaint not found",
-      };
+      return { success: false, error: "Complaint not found" };
     }
 
-    // Create a ComplaintUpdate record for the comment
     const update = await db.complaintUpdate.create({
       data: {
         complaintId,
-        updateType: "COMMENT",
-        message: message.trim(),
+        content: message.trim(),
         updatedById: session.user.id,
       },
       select: {
         id: true,
-        message: true,
+        content: true,
       },
     });
 
-    // Revalidate paths
-    revalidatePath("/complaints");
+    revalidatePath("/student/complaints");
 
     console.log(`[Comment Added] User: ${session.user.id}, Complaint: ${complaintId}`);
 
@@ -451,17 +417,14 @@ export async function addComplaintComment(
       success: true,
       data: {
         id: update.id,
-        message: update.message,
+        message: update.content,
       },
     };
   } catch (error) {
     console.error("[Add Comment Error]", error);
 
     if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message || "Failed to add comment",
-      };
+      return { success: false, error: error.message || "Failed to add comment" };
     }
 
     return {

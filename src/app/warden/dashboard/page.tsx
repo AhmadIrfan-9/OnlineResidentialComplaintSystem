@@ -36,7 +36,7 @@ export default async function WardenDashboard() {
   }
 
   // Get warden's hostel
-  const hostel = await db.hostel.findUnique({
+  const hostel = await db.hostel.findFirst({
     where: { wardenId: session.user.id },
   });
 
@@ -67,21 +67,21 @@ export default async function WardenDashboard() {
         where: { hostelId: hostel.id },
       }),
 
-      // Pending Today: OPEN status created today
+      // Pending Today: SUBMITTED status created today
       db.complaint.count({
         where: {
           hostelId: hostel.id,
-          status: "OPEN",
+          status: "SUBMITTED",
           createdAt: { gte: todayStart },
         },
       }),
 
-      // Urgent Issues: HIGH priority regardless of status
+      // Urgent Issues: URGENT/EMERGENCY priority regardless of status
       db.complaint.count({
         where: {
           hostelId: hostel.id,
-          priority: "HIGH",
-          status: { in: ["OPEN", "ASSIGNED", "IN_PROGRESS"] },
+          priority: { in: ["URGENT", "EMERGENCY"] },
+          status: { in: ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"] },
         },
       }),
 

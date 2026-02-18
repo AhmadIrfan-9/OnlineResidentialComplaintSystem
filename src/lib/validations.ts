@@ -4,10 +4,10 @@ import { z } from "zod";
 export const ComplaintCategoryEnum = z.enum([
   "PLUMBING",
   "WIFI",
-  "ELECTRICAL",
+  "ELECTRIC",
+  "CLEANING",
   "FURNITURE",
   "MAINTENANCE",
-  "CLEANLINESS",
   "NOISE",
   "SECURITY",
   "OTHER",
@@ -16,17 +16,18 @@ export const ComplaintCategoryEnum = z.enum([
 export type ComplaintCategory = z.infer<typeof ComplaintCategoryEnum>;
 
 // Priority enum
-export const PriorityEnum = z.enum(["LOW", "MEDIUM", "HIGH"]);
+export const PriorityEnum = z.enum(["ROUTINE", "URGENT", "EMERGENCY"]);
 
 export type Priority = z.infer<typeof PriorityEnum>;
 
 // Complaint Status enum - matches Prisma
 export const ComplaintStatusEnum = z.enum([
-  "OPEN",
-  "ASSIGNED",
+  "SUBMITTED",
+  "ACKNOWLEDGED",
+  "UNDER_REVIEW",
   "IN_PROGRESS",
   "RESOLVED",
-  "REJECTED",
+  "CLOSED",
 ]);
 
 export type ComplaintStatus = z.infer<typeof ComplaintStatusEnum>;
@@ -45,15 +46,15 @@ export const complaintSubmissionSchema = z.object({
     (val) => val !== undefined,
     "Please select a category"
   ),
-  priority: PriorityEnum.default("MEDIUM"),
-  roomId: z.string().uuid("Invalid room ID"),
+  priority: PriorityEnum.default("ROUTINE"),
+  roomId: z.string().min(1, "Room is required"),
   attachments: z
     .array(z.string().url("Invalid image URL"))
     .optional()
     .default([]),
 });
 
-export type ComplaintSubmissionInput = z.infer<
+export type ComplaintSubmissionInput = z.input<
   typeof complaintSubmissionSchema
 >;
 
@@ -61,7 +62,6 @@ export type ComplaintSubmissionInput = z.infer<
 export const complaintUpdateSchema = z.object({
   status: ComplaintStatusEnum.optional(),
   priority: PriorityEnum.optional(),
-  assignedToId: z.string().uuid().optional().nullable(),
   resolution: z
     .string()
     .min(10, "Resolution must be at least 10 characters")
@@ -75,10 +75,10 @@ export type ComplaintUpdateInput = z.infer<typeof complaintUpdateSchema>;
 export const categoryLabels: Record<ComplaintCategory, string> = {
   PLUMBING: "Plumbing",
   WIFI: "WiFi & Internet",
-  ELECTRICAL: "Electrical",
+  ELECTRIC: "Electrical",
+  CLEANING: "Cleaning",
   FURNITURE: "Furniture",
   MAINTENANCE: "Maintenance",
-  CLEANLINESS: "Cleanliness",
   NOISE: "Noise",
   SECURITY: "Security",
   OTHER: "Other",
@@ -86,30 +86,32 @@ export const categoryLabels: Record<ComplaintCategory, string> = {
 
 // Priority display with colors
 export const priorityLabels: Record<Priority, string> = {
-  LOW: "Low",
-  MEDIUM: "Medium",
-  HIGH: "Urgent",
+  ROUTINE: "Routine",
+  URGENT: "Urgent",
+  EMERGENCY: "Emergency",
 };
 
 export const priorityColors: Record<Priority, string> = {
-  LOW: "bg-green-100 text-green-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  HIGH: "bg-red-100 text-red-800",
+  ROUTINE: "bg-green-100 text-green-800",
+  URGENT: "bg-yellow-100 text-yellow-800",
+  EMERGENCY: "bg-red-100 text-red-800",
 };
 
 // Status display with colors
 export const statusLabels: Record<ComplaintStatus, string> = {
-  OPEN: "Open",
-  ASSIGNED: "Assigned",
+  SUBMITTED: "Submitted",
+  ACKNOWLEDGED: "Acknowledged",
+  UNDER_REVIEW: "Under Review",
   IN_PROGRESS: "In Progress",
   RESOLVED: "Resolved",
-  REJECTED: "Rejected",
+  CLOSED: "Closed",
 };
 
 export const statusColors: Record<ComplaintStatus, string> = {
-  OPEN: "bg-blue-100 text-blue-800",
-  ASSIGNED: "bg-purple-100 text-purple-800",
+  SUBMITTED: "bg-blue-100 text-blue-800",
+  ACKNOWLEDGED: "bg-indigo-100 text-indigo-800",
+  UNDER_REVIEW: "bg-purple-100 text-purple-800",
   IN_PROGRESS: "bg-orange-100 text-orange-800",
   RESOLVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-800",
+  CLOSED: "bg-gray-100 text-gray-800",
 };
