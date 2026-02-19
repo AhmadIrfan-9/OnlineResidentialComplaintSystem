@@ -2,7 +2,10 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import {
+  ComplaintCategoryEnum,
+  PriorityEnum,
   complaintSubmissionSchema,
   ComplaintStatusEnum,
   type ComplaintSubmissionInput,
@@ -21,6 +24,44 @@ interface CreateComplaintResult {
   error?: string;
 }
 
+const createComplaintSubmissionSchema = z
+  .object({
+    title: z.string().min(5).max(100),
+    description: z.string().min(10).max(2000),
+    category: ComplaintCategoryEnum,
+    priority: PriorityEnum.default("ROUTINE"),
+    roomId: z.string().min(1),
+    studentId: z.string().min(1).optional().nullable(),
+    isAnonymous: z.boolean().default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.isAnonymous && !value.studentId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["studentId"],
+        message: "studentId is required when complaint is not anonymous",
+      });
+    }
+  });
+
+export type CreateComplaintSubmissionInput = z.infer<
+  typeof createComplaintSubmissionSchema
+>;
+
+interface CreateComplaintSubmissionResult {
+  success: boolean;
+  data?: {
+    id: string;
+    title: string;
+    category: string;
+    priority: string;
+    roomId: string;
+    studentProfileId: string | null;
+    isAnonymous: boolean;
+  };
+  error?: string;
+}
+
 const MANAGEMENT_ROLES = new Set(["MANAGEMENT", "WARDEN", "STAFF"]);
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
@@ -31,6 +72,86 @@ const inferFileTypeFromUrl = (fileUrl: string): string => {
   if (cleanUrl.endsWith(".gif")) return "image/gif";
   return "application/octet-stream";
 };
+
+export async function createComplaintSubmission(
+  input: CreateComplaintSubmissionInput
+): Promise<CreateComplaintSubmissionResult> {
+  try {
+    const validatedInput = createComplaintSubmissionSchema.parse(input);
+
+    const room = await prisma.room.findUnique({
+      where: { id: validatedInput.roomId },
+      select: {
+        id: true,
+        hostelId: true,
+      },
+    });
+
+    if (!room) {
+      return { success: false, error: "Room not found" };
+    }
+
+    let studentProfileId: string | null = null;
+    if (!validatedInput.isAnonymous) {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { id: validatedInput.studentId as string },
+        select: { id: true },
+      });
+
+      if (!studentProfile) {
+        return { success: false, error: "Student profile not found" };
+      }
+
+      studentProfileId = studentProfile.id;
+    }
+
+    const complaint = await prisma.complaint.create({
+      data: {
+        title: validatedInput.title,
+        description: validatedInput.description,
+        category: validatedInput.category,
+        priority: validatedInput.priority,
+        status: "SUBMITTED",
+        roomId: room.id,
+        hostelId: room.hostelId,
+        isAnonymous: validatedInput.isAnonymous,
+        studentProfileId,
+      },
+      select: {
+        id: true,
+        title: true,
+        category: true,
+        priority: true,
+        roomId: true,
+        studentProfileId: true,
+        isAnonymous: true,
+      },
+    });
+
+    return { success: true, data: complaint };
+  } catch (error) {
+    console.error("[Create Complaint Submission Error]", error);
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.issues.map((issue) => issue.message).join(", "),
+      };
+    }
+
+    if (error instanceof Error) {
+      return {
+        success: false,
+        error: error.message || "Failed to create complaint",
+      };
+    }
+
+    return {
+      success: false,
+      error: "An unexpected error occurred while creating the complaint",
+    };
+  }
+}
 
 export async function createComplaint(
   formData: ComplaintSubmissionInput
