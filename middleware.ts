@@ -1,6 +1,6 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { isManagementRole, isStudentRole } from "@/lib/roles";
+import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -45,9 +45,14 @@ export async function middleware(request: NextRequest) {
   const wantsWardenArea =
     pathnameNormalized.startsWith("/warden") ||
     pathnameNormalized.startsWith("/dashboard/warden");
+  const wantsAdminArea = pathnameNormalized.startsWith("/admin");
 
   if (wantsStudentArea && !isStudentRole(userRole)) {
     return NextResponse.redirect(new URL("/dashboard/warden", request.url));
+  }
+
+  if (wantsAdminArea && !isAdminRole(userRole)) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (wantsWardenArea && !isManagementRole(userRole)) {

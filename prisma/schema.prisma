@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-
 }
 
 enum ComplaintCategory {
@@ -52,12 +51,15 @@ model User {
   role      UserRole
   phone     String?
   avatar    String?
+  isActive  Boolean  @default(true)
+  lastLoginAt DateTime?
 
   // Relations
   studentProfile   StudentProfile?
   wardenHostels    Hostel[]  @relation("WardenToHostel")
   complaintUpdates ComplaintUpdate[]
   notifications    Notification[]
+  auditLogs        AuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -199,4 +201,66 @@ model Notification {
   complaintId String
 
   @@map("notifications")
+}
+
+model AdminCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admin_categories")
+}
+
+model AdminDepartment {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  email             String
+  slaRoutineHours   Int      @default(168)
+  slaUrgentHours    Int      @default(24)
+  slaEmergencyHours Int      @default(4)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("admin_departments")
+}
+
+model AdminSlaSetting {
+  id                  String   @id @default("default")
+  routineDays         Int      @default(7)
+  urgentHours         Int      @default(24)
+  emergencyHours      Int      @default(4)
+  autoEscalationHours Int      @default(12)
+  updatedAt           DateTime @updatedAt
+
+  @@map("admin_sla_settings")
+}
+
+model AdminEmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  subject   String
+  html      String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_email_templates")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  action    String
+  resource  String
+  before    String?  @db.Text
+  after     String?  @db.Text
+  ipAddress String?
+  userName  String
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId String?
+
+  @@map("audit_logs")
 }

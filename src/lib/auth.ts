@@ -39,11 +39,16 @@ export const authOptions = {
             name: true,
             password: true,
             role: true,
+            isActive: true,
           },
         });
 
         if (!user) {
           throw new Error("User not found");
+        }
+
+        if (!user.isActive) {
+          throw new Error("Account is inactive");
         }
 
         // Verify password
@@ -52,6 +57,21 @@ export const authOptions = {
         if (!isPasswordValid) {
           throw new Error("Invalid password");
         }
+
+        await db.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
+
+        await db.auditLog.create({
+          data: {
+            userId: user.id,
+            userName: user.name,
+            action: "Login",
+            resource: "Auth",
+            after: "Session created",
+          },
+        });
 
         return {
           id: user.id,

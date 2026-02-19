@@ -1,163 +1,300 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { type Complaint, type Status } from "@prisma/client";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Clock3,
+  FileClock,
+  LineChart,
+  PieChart,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { redirect } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { AlertCircle, CheckCircle, Clock, FileText } from "lucide-react";
-import { ComplaintsDataTable } from "@/components/warden/ComplaintsDataTable";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string;
-  value: number;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <Card className="border border-slate-200/80 bg-slate-50 shadow-none">
-      <div className="flex items-start justify-between p-5">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-800">{value}</p>
-        </div>
-        <Icon className="h-7 w-7 text-blue-600" />
-      </div>
-    </Card>
-  );
-}
+const STATUS_OPEN: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
+const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
 
-export default async function WardenDashboard() {
+const slaDaysByPriority = (priority: Complaint["priority"]): number => {
+  if (priority === "EMERGENCY") return 4 / 24;
+  if (priority === "URGENT") return 1;
+  return 7;
+};
+
+const asDays = (ms: number): number => ms / (1000 * 60 * 60 * 24);
+
+const cssPercent = (value: number, total: number): string => {
+  if (total <= 0) return "0%";
+  return `${Math.max(0, Math.min(100, (value / total) * 100))}%`;
+};
+
+const metricColor = (type: "pending" | "overdue" | "sla", value: number): string => {
+  if (type === "pending") return value > 5 ? "text-red-600" : "text-slate-900";
+  if (type === "overdue") return value > 0 ? "text-red-600" : "text-slate-900";
+  if (value > 90) return "text-emerald-600";
+  if (value >= 70) return "text-amber-600";
+  return "text-red-600";
+};
+
+const chartStrokePoints = (values: number[], width = 360, height = 120): string => {
+  if (values.length === 0) return "";
+  const maxVal = Math.max(...values, 1);
+  const stepX = values.length > 1 ? width / (values.length - 1) : width;
+  return values
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = height - (v / maxVal) * (height - 10) - 5;
+      return `${x},${y}`;
+    })
+    .join(" ");
+};
+
+const navClass =
+  "inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
+
+export default async function ManagementDashboardPage() {
   const session = await auth();
-
-  // Verify user is warden/management
   const role = normalizeRoleKey(session?.user?.role);
+
   if (!session?.user || !isManagementRole(role)) {
     redirect("/login");
   }
 
-  // MANAGEMENT is scoped to assigned hostel; IT_STAFF_ADMIN can view first available hostel.
   const hostel = await db.hostel.findFirst({
     where: role === "MANAGEMENT" ? { wardenId: session.user.id } : undefined,
+    select: { id: true, name: true },
   });
 
   if (!hostel) {
     return (
-      <div className="p-8">
-        <h1 className="text-2xl font-bold text-red-600">
-          No hostel assigned to your account
-        </h1>
-      </div>
+      <main className="min-h-screen p-4 md:p-8">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
+          No hostel assigned to this management account.
+        </div>
+      </main>
     );
   }
 
-  // Get today's start time (midnight)
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const start30 = new Date(now);
+  start30.setDate(now.getDate() - 29);
+  start30.setHours(0, 0, 0, 0);
 
-  // Get week start (7 days ago)
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 7);
-  weekStart.setHours(0, 0, 0, 0);
+  const complaints = await db.complaint.findMany({
+    where: {
+      hostelId: hostel.id,
+      createdAt: { gte: start30 },
+    },
+    select: {
+      id: true,
+      priority: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      resolvedAt: true,
+      closedAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
 
-  // Fetch statistics using Prisma aggregation
-  const [totalComplaints, pendingToday, urgentIssues, resolvedThisWeek] =
-    await Promise.all([
-      // Total Complaints: All complaints for this hostel
-      db.complaint.count({
-        where: { hostelId: hostel.id },
-      }),
+  const pendingComplaints = complaints.filter((c) => STATUS_OPEN.includes(c.status)).length;
 
-      // Pending Today: SUBMITTED status created today
-      db.complaint.count({
-        where: {
-          hostelId: hostel.id,
-          status: "SUBMITTED",
-          createdAt: { gte: todayStart },
-        },
-      }),
+  const overdueComplaints = complaints.filter((c) => {
+    if (!STATUS_OPEN.includes(c.status)) return false;
+    const elapsed = asDays(now.getTime() - c.createdAt.getTime());
+    return elapsed > slaDaysByPriority(c.priority);
+  }).length;
 
-      // Urgent Issues: URGENT/EMERGENCY priority regardless of status
-      db.complaint.count({
-        where: {
-          hostelId: hostel.id,
-          priority: { in: ["URGENT", "EMERGENCY"] },
-          status: { in: ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"] },
-        },
-      }),
+  const resolved = complaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
+  const avgResponseTimeDays =
+    resolved.length === 0
+      ? 0
+      : resolved.reduce((acc, c) => {
+          const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+          return acc + asDays(end.getTime() - c.createdAt.getTime());
+        }, 0) / resolved.length;
 
-      // Resolved This Week: RESOLVED status from last 7 days
-      db.complaint.count({
-        where: {
-          hostelId: hostel.id,
-          status: "RESOLVED",
-          updatedAt: { gte: weekStart },
-        },
-      }),
-    ]);
+  const slaCompliantCount = complaints.filter((c) => {
+    const end = STATUS_OPEN.includes(c.status) ? now : c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+    const elapsed = asDays(end.getTime() - c.createdAt.getTime());
+    return elapsed <= slaDaysByPriority(c.priority);
+  }).length;
+  const slaCompliance = complaints.length ? (slaCompliantCount / complaints.length) * 100 : 0;
+
+  const trendBuckets = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(start30);
+    day.setDate(start30.getDate() + i);
+    day.setHours(0, 0, 0, 0);
+    return day;
+  });
+  const trendCounts = trendBuckets.map((day) =>
+    complaints.filter((c) => c.createdAt.toDateString() === day.toDateString()).length
+  );
+
+  const statusPending = complaints.filter((c) =>
+    c.status === "SUBMITTED" || c.status === "ACKNOWLEDGED"
+  ).length;
+  const statusInProgress = complaints.filter((c) =>
+    c.status === "UNDER_REVIEW" || c.status === "IN_PROGRESS"
+  ).length;
+  const statusResolved = complaints.filter((c) =>
+    c.status === "RESOLVED" || c.status === "CLOSED"
+  ).length;
+  const statusTotal = Math.max(complaints.length, 1);
+  const pieGradient = `conic-gradient(
+    #ef4444 0 ${cssPercent(statusPending, statusTotal)},
+    #f59e0b ${cssPercent(statusPending, statusTotal)} ${cssPercent(
+      statusPending + statusInProgress,
+      statusTotal
+    )},
+    #10b981 ${cssPercent(statusPending + statusInProgress, statusTotal)} 100%
+  )`;
+
+  const responseTimes = resolved.map((c) => {
+    const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+    return asDays(end.getTime() - c.createdAt.getTime());
+  });
+  const histo = RESPONSE_HISTO_BUCKETS.map((bucket) => {
+    if (bucket === "0-1 day") return responseTimes.filter((d) => d <= 1).length;
+    if (bucket === "1-2 days") return responseTimes.filter((d) => d > 1 && d <= 2).length;
+    if (bucket === "2-3 days") return responseTimes.filter((d) => d > 2 && d <= 3).length;
+    if (bucket === "3-5 days") return responseTimes.filter((d) => d > 3 && d <= 5).length;
+    return responseTimes.filter((d) => d > 5).length;
+  });
+  const histoMax = Math.max(...histo, 1);
 
   return (
-    <main className="min-h-screen p-4 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-6 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-4 shadow-sm md:p-6">
-        <header className="rounded-xl bg-slate-800 px-6 py-5">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-100">
-            Management Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Monitor and manage complaints for {hostel.name}
-          </p>
+    <main className="min-h-screen bg-slate-50 p-3 md:p-6">
+      <div className="mx-auto max-w-7xl space-y-4">
+        <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded bg-blue-600" />
+              <span className="text-base font-semibold text-slate-900">ORCS</span>
+            </div>
+            <nav className="flex flex-wrap items-center gap-2">
+              <Link href="/warden/dashboard" className={`${navClass} border-blue-600 bg-blue-50 text-blue-700`}>
+                Dashboard
+              </Link>
+              <Link href="/warden/queue" className={navClass}>
+                Complaint Queue
+              </Link>
+              <Link href="/warden/reports" className={navClass}>
+                Reports
+              </Link>
+            </nav>
+            <button className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+              {session.user.name ?? "Staff Name"} ↓
+            </button>
+          </div>
         </header>
 
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-4 text-xl font-semibold text-slate-800">Key Metrics</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              label="Total Complaints"
-              value={totalComplaints}
-              icon={FileText}
-            />
-            <StatCard
-              label="Pending Today"
-              value={pendingToday}
-              icon={Clock}
-            />
-            <StatCard
-              label="Urgent Issues"
-              value={urgentIssues}
-              icon={AlertCircle}
-            />
-            <StatCard
-              label="Resolved This Week"
-              value={resolvedThisWeek}
-              icon={CheckCircle}
-            />
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <FileClock className="h-4 w-4" /> Pending complaints
+            </div>
+            <p className={`text-3xl font-semibold ${metricColor("pending", pendingComplaints)}`}>
+              {pendingComplaints}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <AlertTriangle className="h-4 w-4" /> Overdue complaints
+            </div>
+            <p className={`text-3xl font-semibold ${metricColor("overdue", overdueComplaints)}`}>
+              {overdueComplaints}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <Clock3 className="h-4 w-4" /> Average response time
+            </div>
+            <p className="text-3xl font-semibold text-slate-900">{avgResponseTimeDays.toFixed(1)} days</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <Activity className="h-4 w-4" /> SLA compliance
+            </div>
+            <p className={`text-3xl font-semibold ${metricColor("sla", slaCompliance)}`}>
+              {slaCompliance.toFixed(1)}%
+            </p>
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-4 text-xl font-semibold text-slate-800">Hostel Overview</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-sm text-slate-500">Hostel Name</p>
-              <p className="text-lg font-semibold text-slate-800">{hostel.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Warden ID</p>
-              <p className="text-lg font-semibold text-slate-800">{session.user.id}</p>
-            </div>
-            <div>
-              <p className="text-sm text-slate-500">Total Rooms</p>
-              <p className="text-lg font-semibold text-slate-800">Coming Soon</p>
+        <section className="grid gap-4 xl:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2">
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <LineChart className="h-4 w-4" /> Complaint volume trend (last 30 days)
+            </p>
+            <svg viewBox="0 0 360 130" className="h-48 w-full">
+              <polyline
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="3"
+                points={chartStrokePoints(trendCounts)}
+              />
+              {trendCounts.map((count, i) => {
+                const maxVal = Math.max(...trendCounts, 1);
+                const x = trendCounts.length > 1 ? (i * 360) / (trendCounts.length - 1) : 0;
+                const y = 120 - (count / maxVal) * 110;
+                return <circle key={i} cx={x} cy={y} r="2.5" fill="#1d4ed8" />;
+              })}
+            </svg>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <PieChart className="h-4 w-4" /> Status breakdown
+              </p>
+              <div className="mx-auto h-36 w-36 rounded-full" style={{ background: pieGradient }} />
+              <div className="mt-3 space-y-1 text-xs text-slate-600">
+                <p>Pending: {statusPending}</p>
+                <p>In Progress: {statusInProgress}</p>
+                <p>Resolved: {statusResolved}</p>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-4 text-xl font-semibold text-slate-800">All Complaints</h2>
-          <ComplaintsDataTable />
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <BarChart3 className="h-4 w-4" /> Response time histogram
+          </p>
+          <div className="grid gap-3 md:grid-cols-5">
+            {RESPONSE_HISTO_BUCKETS.map((bucket, idx) => (
+              <div key={bucket} className="space-y-2">
+                <div className="h-28 rounded bg-slate-100 p-2">
+                  <div
+                    className="h-full rounded bg-blue-600"
+                    style={{ marginTop: `${100 - (histo[idx] / histoMax) * 100}%` }}
+                  />
+                </div>
+                <p className="text-center text-xs text-slate-600">{bucket}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-sm font-semibold text-slate-800">Quick actions</p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/warden/queue" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+              View Complaint Queue
+            </Link>
+            <Link href="/warden/reports" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+              Generate Report
+            </Link>
+            <Link href="/warden/analytics" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+              View Analytics
+            </Link>
+          </div>
         </section>
       </div>
     </main>
   );
 }
+

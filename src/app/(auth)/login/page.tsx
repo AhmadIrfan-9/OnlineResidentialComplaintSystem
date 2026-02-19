@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { db } from "@/lib/db";
 import { LoginForm } from "@/components/shared/LoginForm";
-import { isManagementRole, isStudentRole } from "@/lib/roles";
+import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
 
 export const metadata = {
   title: "Sign In | Student Complaint System",
@@ -21,6 +21,10 @@ export default async function LoginPage() {
 
     if (isStudentRole(user?.role)) {
       redirect("/dashboard/student");
+    }
+
+    if (isAdminRole(user?.role)) {
+      redirect("/admin");
     }
 
     if (isManagementRole(user?.role)) {
