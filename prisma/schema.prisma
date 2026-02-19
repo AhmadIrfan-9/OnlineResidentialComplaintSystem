@@ -149,6 +149,7 @@ model Complaint {
 
   complaintUpdates ComplaintUpdate[]
   evidences        Evidence[]
+  notifications    Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -187,7 +188,6 @@ model Evidence {
 
 model Notification {
   id        String   @id @default(cuid())
-  title     String
   message   String   @db.Text
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -195,6 +195,8 @@ model Notification {
   // Relations
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaintId String
 
   @@map("notifications")
 }
