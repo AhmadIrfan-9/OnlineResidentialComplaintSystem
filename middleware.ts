@@ -1,8 +1,26 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
+const toRoleKey = (role: unknown): string =>
+  String(role ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[ /-]+/g, "_");
+
+const isStudentRole = (role: unknown): boolean => toRoleKey(role) === "STUDENT";
+
+const isWardenRole = (role: unknown): boolean => {
+  const normalized = toRoleKey(role);
+  return normalized === "WARDEN" || normalized === "MANAGEMENT";
+};
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Ignore static and auth API paths quickly.
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
 
   // Get the token from the request
   const token = await getToken({
@@ -11,9 +29,9 @@ export async function middleware(request: NextRequest) {
   });
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/(auth)/login"];
+  const publicRoutes = ["/", "/login"];
   const isPublicRoute = publicRoutes.some((route) =>
-    pathname === route || pathname.startsWith(route.replace(/\(/g, "").replace(/\)/g, ""))
+    pathname === route || pathname.startsWith(route)
   );
 
   // If public route, allow access
@@ -23,33 +41,29 @@ export async function middleware(request: NextRequest) {
 
   // If trying to access protected route without authentication
   if (!token) {
-    // Redirect to login
-    return NextResponse.redirect(new URL("/(auth)/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Role-based route protection
-  const userRole = token.role as string;
-  const pathname_normalized = pathname.toLowerCase();
+  const userRole = token.role;
+  const pathnameNormalized = pathname.toLowerCase();
 
-  // Warden routes
-  if (pathname_normalized.startsWith("/warden")) {
-    if (userRole !== "WARDEN") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
+  const wantsStudentArea =
+    pathnameNormalized.startsWith("/student") ||
+    pathnameNormalized.startsWith("/dashboard/student");
+
+  const wantsWardenArea =
+    pathnameNormalized.startsWith("/warden") ||
+    pathnameNormalized.startsWith("/dashboard/warden");
+
+  if (wantsStudentArea && !isStudentRole(userRole)) {
+    return NextResponse.redirect(new URL("/dashboard/warden", request.url));
   }
 
-  // Staff routes
-  if (pathname_normalized.startsWith("/staff")) {
-    if (userRole !== "STAFF") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-  }
-
-  // Student routes
-  if (pathname_normalized.startsWith("/student")) {
-    if (userRole !== "STUDENT") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
+  if (wantsWardenArea && !isWardenRole(userRole)) {
+    return NextResponse.redirect(new URL("/dashboard/student", request.url));
   }
 
   // Allow access if all checks pass
@@ -66,6 +80,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    "/((?!_next/static|_next/image|favicon.ico|public).*)",
+    "/((?!_next/static|_next/image|favicon.ico|public|api/auth).*)",
   ],
 };
