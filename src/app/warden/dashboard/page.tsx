@@ -30,8 +30,9 @@ function StatCard({
 export default async function WardenDashboard() {
   const session = await auth();
 
-  // Verify user is warden
-  if (!session?.user || session.user.role !== "WARDEN") {
+  // Verify user is warden/management
+  const role = String(session?.user?.role ?? "").toUpperCase();
+  if (!session?.user || (role !== "WARDEN" && role !== "MANAGEMENT")) {
     redirect("/login");
   }
 
