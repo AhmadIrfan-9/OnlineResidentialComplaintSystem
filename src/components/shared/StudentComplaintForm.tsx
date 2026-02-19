@@ -27,6 +27,7 @@ interface CategoryOption {
 interface StudentComplaintFormProps {
   categories: CategoryOption[];
   hostelName: string;
+  roomId: string;
 }
 
 const MAX_FILES = 3;
@@ -37,10 +38,12 @@ const MIN_DESCRIPTION_LENGTH = 20;
 export function StudentComplaintForm({
   categories,
   hostelName,
+  roomId,
 }: StudentComplaintFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(categories[0]?.value ?? "");
   const [locationBlock, setLocationBlock] = useState("");
   const [severity, setSeverity] = useState<Severity>("ROUTINE");
@@ -50,18 +53,21 @@ export function StudentComplaintForm({
   const [fileError, setFileError] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [touched, setTouched] = useState({
+    title: false,
     category: false,
     description: false,
     severity: false,
   });
 
+  const titleValid = title.trim().length >= 5;
   const descriptionCount = description.length;
   const categoryValid = category.trim().length > 0;
   const severityValid = severity === "ROUTINE" || severity === "URGENT" || severity === "EMERGENCY";
   const descriptionRequiredValid = description.trim().length > 0;
   const descriptionValid = descriptionCount >= MIN_DESCRIPTION_LENGTH;
-  const formValid = categoryValid && severityValid && descriptionValid;
+  const formValid = titleValid && categoryValid && severityValid && descriptionValid;
 
   const helperText = useMemo(
     () =>
@@ -69,6 +75,7 @@ export function StudentComplaintForm({
     []
   );
 
+  const showTitleError = (attemptedSubmit || touched.title) && !titleValid;
   const showCategoryError = (attemptedSubmit || touched.category) && !categoryValid;
   const showSeverityError = (attemptedSubmit || touched.severity) && !severityValid;
   const showDescriptionRequiredError =
@@ -112,24 +119,50 @@ export function StudentComplaintForm({
     applyFiles(event.dataTransfer.files);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAttemptedSubmit(true);
+    setSubmitMessage("");
 
     if (!formValid) {
-      setSubmitMessage("");
       return;
     }
 
-    setSubmitMessage(
-      mode === "ANONYMOUS"
-        ? "Anonymous complaint draft is ready to submit."
-        : "Identified complaint draft is ready to submit."
-    );
+    try {
+      setIsSubmitting(true);
+      const response = await fetch("/api/complaints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          priority: severity,
+          roomId,
+          attachments: [],
+          isAnonymous: mode === "ANONYMOUS",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        setSubmitMessage(payload.message || "Failed to submit complaint.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      setSubmitMessage("Complaint submitted successfully.");
+      router.push("/complaints");
+      router.refresh();
+    } catch {
+      setSubmitMessage("Failed to submit complaint.");
+      setIsSubmitting(false);
+    }
   };
 
   const handleSaveAsDraft = () => {
     const draft = {
+      title,
       category,
       locationBlock,
       severity,
@@ -160,6 +193,27 @@ export function StudentComplaintForm({
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="title">Title</Label>
+              {titleValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            </div>
+            <Input
+              id="title"
+              placeholder="Brief complaint title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              onBlur={() => setTouched((prev) => ({ ...prev, title: true }))}
+              className={cn(
+                showTitleError && "border-red-500 focus-visible:ring-red-500",
+                titleValid && "border-emerald-500"
+              )}
+            />
+            {showTitleError && (
+              <p className="text-xs text-red-600">This field is required</p>
+            )}
+          </div>
+
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -365,7 +419,12 @@ export function StudentComplaintForm({
 
           <div className="flex flex-col gap-3">
             {submitMessage ? (
-              <p className="inline-flex items-center gap-1 text-sm text-emerald-700">
+              <p className={cn(
+                "inline-flex items-center gap-1 text-sm",
+                submitMessage.toLowerCase().includes("success") || submitMessage.toLowerCase().includes("saved")
+                  ? "text-emerald-700"
+                  : "text-red-700"
+              )}>
                 <CheckCircle2 className="h-4 w-4" />
                 {submitMessage}
               </p>
@@ -379,8 +438,8 @@ export function StudentComplaintForm({
               <Button type="button" variant="secondary" onClick={handleSaveAsDraft} className="w-full md:w-auto">
                 Save as Draft
               </Button>
-              <Button type="submit" size="lg" className="w-full md:w-auto md:min-w-44">
-                Submit
+              <Button type="submit" size="lg" className="w-full md:w-auto md:min-w-44" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit"}
               </Button>
             </div>
           </div>

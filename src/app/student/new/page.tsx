@@ -42,6 +42,7 @@ export default async function NewComplaintPage() {
   const studentProfile = await db.studentProfile.findUnique({
     where: { userId: session.user.id },
     select: {
+      roomId: true,
       room: {
         select: {
           hostel: {
@@ -54,7 +55,11 @@ export default async function NewComplaintPage() {
     },
   });
 
-  const hostelName = studentProfile?.room.hostel.name ?? "Hostel not assigned";
+  if (!studentProfile) {
+    redirect("/dashboard/student");
+  }
+
+  const hostelName = studentProfile.room.hostel.name;
 
   let categories: CategoryOption[] = fallbackCategories;
   try {
@@ -76,5 +81,11 @@ export default async function NewComplaintPage() {
     categories = fallbackCategories;
   }
 
-  return <StudentComplaintForm categories={categories} hostelName={hostelName} />;
+  return (
+    <StudentComplaintForm
+      categories={categories}
+      hostelName={hostelName}
+      roomId={studentProfile.roomId}
+    />
+  );
 }
