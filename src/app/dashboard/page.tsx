@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isManagementRole, isStudentRole } from "@/lib/roles";
 
 export default async function DashboardRouterPage() {
   const session = await auth();
@@ -14,13 +15,11 @@ export default async function DashboardRouterPage() {
     select: { role: true },
   });
 
-  const role = String(user?.role ?? "").toUpperCase();
-
-  if (role === "STUDENT") {
+  if (isStudentRole(user?.role)) {
     redirect("/dashboard/student");
   }
 
-  if (role === "WARDEN" || role === "MANAGEMENT") {
+  if (isManagementRole(user?.role)) {
     redirect("/dashboard/warden");
   }
 

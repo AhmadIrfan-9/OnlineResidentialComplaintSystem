@@ -12,6 +12,7 @@ import {
 } from "@/lib/validations";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 
 interface CreateComplaintResult {
   success: boolean;
@@ -61,8 +62,6 @@ interface CreateComplaintSubmissionResult {
   };
   error?: string;
 }
-
-const MANAGEMENT_ROLES = new Set(["MANAGEMENT", "WARDEN", "STAFF"]);
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -282,7 +281,7 @@ export async function updateComplaintStatus(
       return { success: false, error: "You must be logged in to update complaints" };
     }
 
-    if (!MANAGEMENT_ROLES.has(session.user.role)) {
+    if (!isManagementRole(session.user.role)) {
       return {
         success: false,
         error: "Only management users can update complaint status",
@@ -306,7 +305,10 @@ export async function updateComplaintStatus(
       return { success: false, error: "Complaint not found" };
     }
 
-    if (session.user.role === "WARDEN" && complaint.hostel.wardenId !== session.user.id) {
+    if (
+      normalizeRoleKey(session.user.role) === "MANAGEMENT" &&
+      complaint.hostel.wardenId !== session.user.id
+    ) {
       return {
         success: false,
         error: "You can only update complaints from your assigned hostel",
@@ -494,7 +496,7 @@ export async function addComplaintComment(
       return { success: false, error: "You must be logged in to add comments" };
     }
 
-    if (!MANAGEMENT_ROLES.has(session.user.role)) {
+    if (!isManagementRole(session.user.role)) {
       return {
         success: false,
         error: "Only management users can add comments",

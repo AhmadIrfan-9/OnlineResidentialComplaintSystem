@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { db } from "@/lib/db";
 import { LoginForm } from "@/components/shared/LoginForm";
+import { isManagementRole, isStudentRole } from "@/lib/roles";
 
 export const metadata = {
   title: "Sign In | Student Complaint System",
@@ -18,20 +19,18 @@ export default async function LoginPage() {
       select: { role: true },
     });
 
-    const role = String(user?.role ?? "").toUpperCase();
-
-    if (role === "STUDENT") {
+    if (isStudentRole(user?.role)) {
       redirect("/dashboard/student");
     }
 
-    if (role === "WARDEN" || role === "MANAGEMENT") {
+    if (isManagementRole(user?.role)) {
       redirect("/dashboard/warden");
     }
 
     redirect("/dashboard");
   }
 
-  const allowedHostelOrder = ["Amanah", "Cendikiawan", "Ilmu", "Murni"] as const;
+  const allowedHostelOrder = ["Cendikiawan"] as const;
 
   const hostels = await db.hostel.findMany({
     where: {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { complaintSubmissionSchema } from "@/lib/validations";
+import { normalizeRoleKey } from "@/lib/roles";
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -148,7 +149,9 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    if (session.user.role === "STUDENT") {
+    const role = normalizeRoleKey(session.user.role);
+
+    if (role === "STUDENT") {
       const studentProfile = await db.studentProfile.findUnique({
         where: { userId: session.user.id },
         select: { id: true },
@@ -162,14 +165,14 @@ export async function GET(request: NextRequest) {
       }
 
       where.studentProfileId = studentProfile.id;
-    } else if (session.user.role === "WARDEN") {
+    } else if (role === "MANAGEMENT") {
       where.hostel = { wardenId: session.user.id };
     }
 
     if (status) where.status = status;
     if (category) where.category = category;
     if (hostelId) where.hostelId = hostelId;
-    if (studentId && session.user.role !== "STUDENT") {
+    if (studentId && role !== "STUDENT") {
       where.studentProfileId = studentId;
     }
 

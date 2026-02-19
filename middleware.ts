@@ -1,18 +1,6 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-
-const toRoleKey = (role: unknown): string =>
-  String(role ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/[ /-]+/g, "_");
-
-const isStudentRole = (role: unknown): boolean => toRoleKey(role) === "STUDENT";
-
-const isWardenRole = (role: unknown): boolean => {
-  const normalized = toRoleKey(role);
-  return normalized === "WARDEN" || normalized === "MANAGEMENT";
-};
+import { isManagementRole, isStudentRole } from "@/lib/roles";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -62,7 +50,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard/warden", request.url));
   }
 
-  if (wantsWardenArea && !isWardenRole(userRole)) {
+  if (wantsWardenArea && !isManagementRole(userRole)) {
     return NextResponse.redirect(new URL("/dashboard/student", request.url));
   }
 

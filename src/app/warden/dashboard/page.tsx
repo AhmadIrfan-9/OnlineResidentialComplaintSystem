@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Clock, FileText } from "lucide-react";
 import { ComplaintsDataTable } from "@/components/warden/ComplaintsDataTable";
+import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 
 function StatCard({
   label,
@@ -31,14 +32,14 @@ export default async function WardenDashboard() {
   const session = await auth();
 
   // Verify user is warden/management
-  const role = String(session?.user?.role ?? "").toUpperCase();
-  if (!session?.user || (role !== "WARDEN" && role !== "MANAGEMENT")) {
+  const role = normalizeRoleKey(session?.user?.role);
+  if (!session?.user || !isManagementRole(role)) {
     redirect("/login");
   }
 
-  // Get warden's hostel
+  // MANAGEMENT is scoped to assigned hostel; IT_STAFF_ADMIN can view first available hostel.
   const hostel = await db.hostel.findFirst({
-    where: { wardenId: session.user.id },
+    where: role === "MANAGEMENT" ? { wardenId: session.user.id } : undefined,
   });
 
   if (!hostel) {

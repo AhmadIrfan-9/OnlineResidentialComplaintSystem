@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Clock, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
 import { getComplaintUpdates } from "@/actions/complaints";
 import Image from "next/image";
+import { normalizeRoleKey } from "@/lib/roles";
 
 interface Update {
   id: string;
@@ -52,10 +53,10 @@ const getUpdateTypeLabel = (type: string) => {
 };
 
 const getRoleBadgeColor = (role: string) => {
-  switch (role.toUpperCase()) {
-    case "WARDEN":
+  switch (normalizeRoleKey(role)) {
+    case "MANAGEMENT":
       return "bg-blue-100 text-blue-800";
-    case "STAFF":
+    case "IT_STAFF_ADMIN":
       return "bg-purple-100 text-purple-800";
     case "STUDENT":
       return "bg-green-100 text-green-800";
@@ -126,7 +127,7 @@ export function ComplaintUpdates({ complaintId }: ComplaintUpdatesProps) {
         <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
 
         {/* Updates list */}
-        {updates.map((update, index) => (
+        {updates.map((update) => (
           <div key={update.id} className="relative pl-20">
             {/* Timeline dot */}
             <div className="absolute left-0 top-1 flex items-center justify-center h-12 w-12 rounded-full bg-white border-2 border-gray-200">
