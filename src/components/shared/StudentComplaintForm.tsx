@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileImage, Film, UploadCloud } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type Severity = "ROUTINE" | "URGENT" | "EMERGENCY";
 type Mode = "IDENTIFIED" | "ANONYMOUS";
@@ -36,6 +38,7 @@ export function StudentComplaintForm({
   categories,
   hostelName,
 }: StudentComplaintFormProps) {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [category, setCategory] = useState<string>(categories[0]?.value ?? "");
@@ -46,15 +49,34 @@ export function StudentComplaintForm({
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [touched, setTouched] = useState({
+    category: false,
+    description: false,
+    severity: false,
+  });
 
   const descriptionCount = description.length;
+  const categoryValid = category.trim().length > 0;
+  const severityValid = severity === "ROUTINE" || severity === "URGENT" || severity === "EMERGENCY";
+  const descriptionRequiredValid = description.trim().length > 0;
   const descriptionValid = descriptionCount >= MIN_DESCRIPTION_LENGTH;
+  const formValid = categoryValid && severityValid && descriptionValid;
 
   const helperText = useMemo(
     () =>
       "Routine = 7 days, Urgent = 24 hours, Emergency = 4 hours",
     []
   );
+
+  const showCategoryError = (attemptedSubmit || touched.category) && !categoryValid;
+  const showSeverityError = (attemptedSubmit || touched.severity) && !severityValid;
+  const showDescriptionRequiredError =
+    (attemptedSubmit || touched.description) && !descriptionRequiredValid;
+  const showDescriptionMinError =
+    (attemptedSubmit || touched.description) &&
+    descriptionRequiredValid &&
+    !descriptionValid;
 
   const applyFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -92,9 +114,10 @@ export function StudentComplaintForm({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setAttemptedSubmit(true);
 
-    if (!descriptionValid) {
-      setSubmitMessage("Description must be at least 20 characters.");
+    if (!formValid) {
+      setSubmitMessage("");
       return;
     }
 
@@ -103,6 +126,25 @@ export function StudentComplaintForm({
         ? "Anonymous complaint draft is ready to submit."
         : "Identified complaint draft is ready to submit."
     );
+  };
+
+  const handleSaveAsDraft = () => {
+    const draft = {
+      category,
+      locationBlock,
+      severity,
+      description,
+      mode,
+      files: files.map((file) => ({ name: file.name, size: file.size, type: file.type })),
+      savedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem("studentComplaintDraft", JSON.stringify(draft));
+    setSubmitMessage("Draft saved successfully.");
+  };
+
+  const handleCancel = () => {
+    router.push("/dashboard/student");
   };
 
   return (
@@ -120,9 +162,23 @@ export function StudentComplaintForm({
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+              <div className="flex items-center justify-between">
+                <Label>Category</Label>
+                {categoryValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              </div>
+              <Select
+                value={category}
+                onValueChange={(value) => {
+                  setCategory(value);
+                  setTouched((prev) => ({ ...prev, category: true }));
+                }}
+              >
+                <SelectTrigger
+                  className={cn(
+                    showCategoryError && "border-red-500 focus-visible:ring-red-500",
+                    categoryValid && "border-emerald-500"
+                  )}
+                >
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -133,6 +189,9 @@ export function StudentComplaintForm({
                   ))}
                 </SelectContent>
               </Select>
+              {showCategoryError && (
+                <p className="text-xs text-red-600">This field is required</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -151,8 +210,17 @@ export function StudentComplaintForm({
             />
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <Label>Severity</Label>
+          <div
+            className={cn(
+              "space-y-3 rounded-xl border bg-slate-50 p-4",
+              showSeverityError ? "border-red-500" : "border-slate-200",
+              severityValid && "border-emerald-500"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <Label>Severity</Label>
+              {severityValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            </div>
             <div className="flex flex-wrap gap-4">
               {[
                 { value: "ROUTINE", label: "Routine" },
@@ -165,25 +233,49 @@ export function StudentComplaintForm({
                     name="severity"
                     value={item.value}
                     checked={severity === item.value}
-                    onChange={() => setSeverity(item.value as Severity)}
+                    onChange={() => {
+                      setSeverity(item.value as Severity);
+                      setTouched((prev) => ({ ...prev, severity: true }));
+                    }}
                   />
                   {item.label}
                 </label>
               ))}
             </div>
             <p className="text-xs text-slate-600">{helperText}</p>
+            {showSeverityError && (
+              <p className="text-xs text-red-600">This field is required</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="description">Description</Label>
+              {descriptionValid && (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              )}
+            </div>
             <Textarea
               id="description"
               rows={6}
               placeholder="Describe the issue clearly, including when it started and impact."
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              className={!descriptionValid && description.length > 0 ? "border-amber-500" : ""}
+              onBlur={() =>
+                setTouched((prev) => ({ ...prev, description: true }))
+              }
+              className={cn(
+                (showDescriptionRequiredError || showDescriptionMinError) &&
+                  "border-red-500 focus-visible:ring-red-500",
+                descriptionValid && "border-emerald-500"
+              )}
             />
+            {showDescriptionRequiredError && (
+              <p className="text-xs text-red-600">This field is required</p>
+            )}
+            {showDescriptionMinError && (
+              <p className="text-xs text-red-600">Minimum 20 characters</p>
+            )}
             <div className="flex items-center justify-between text-xs">
               <span className={descriptionValid ? "text-emerald-700" : "text-amber-700"}>
                 Minimum {MIN_DESCRIPTION_LENGTH} characters required
@@ -271,7 +363,7 @@ export function StudentComplaintForm({
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3">
             {submitMessage ? (
               <p className="inline-flex items-center gap-1 text-sm text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
@@ -280,13 +372,20 @@ export function StudentComplaintForm({
             ) : (
               <span />
             )}
-            <Button type="submit" size="lg" className="md:min-w-44">
-              Submit Complaint
-            </Button>
+            <div className="flex flex-col gap-2 md:flex-row md:justify-end">
+              <Button type="button" variant="outline" onClick={handleCancel} className="w-full md:w-auto">
+                Cancel
+              </Button>
+              <Button type="button" variant="secondary" onClick={handleSaveAsDraft} className="w-full md:w-auto">
+                Save as Draft
+              </Button>
+              <Button type="submit" size="lg" className="w-full md:w-auto md:min-w-44">
+                Submit
+              </Button>
+            </div>
           </div>
         </form>
       </section>
     </main>
   );
 }
-
