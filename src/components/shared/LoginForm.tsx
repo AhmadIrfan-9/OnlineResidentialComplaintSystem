@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  studentId: z.string().min(3, "Student ID is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -37,14 +38,15 @@ export function LoginForm() {
     setError(null);
 
     try {
+      const identifier = data.studentId.trim();
       const result = await signIn("credentials", {
-        email: data.email,
+        email: identifier,
         password: data.password,
         redirect: false,
       });
 
       if (!result?.ok) {
-        setError(result?.error || "Invalid credentials");
+        setError(result?.error || "Authentication failed. Please check your Student ID and password.");
         setIsLoading(false);
         return;
       }
@@ -59,33 +61,34 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border-slate-200 shadow-sm">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl">Student Login</CardTitle>
         <CardDescription>
-          Sign in to your account to manage residential complaints
+          Access your residential complaint dashboard
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
-            <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <AlertCircle className="h-4 w-4" />
+            <div className="flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 p-4 text-sm font-medium text-red-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="studentId">Student ID</Label>
             <Input
-              id="email"
-              type="email"
-              placeholder="student@uniten.edu.my"
+              id="studentId"
+              type="text"
+              placeholder="Enter your Student ID"
               disabled={isLoading}
-              {...register("email")}
+              className="h-12 text-base"
+              {...register("studentId")}
             />
-            {errors.email && (
-              <p className="text-sm text-red-600">{errors.email.message}</p>
+            {errors.studentId && (
+              <p className="text-sm text-red-600">{errors.studentId.message}</p>
             )}
           </div>
 
@@ -96,6 +99,7 @@ export function LoginForm() {
               type="password"
               placeholder="********"
               disabled={isLoading}
+              className="h-12 text-base"
               {...register("password")}
             />
             {errors.password && (
@@ -103,27 +107,35 @@ export function LoginForm() {
             )}
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              "Sign In"
-            )}
-          </Button>
-
-          <div className="text-center text-sm text-gray-600">
-            <p>Test Credentials:</p>
-            <p className="font-mono text-xs">
-              student001@uniten.edu.my
-            </p>
-            <p className="font-mono text-xs">hashedpassword123</p>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="submit"
+              className="h-12 w-full text-base"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                href="/login"
+                className="inline-flex h-11 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Forgot Password?
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-11 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Help
+              </Link>
+            </div>
           </div>
         </form>
       </CardContent>

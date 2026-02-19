@@ -1,144 +1,209 @@
-import { Send, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { type Status } from "@prisma/client";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { Card } from "@/components/ui/card";
 
-export default function StudentDashboardPage() {
-  const timeline = [
-    { title: "Submitted", time: "2024-15 10:00 AM", active: true },
-    { title: "Acknowledged", time: "2024-15 11:30", active: true },
-    { title: "Under Review", time: "11:30-18 09:00 AM", active: true },
-    { title: "Under Review", time: "2024-18 09:00 AM", active: true },
-    { title: "Resolved", time: "", active: false, current: true },
-  ];
+const OPEN_STATUSES: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
+const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
+
+const formatStatus = (status: string): string =>
+  status
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const ticketId = (id: string): string => `#${id.slice(0, 8).toUpperCase()}`;
+
+export default async function StudentDashboardPage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const role = String(session.user.role ?? "").toUpperCase();
+  if (role !== "STUDENT") {
+    redirect("/dashboard");
+  }
+
+  const studentProfile = await db.studentProfile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+
+  if (!studentProfile) {
+    return (
+      <main className="min-h-screen p-4 md:p-8">
+        <Card className="mx-auto max-w-5xl border border-red-200 bg-red-50 p-6">
+          <h1 className="text-lg font-semibold text-red-900">Student profile not found</h1>
+          <p className="mt-1 text-sm text-red-800">
+            Your account has no linked student profile. Please contact management.
+          </p>
+        </Card>
+      </main>
+    );
+  }
+
+  const [activeCount, resolvedCount, unreadMessages, recentComplaints] = await Promise.all([
+    db.complaint.count({
+      where: {
+        studentProfileId: studentProfile.id,
+        status: { in: OPEN_STATUSES },
+      },
+    }),
+    db.complaint.count({
+      where: {
+        studentProfileId: studentProfile.id,
+        status: { in: RESOLVED_STATUSES },
+      },
+    }),
+    db.notification.count({
+      where: {
+        userId: session.user.id,
+        isRead: false,
+      },
+    }),
+    db.complaint.findMany({
+      where: { studentProfileId: studentProfile.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  const studentName = session.user.name ?? "Student";
 
   return (
-    <main className="min-h-screen p-4 md:p-8">
-      <div className="mx-auto max-w-6xl space-y-4 rounded-2xl border border-slate-200/80 bg-slate-100/70 p-4 shadow-sm md:p-6">
-        <header className="rounded-xl bg-slate-800 px-6 py-5">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-100 md:text-2xl">
-            Complaint Tracking Dashboard - Student View
-          </h1>
+    <main className="min-h-screen bg-slate-50 p-3 md:p-8">
+      <div className="mx-auto max-w-6xl space-y-5">
+        <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm md:px-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="text-sm font-semibold tracking-wide text-slate-900">
+              ORCS
+            </div>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
+            >
+              {studentName} ↓
+            </button>
+          </div>
+
+          <nav className="hide-scrollbar -mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
+            {[
+              { label: "Dashboard", href: "/dashboard/student" },
+              { label: "My Complaints", href: "/complaints" },
+              { label: "Submit New", href: "/student/new" },
+              { label: "Help", href: "/help" },
+            ].map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`snap-start whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium ${
+                  item.label === "Dashboard"
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </header>
 
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-4 text-xl font-semibold text-slate-800">Key Metrics</h2>
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
-              <p className="mb-2 text-sm font-medium text-slate-500">Status</p>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-base font-medium text-slate-800">Under Review</p>
-                  <p className="text-sm text-slate-500">Acknowledged</p>
-                </div>
-              </div>
-            </div>
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Welcome, {studentName}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Track your complaint progress and submit new issues quickly.
+          </p>
 
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
-              <p className="mb-2 text-sm font-medium text-slate-500">Submitted Date</p>
-              <p className="text-xl font-semibold text-slate-800">2024-03-15</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
-              <p className="mb-2 text-sm font-medium text-slate-500">Ticket ID</p>
-              <p className="text-xl font-semibold text-slate-800">#20240315-007B</p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50 p-4">
-              <p className="mb-2 text-sm font-medium text-slate-500">Days Pending</p>
-              <p className="text-xl font-semibold text-slate-800">10</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-6 text-xl font-semibold text-slate-800">
-            Complaint Timeline
-          </h2>
-
-          <div className="mb-4 flex items-center justify-between px-4">
-            {timeline.map((step, index) => (
-              <div key={`${step.title}-${index}`} className="relative flex-1">
-                {index < timeline.length - 1 && (
-                  <span className="absolute left-5 right-0 top-4 block h-[2px] bg-slate-200" />
-                )}
-                <span
-                  className={`relative z-10 block h-8 w-8 rounded-full border-4 ${
-                    step.current
-                      ? "border-blue-500 bg-slate-100"
-                      : step.active
-                        ? "border-slate-500 bg-slate-100"
-                        : "border-slate-400 bg-slate-100"
-                  }`}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-5">
-            {timeline.map((step, index) => (
-              <div key={`${step.title}-${step.time}-${index}`} className="text-left">
-                <p className="text-sm font-medium text-slate-700">{step.title}</p>
-                <p className="text-xs text-slate-500">{step.time || "-"}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-200/70 bg-white p-5">
-          <h2 className="mb-5 text-xl font-semibold text-slate-800">Message Exchange</h2>
-
-          <div className="space-y-4">
-            <div className="flex justify-start">
-              <div className="max-w-[70%] rounded-2xl rounded-bl-sm bg-blue-600 px-4 py-3 text-sm text-white shadow-sm">
-                <p>
-                  Hi, I submitted a complaint about the noisy construction near the dorms.
-                  Any updates?
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <Link href="/complaints?status=SUBMITTED">
+              <Card className="h-full border border-amber-200 bg-amber-50 p-4 transition hover:shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+                  Active Complaints
                 </p>
-                <p className="mt-1 text-right text-xs text-blue-100">2024-15 10:05 AM</p>
-              </div>
-            </div>
+                <p className="mt-1 text-2xl font-bold text-amber-900">{activeCount}</p>
+                <p className="mt-1 text-xs text-amber-800">View pending complaints</p>
+              </Card>
+            </Link>
 
-            <p className="text-sm font-medium text-slate-700">Student (You)</p>
-
-            <div className="flex justify-end">
-              <div className="max-w-[70%] rounded-2xl rounded-br-sm bg-slate-300 px-4 py-3 text-sm text-slate-700 shadow-sm">
-                <p>
-                  Thank for your submission. Your complaint #730 has been archived and is
-                  under review. We will provide updates shortly.
+            <Link href="/complaints?status=RESOLVED">
+              <Card className="h-full border border-emerald-200 bg-emerald-50 p-4 transition hover:shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
+                  Resolved
                 </p>
-                <p className="mt-1 text-right text-xs text-slate-500">2024-18 09:15 AM</p>
-              </div>
-            </div>
+                <p className="mt-1 text-2xl font-bold text-emerald-900">{resolvedCount}</p>
+                <p className="mt-1 text-xs text-emerald-800">View closed complaints</p>
+              </Card>
+            </Link>
 
-            <div className="flex justify-end">
-              <div className="max-w-[70%] rounded-2xl rounded-br-sm bg-slate-300 px-4 py-3 text-sm text-slate-700 shadow-sm">
-                <p>
-                  Our team investigating the construction schedule and potential mitigation.
-                  Expect information by the end of week.
+            <Link href="/complaints">
+              <Card className="h-full border border-blue-200 bg-blue-50 p-4 transition hover:shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-blue-800">
+                  New Messages
                 </p>
-                <p className="mt-1 text-right text-xs text-slate-500">2024-18 09:15 AM</p>
-              </div>
-            </div>
+                <p className="mt-1 text-2xl font-bold text-blue-900">{unreadMessages}</p>
+                <p className="mt-1 text-xs text-blue-800">Notification count</p>
+              </Card>
+            </Link>
           </div>
 
-          <form className="mt-6 flex items-center gap-2 rounded-lg border border-slate-300 bg-white p-2">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              className="w-full bg-transparent px-2 py-2 text-sm text-slate-700 outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-md p-2 text-slate-600 transition hover:bg-slate-100"
-              aria-label="Send message"
+          <div className="mt-5">
+            <Link
+              href="/student/new"
+              className="inline-flex h-11 items-center justify-center rounded-md bg-blue-600 px-6 text-sm font-medium text-white transition hover:bg-blue-700"
             >
-              <Send className="h-5 w-5" />
-            </button>
-          </form>
+              Submit New Complaint
+            </Link>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+          <h2 className="text-lg font-semibold text-slate-900">Recent Complaints</h2>
+
+          {recentComplaints.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-600">No complaints submitted yet.</p>
+          ) : (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="py-2 pr-3">Ticket ID</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Submitted Date</th>
+                    <th className="py-2 pr-3">Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentComplaints.map((item) => (
+                    <tr key={item.id} className="border-b border-slate-100">
+                      <td className="py-3 pr-3 font-medium text-slate-800">{ticketId(item.id)}</td>
+                      <td className="py-3 pr-3 text-slate-700">{formatStatus(item.status)}</td>
+                      <td className="py-3 pr-3 text-slate-600">
+                        {new Date(item.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-3 pr-3 text-slate-600">
+                        {new Date(item.updatedAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
     </main>
   );
 }
-

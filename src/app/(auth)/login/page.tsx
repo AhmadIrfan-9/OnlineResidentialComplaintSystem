@@ -31,19 +31,17 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="w-full">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 px-4 py-8">
+      <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Student Complaint System
+          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+            ORCS - Online Residential Complaint System
           </h1>
-          <p className="mt-2 text-gray-600">
-            Online Residential Complaint Management
+          <p className="mt-2 text-sm text-slate-600">
+            Sign in to continue
           </p>
         </div>
-        <div className="flex justify-center">
-          <LoginForm />
-        </div>
+        <LoginForm />
       </div>
     </div>
   );
