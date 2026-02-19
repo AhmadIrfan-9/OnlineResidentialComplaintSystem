@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
 import { LoginForm } from "@/components/shared/LoginForm";
 
 export const metadata = {
@@ -30,6 +31,47 @@ export default async function LoginPage() {
     redirect("/dashboard");
   }
 
+  const allowedHostelOrder = ["Amanah", "Cendikiawan", "Ilmu", "Murni"] as const;
+
+  const hostels = await db.hostel.findMany({
+    where: {
+      name: {
+        in: [...allowedHostelOrder],
+      },
+    },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      rooms: {
+        orderBy: { roomNumber: "asc" },
+        select: {
+          id: true,
+          roomNumber: true,
+          floor: true,
+        },
+      },
+    },
+  });
+
+  const hostelsByName = new Map(
+    hostels.map((hostel) => [
+      hostel.name,
+      {
+        id: hostel.id,
+        name: hostel.name,
+        rooms: hostel.rooms.map((room) => ({
+          id: room.id,
+          label: `${room.roomNumber} (Floor ${room.floor})`,
+        })),
+      },
+    ])
+  );
+
+  const registrationHostels = allowedHostelOrder
+    .map((name) => hostelsByName.get(name))
+    .filter((value): value is NonNullable<typeof value> => Boolean(value));
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 to-blue-100 px-4 py-8">
       <div className="w-full max-w-md">
@@ -41,7 +83,7 @@ export default async function LoginPage() {
             Sign in to continue
           </p>
         </div>
-        <LoginForm />
+        <LoginForm registrationHostels={registrationHostels} />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
+import { normalizeStudentIdentifier } from "@/lib/identity";
 
 export const authOptions = {
   providers: [
@@ -20,12 +21,14 @@ export const authOptions = {
         },
       },
       async authorize(credentials) {
-        const email = credentials?.email;
+        const identifier = credentials?.email;
         const password = credentials?.password;
 
-        if (typeof email !== "string" || typeof password !== "string") {
+        if (typeof identifier !== "string" || typeof password !== "string") {
           throw new Error("Invalid credentials");
         }
+
+        const email = normalizeStudentIdentifier(identifier);
 
         // Find user in database
         const user = await db.user.findUnique({
