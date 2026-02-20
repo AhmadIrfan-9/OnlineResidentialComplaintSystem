@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         priority: validatedData.priority,
         status: "SUBMITTED",
         studentProfileId: studentProfile.id,
-        isAnonymous: false,
+        isAnonymous: validatedData.isAnonymous,
         hostelId: room.hostelId,
         roomId: validatedData.roomId,
         evidences: validatedData.attachments?.length

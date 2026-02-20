@@ -52,6 +52,7 @@ export const complaintSubmissionSchema = z.object({
     .array(z.string().url("Invalid image URL"))
     .optional()
     .default([]),
+  isAnonymous: z.boolean().optional().default(false),
 });
 
 export type ComplaintSubmissionInput = z.input<
