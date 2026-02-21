@@ -1,4 +1,14 @@
-export default function ManagementAnalyticsPage() {
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+
+export default async function ManagementAnalyticsPage() {
+  const session = await auth();
+  const role = normalizeRoleKey(session?.user?.role);
+  if (!session?.user || !isManagementRole(role)) {
+    redirect("/login");
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="mx-auto max-w-6xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -10,4 +20,3 @@ export default function ManagementAnalyticsPage() {
     </main>
   );
 }
-

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { hash } from "bcryptjs";
 import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
-import { normalizeStudentIdentifier } from "@/lib/identity";
+import { normalizeLoginIdentifier } from "@/lib/identity";
 
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
@@ -29,7 +29,9 @@ export async function PATCH(
 
     const data: Record<string, unknown> = {};
     if (payload.name !== undefined) data.name = payload.name;
-    if (payload.email !== undefined) data.email = normalizeStudentIdentifier(payload.email);
+    if (payload.email !== undefined) {
+      data.email = normalizeLoginIdentifier(payload.email, payload.role ?? before.role);
+    }
     if (payload.role !== undefined) data.role = payload.role;
     if (payload.isActive !== undefined) data.isActive = payload.isActive;
     if (payload.resetPassword) data.password = await hash("ChangeMe123!", 10);
@@ -88,4 +90,3 @@ export async function DELETE(
   });
   return NextResponse.json({ ok: true });
 }
-

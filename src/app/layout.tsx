@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/shared/AuthProvider";
-import { DashboardSidebar } from "@/components/shared/DashboardSidebar";
+import { AppShell } from "@/components/shared/AppShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,11 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable}`}
       >
         <AuthProvider>
-          <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
-            <DashboardSidebar />
-
-            <main className="pb-20 md:pb-0">{children}</main>
-          </div>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>

@@ -71,10 +71,12 @@ export function ComplaintUpdates({ complaintId }: ComplaintUpdatesProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUpdates = async () => {
       try {
-        setLoading(true);
         const result = await getComplaintUpdates(complaintId);
+        if (!isMounted) return;
         if (result.success && result.updates) {
           setUpdates(result.updates);
         } else {
@@ -84,11 +86,17 @@ export function ComplaintUpdates({ complaintId }: ComplaintUpdatesProps) {
         setError("An error occurred while fetching updates");
         console.error(err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchUpdates();
+    const timer = setInterval(fetchUpdates, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
   }, [complaintId]);
 
   if (loading) {

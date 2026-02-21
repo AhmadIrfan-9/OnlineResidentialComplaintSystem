@@ -4,6 +4,7 @@ import { type Status } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card } from "@/components/ui/card";
+import { SignOutButton } from "@/components/shared/SignOutButton";
 
 const OPEN_STATUSES: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
@@ -82,19 +83,12 @@ export default async function StudentDashboardPage() {
   const studentName = session.user.name ?? "Student";
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 md:p-8">
+    <main className="min-h-screen p-3 md:p-8">
       <div className="mx-auto max-w-6xl space-y-5">
-        <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm md:px-6">
+        <header className="surface-hero px-4 py-3 md:px-6">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-semibold tracking-wide text-slate-900">
-              ORCS
-            </div>
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700"
-            >
-              {studentName} ↓
-            </button>
+            <div className="text-sm font-semibold tracking-wide text-slate-900">ORCS</div>
+            <SignOutButton label={`${studentName} | Logout`} />
           </div>
 
           <nav className="hide-scrollbar -mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
@@ -102,15 +96,14 @@ export default async function StudentDashboardPage() {
               { label: "Dashboard", href: "/dashboard/student" },
               { label: "My Complaints", href: "/complaints" },
               { label: "Submit New", href: "/student/new" },
-              { label: "Help", href: "/help" },
             ].map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 className={`snap-start whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium ${
                   item.label === "Dashboard"
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-700"
+                    ? "rounded-full border border-sky-700 bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                    : "nav-pill"
                 }`}
               >
                 {item.label}
@@ -119,17 +112,15 @@ export default async function StudentDashboardPage() {
           </nav>
         </header>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Welcome, {studentName}
-          </h1>
+        <section className="surface-card p-4 md:p-6">
+          <h1 className="text-2xl font-semibold text-slate-900">Welcome, {studentName}</h1>
           <p className="mt-1 text-sm text-slate-600">
             Track your complaint progress and submit new issues quickly.
           </p>
 
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Link href="/complaints?status=SUBMITTED">
-              <Card className="h-full border border-amber-200 bg-amber-50 p-4 transition hover:shadow-sm">
+              <Card className="h-full border border-amber-200/80 bg-gradient-to-br from-amber-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
                 <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
                   Active Complaints
                 </p>
@@ -139,20 +130,16 @@ export default async function StudentDashboardPage() {
             </Link>
 
             <Link href="/complaints?status=RESOLVED">
-              <Card className="h-full border border-emerald-200 bg-emerald-50 p-4 transition hover:shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
-                  Resolved
-                </p>
+              <Card className="h-full border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">Resolved</p>
                 <p className="mt-1 text-2xl font-bold text-emerald-900">{resolvedCount}</p>
                 <p className="mt-1 text-xs text-emerald-800">View closed complaints</p>
               </Card>
             </Link>
 
             <Link href="/complaints">
-              <Card className="h-full border border-blue-200 bg-blue-50 p-4 transition hover:shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-blue-800">
-                  New Messages
-                </p>
+              <Card className="h-full border border-blue-200/80 bg-gradient-to-br from-blue-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
+                <p className="text-xs font-medium uppercase tracking-wide text-blue-800">New Messages</p>
                 <p className="mt-1 text-2xl font-bold text-blue-900">{unreadMessages}</p>
                 <p className="mt-1 text-xs text-blue-800">Notification count</p>
               </Card>
@@ -169,7 +156,7 @@ export default async function StudentDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+        <section className="surface-card p-4 md:p-6">
           <h2 className="text-lg font-semibold text-slate-900">Recent Complaints</h2>
 
           {recentComplaints.length === 0 ? (

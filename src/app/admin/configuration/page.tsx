@@ -3,7 +3,7 @@ import { ConfigurationManagementClient } from "@/components/admin/ConfigurationM
 export default function AdminConfigurationPage() {
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="surface-hero p-4">
         <h1 className="text-xl font-semibold text-slate-900">Configuration Management</h1>
         <p className="mt-1 text-sm text-slate-600">
           Manage categories, departments, SLA settings, and email templates.
@@ -13,4 +13,3 @@ export default function AdminConfigurationPage() {
     </div>
   );
 }
-

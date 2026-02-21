@@ -39,7 +39,9 @@ interface TemplateRow {
 
 const tabButton = (active: boolean): string =>
   `rounded-full px-4 py-2 text-sm font-medium ${
-    active ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700"
+    active
+      ? "bg-gradient-to-r from-sky-600 to-blue-700 text-white shadow-md shadow-sky-200"
+      : "border border-slate-200 bg-white text-slate-700 hover:bg-sky-50"
   }`;
 
 export function ConfigurationManagementClient() {
@@ -207,9 +209,19 @@ export function ConfigurationManagementClient() {
     if (response.ok) await loadAll();
   };
 
+  const runEscalationNow = async () => {
+    const response = await fetch("/api/admin/escalations", { method: "POST" });
+    const data = await response.json();
+    if (!response.ok) {
+      setNotice(data.message ?? "Failed to queue escalation emails");
+      return;
+    }
+    setNotice(data.message ?? `Escalation queued for ${data.queued ?? 0} complaints.`);
+  };
+
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-sm text-slate-600">
+      <div className="surface-card p-4 text-sm text-slate-600">
         Loading configuration...
       </div>
     );
@@ -232,10 +244,10 @@ export function ConfigurationManagementClient() {
         </button>
       </div>
 
-      {notice && <p className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">{notice}</p>}
+      {notice && <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">{notice}</p>}
 
       {tab === "categories" && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-900">Categories</h2>
             <div className="flex flex-wrap gap-2">
@@ -251,7 +263,7 @@ export function ConfigurationManagementClient() {
                 value={newCategory.description}
                 onChange={(e) => setNewCategory((p) => ({ ...p, description: e.target.value }))}
               />
-              <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white" onClick={createCategory}>
+              <button className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white" onClick={createCategory}>
                 Add Category
               </button>
             </div>
@@ -311,7 +323,7 @@ export function ConfigurationManagementClient() {
       )}
 
       {tab === "departments" && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-semibold text-slate-900">Departments</h2>
             <div className="flex flex-wrap gap-2">
@@ -327,7 +339,7 @@ export function ConfigurationManagementClient() {
                 value={newDepartment.email}
                 onChange={(e) => setNewDepartment((p) => ({ ...p, email: e.target.value }))}
               />
-              <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white" onClick={createDepartment}>
+              <button className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white" onClick={createDepartment}>
                 Add Department
               </button>
             </div>
@@ -362,7 +374,7 @@ export function ConfigurationManagementClient() {
       )}
 
       {tab === "sla" && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-900">SLA Settings</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {[
@@ -384,14 +396,14 @@ export function ConfigurationManagementClient() {
               </label>
             ))}
           </div>
-          <button className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm text-white" onClick={saveSla}>
+          <button className="mt-4 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm text-white" onClick={saveSla}>
             Save Changes
           </button>
         </section>
       )}
 
       {tab === "email" && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-900">Email Templates</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-1 text-sm">
@@ -442,8 +454,14 @@ export function ConfigurationManagementClient() {
           )}
           <div className="mt-3 flex gap-2">
             <button className="rounded-md border border-slate-300 px-4 py-2 text-sm">Send Test</button>
-            <button className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white" onClick={saveTemplate}>
+            <button className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm text-white" onClick={saveTemplate}>
               Save Changes
+            </button>
+            <button
+              className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800"
+              onClick={runEscalationNow}
+            >
+              Trigger Overdue Escalation
             </button>
           </div>
         </section>
@@ -468,4 +486,3 @@ export function ConfigurationManagementClient() {
     </div>
   );
 }
-

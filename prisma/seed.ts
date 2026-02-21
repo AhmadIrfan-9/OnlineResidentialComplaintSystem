@@ -1,132 +1,115 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { hash } from "bcryptjs";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
+
+if (!connectionString) {
+  throw new Error("Missing DATABASE_URL or DIRECT_URL for seed.");
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
 
 async function main() {
-  console.log("🌱 Starting database seed...\n");
+  const defaultPasswordHash = await hash("password123", 10);
 
-  // Clean up existing data (optional - comment out if you want to preserve)
-  await prisma.complaintUpdate.deleteMany();
-  await prisma.complaint.deleteMany();
-  await prisma.studentProfile.deleteMany();
-  await prisma.room.deleteMany();
-  await prisma.hostel.deleteMany();
-  await prisma.user.deleteMany();
-
-  console.log("✅ Cleaned existing data\n");
-
-  // Create Warden User
-  const warden = await prisma.user.create({
-    data: {
-      email: "warden@residential.edu",
-      password:
-        "$2b$10$3HQLKqNp9xZX3gLdP5pQ4e3K3i3i3i3i3i3i3i3i3i3i3i3i3i3i", // bcrypt hash (password: "password123")
-      name: "Dr. Sarah Johnson",
-      role: "WARDEN",
-      phone: "+60391234567",
+  const admin = await prisma.user.upsert({
+    where: { email: "admin@orcs.local" },
+    update: {
+      name: "System Admin",
+      role: "IT_STAFF_ADMIN",
+      isActive: true,
+    },
+    create: {
+      email: "admin@orcs.local",
+      name: "System Admin",
+      password: defaultPasswordHash,
+      role: "IT_STAFF_ADMIN",
+      isActive: true,
     },
   });
 
-  console.log(`✅ Created Warden: ${warden.name} (${warden.email})`);
-
-  // Create North Hall Hostel
-  const northHall = await prisma.hostel.create({
-    data: {
-      name: "North Hall",
-      wardenId: warden.id,
+  const management = await prisma.user.upsert({
+    where: { email: "management@orcs.local" },
+    update: {
+      name: "Hostel Management",
+      role: "MANAGEMENT",
+      isActive: true,
+    },
+    create: {
+      email: "management@orcs.local",
+      name: "Hostel Management",
+      password: defaultPasswordHash,
+      role: "MANAGEMENT",
+      isActive: true,
     },
   });
 
-  console.log(`✅ Created Hostel: ${northHall.name}`);
-
-  // Create South Hall Hostel
-  const southHall = await prisma.hostel.create({
-    data: {
-      name: "South Hall",
-      wardenId: warden.id,
+  const hostel = await prisma.hostel.upsert({
+    where: { name: "Cendikiawan" },
+    update: { wardenId: management.id },
+    create: {
+      name: "Cendikiawan",
+      wardenId: management.id,
     },
   });
 
-  console.log(`✅ Created Hostel: ${southHall.name}\n`);
-
-  // Create 5 rooms for North Hall
-  console.log("📍 Creating rooms for North Hall...");
-  const northRooms = [];
-  for (let i = 1; i <= 5; i++) {
-    const room = await prisma.room.create({
-      data: {
-        roomNumber: `${100 + i}`,
-        floor: Math.ceil(i / 2),
-        hostelId: northHall.id,
+  const room = await prisma.room.upsert({
+    where: {
+      roomNumber_hostelId: {
+        roomNumber: "A-101",
+        hostelId: hostel.id,
       },
-    });
-    northRooms.push(room);
-    console.log(`   - Room ${room.roomNumber} (Floor ${room.floor})`);
-  }
+    },
+    update: {
+      floor: 1,
+      hostelId: hostel.id,
+    },
+    create: {
+      roomNumber: "A-101",
+      floor: 1,
+      hostelId: hostel.id,
+    },
+  });
 
-  // Create 5 rooms for South Hall
-  console.log("\n📍 Creating rooms for South Hall...");
-  const southRooms = [];
-  for (let i = 1; i <= 5; i++) {
-    const room = await prisma.room.create({
-      data: {
-        roomNumber: `${200 + i}`,
-        floor: Math.ceil(i / 2),
-        hostelId: southHall.id,
-      },
-    });
-    southRooms.push(room);
-    console.log(`   - Room ${room.roomNumber} (Floor ${room.floor})`);
-  }
-
-  // Create Student User
-  const student = await prisma.user.create({
-    data: {
-      email: "student@residential.edu",
-      password:
-        "$2b$10$3HQLKqNp9xZX3gLdP5pQ4e3K3i3i3i3i3i3i3i3i3i3i3i3i3i3i", // bcrypt hash (password: "password123")
-      name: "Ahmad Ali",
+  const student = await prisma.user.upsert({
+    where: { email: "user@orcs.local" },
+    update: {
+      name: "Student User",
       role: "STUDENT",
-      phone: "+60391234568",
+      isActive: true,
+    },
+    create: {
+      email: "user@orcs.local",
+      name: "Student User",
+      password: defaultPasswordHash,
+      role: "STUDENT",
+      isActive: true,
     },
   });
 
-  console.log(`\n✅ Created Student: ${student.name} (${student.email})`);
-
-  // Create StudentProfile and assign to Room 101 (first room in North Hall)
-  const studentProfile = await prisma.studentProfile.create({
-    data: {
+  await prisma.studentProfile.upsert({
+    where: { userId: student.id },
+    update: { roomId: room.id },
+    create: {
       userId: student.id,
-      roomId: northRooms[0].id, // Room 101
+      roomId: room.id,
     },
   });
 
-  console.log(
-    `✅ Created Student Profile: ${student.name} → Room ${northRooms[0].roomNumber} in ${northHall.name}\n`
-  );
-
-  // Summary
-  console.log("=" + "=".repeat(49) + "=");
-  console.log("🎉 Database seeding completed successfully!");
-  console.log("=" + "=".repeat(49) + "=");
-  console.log("\n📊 Summary:");
-  console.log(`   • Users: 2 (1 Warden, 1 Student)`);
-  console.log(`   • Hostels: 2`);
-  console.log(`   • Rooms: 10 (5 per hostel)`);
-  console.log(`   • Student Profiles: 1`);
-  console.log("\n🔐 Test Credentials:");
-  console.log(`   Warden:`);
-  console.log(`   - Email: ${warden.email}`);
-  console.log(`   - Password: password123`);
-  console.log(`\n   Student:`);
-  console.log(`   - Email: ${student.email}`);
-  console.log(`   - Password: password123`);
-  console.log(`   - Room: ${northRooms[0].roomNumber} in ${northHall.name}\n`);
+  console.log("Seed completed.");
+  console.log(`ADMIN: ${admin.email} (role: IT_STAFF_ADMIN)`);
+  console.log(`MANAGEMENT: ${management.email} (role: MANAGEMENT)`);
+  console.log(`USER: ${student.email} (role: STUDENT)`);
+  console.log("Default password for all seeded users: password123");
 }
 
 main()
-  .catch((e) => {
-    console.error("❌ Seeding failed:", e);
+  .catch((error) => {
+    console.error("Seed failed:", error);
     process.exit(1);
   })
   .finally(async () => {

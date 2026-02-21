@@ -3,7 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
-import { normalizeStudentIdentifier } from "@/lib/identity";
+import { buildLoginIdentifierCandidates } from "@/lib/identity";
 
 export const authOptions = {
   providers: [
@@ -28,11 +28,19 @@ export const authOptions = {
           throw new Error("Invalid credentials");
         }
 
-        const email = normalizeStudentIdentifier(identifier);
+        const emailCandidates = buildLoginIdentifierCandidates(identifier);
+
+        if (!emailCandidates.length) {
+          throw new Error("Invalid credentials");
+        }
 
         // Find user in database
-        const user = await db.user.findUnique({
-          where: { email },
+        const user = await db.user.findFirst({
+          where: {
+            email: {
+              in: emailCandidates,
+            },
+          },
           select: {
             id: true,
             email: true,

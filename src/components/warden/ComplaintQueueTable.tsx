@@ -15,13 +15,13 @@ export interface QueueItem {
   student: string;
   category: string;
   assignedTo: string;
-  slaState: "OVERDUE" | "APPROACHING" | "WITHIN";
+  ageBand: "GREEN" | "YELLOW" | "RED";
 }
 
-const rowColor = (slaState: QueueItem["slaState"]): string => {
-  if (slaState === "OVERDUE") return "bg-red-50 hover:bg-red-100";
-  if (slaState === "APPROACHING") return "bg-amber-50 hover:bg-amber-100";
-  return "bg-emerald-50 hover:bg-emerald-100";
+const rowColor = (ageBand: QueueItem["ageBand"]): string => {
+  if (ageBand === "RED") return "bg-red-50/80 hover:bg-red-100";
+  if (ageBand === "YELLOW") return "bg-amber-50/80 hover:bg-amber-100";
+  return "bg-emerald-50/80 hover:bg-emerald-100";
 };
 
 type SortKey = keyof Pick<
@@ -79,9 +79,9 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="surface-card grid gap-2 p-3 md:grid-cols-3 lg:grid-cols-5">
         <select
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -95,7 +95,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
         </select>
 
         <select
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
           value={severityFilter}
           onChange={(e) => setSeverityFilter(e.target.value)}
         >
@@ -106,7 +106,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
         </select>
 
         <select
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
           value={assignedFilter}
           onChange={(e) => setAssignedFilter(e.target.value)}
         >
@@ -117,17 +117,17 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
       </div>
 
       {selectedCount > 1 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white p-3 text-sm">
+        <div className="surface-card flex flex-wrap items-center gap-2 p-3 text-sm">
           <span className="font-medium text-slate-700">{selectedCount} selected</span>
-          <button className="rounded border border-slate-300 px-3 py-1">Assign to...</button>
-          <button className="rounded border border-slate-300 px-3 py-1">Change Status...</button>
-          <button className="rounded border border-slate-300 px-3 py-1">Close Selected</button>
+          <button className="nav-pill px-3 py-1">Assign to...</button>
+          <button className="nav-pill px-3 py-1">Change Status...</button>
+          <button className="nav-pill px-3 py-1">Close Selected</button>
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="surface-card overflow-x-auto p-0">
         <table className="w-full min-w-[1200px] text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-gradient-to-r from-slate-100 to-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-3 py-3 text-left"></th>
               {[
@@ -157,7 +157,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
             {paged.map((item) => (
               <tr
                 key={item.complaintId}
-                className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.slaState)}`}
+                className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.ageBand)}`}
                 onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
               >
                 <td className="px-3 py-3">
@@ -178,7 +178,19 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                 <td className="px-3 py-3">{item.status}</td>
                 <td className="px-3 py-3">{item.severity}</td>
                 <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
-                <td className="px-3 py-3">{item.daysPending}</td>
+                <td className="px-3 py-3">
+                  <span
+                    className={`rounded-full px-2 py-1 text-xs ${
+                      item.ageBand === "RED"
+                        ? "bg-red-100 text-red-700"
+                        : item.ageBand === "YELLOW"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {item.daysPending}
+                  </span>
+                </td>
                 <td className="px-3 py-3">{item.student}</td>
                 <td className="px-3 py-3">{item.category}</td>
                 <td className="px-3 py-3">{item.assignedTo}</td>
@@ -186,25 +198,25 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                   <div className="flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
                     <Link
                       href={`/warden/complaints/${item.complaintId}`}
-                      className="rounded border px-2 py-1 text-xs"
+                      className="nav-pill px-2 py-1 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       View
                     </Link>
                     <button
-                      className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <UserPlus2 className="h-3 w-3" /> Assign to Me
                     </button>
                     <button
-                      className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MessageSquare className="h-3 w-3" /> Message
                     </button>
                     <button
-                      className="inline-flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <TriangleAlert className="h-3 w-3" /> Escalate
@@ -224,14 +236,14 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
         </p>
         <div className="flex gap-2">
           <button
-            className="rounded border border-slate-300 px-3 py-1 disabled:opacity-50"
+            className="nav-pill px-3 py-1 disabled:opacity-50"
             disabled={page === 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
           >
             Prev
           </button>
           <button
-            className="rounded border border-slate-300 px-3 py-1 disabled:opacity-50"
+            className="nav-pill px-3 py-1 disabled:opacity-50"
             disabled={page * pageSize >= filtered.length}
             onClick={() => setPage((p) => p + 1)}
           >

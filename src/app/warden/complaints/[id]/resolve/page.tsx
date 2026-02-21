@@ -41,12 +41,12 @@ export default async function ResolveComplaintPage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 md:p-6">
+    <main className="min-h-screen p-3 md:p-6">
       <div className="mx-auto max-w-4xl space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-hero p-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-lg font-semibold text-slate-900">Resolution Form</h1>
-            <Link href={`/warden/complaints/${id}`} className="rounded border border-slate-300 px-3 py-1.5 text-sm">
+            <Link href={`/warden/complaints/${id}`} className="nav-pill px-3 py-1.5 text-sm">
               Back to Detail
             </Link>
           </div>
@@ -56,4 +56,3 @@ export default async function ResolveComplaintPage({
     </main>
   );
 }
-

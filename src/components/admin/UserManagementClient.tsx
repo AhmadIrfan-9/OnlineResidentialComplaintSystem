@@ -19,6 +19,16 @@ type HostelOption = {
   name: string;
 };
 
+type RoomOption = {
+  id: string;
+  roomNumber: string;
+  floor: number;
+  hostel: {
+    id: string;
+    name: string;
+  };
+};
+
 const prettyRole = (role: Role): string => {
   if (role === "IT_STAFF_ADMIN") return "Admin";
   if (role === "MANAGEMENT") return "Management";
@@ -55,7 +65,13 @@ const mapApiUser = (u: {
   };
 };
 
-export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
+export function UserManagementClient({
+  hostels,
+  rooms,
+}: {
+  hostels: HostelOption[];
+  rooms: RoomOption[];
+}) {
   const [roleFilter, setRoleFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -67,7 +83,9 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
+    phone: "",
     role: "STUDENT" as Role,
+    roomId: "",
     hostelId: "",
     isActive: true,
   });
@@ -81,6 +99,11 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
         .filter((u) => (statusFilter === "All" ? true : u.status === statusFilter)),
     [roleFilter, statusFilter, users]
   );
+
+  const availableCreateRooms = useMemo(() => {
+    if (!newUser.hostelId) return rooms;
+    return rooms.filter((room) => room.hostel.id === newUser.hostelId);
+  }, [newUser.hostelId, rooms]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -116,6 +139,14 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
       setNotice("Name and email are required.");
       return;
     }
+    if (newUser.role === "MANAGEMENT" && !newUser.hostelId) {
+      setNotice("Hostel is required for management.");
+      return;
+    }
+    if (newUser.role === "STUDENT" && !newUser.roomId) {
+      setNotice("Room is required for student.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -132,7 +163,15 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
 
       setNotice("User created. Default password is ChangeMe123!");
       setShowCreate(false);
-      setNewUser({ name: "", email: "", role: "STUDENT", hostelId: "", isActive: true });
+      setNewUser({
+        name: "",
+        email: "",
+        phone: "",
+        role: "STUDENT",
+        roomId: "",
+        hostelId: "",
+        isActive: true,
+      });
       await loadUsers();
     } finally {
       setSaving(false);
@@ -217,20 +256,20 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   return (
     <div className="space-y-4">
       {notice ? (
-        <p className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">{notice}</p>
+        <p className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">{notice}</p>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-semibold text-slate-900">Users</h2>
-            <button className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white" onClick={() => setShowCreate((v) => !v)}>
+            <button className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white shadow-md shadow-sky-200" onClick={() => setShowCreate((v) => !v)}>
               {showCreate ? "Close" : "Add User"}
             </button>
           </div>
 
           {showCreate ? (
-            <div className="mb-3 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-2">
+            <div className="mb-3 grid gap-2 rounded-lg border border-slate-200 bg-gradient-to-br from-sky-50 to-white p-3 md:grid-cols-2">
               <input
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                 placeholder="Name"
@@ -243,10 +282,23 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                 value={newUser.email}
                 onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
               />
+              <input
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                placeholder="Phone (optional)"
+                value={newUser.phone}
+                onChange={(e) => setNewUser((p) => ({ ...p, phone: e.target.value }))}
+              />
               <select
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                 value={newUser.role}
-                onChange={(e) => setNewUser((p) => ({ ...p, role: e.target.value as Role }))}
+                onChange={(e) =>
+                  setNewUser((p) => ({
+                    ...p,
+                    role: e.target.value as Role,
+                    roomId: "",
+                    hostelId: "",
+                  }))
+                }
               >
                 <option value="STUDENT">Student</option>
                 <option value="MANAGEMENT">Management</option>
@@ -255,19 +307,41 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
               <select
                 className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
                 value={newUser.hostelId}
-                onChange={(e) => setNewUser((p) => ({ ...p, hostelId: e.target.value }))}
-                disabled={newUser.role !== "MANAGEMENT"}
+                onChange={(e) =>
+                  setNewUser((p) => ({
+                    ...p,
+                    hostelId: e.target.value,
+                    roomId: p.role === "STUDENT" ? "" : p.roomId,
+                  }))
+                }
+                disabled={newUser.role === "IT_STAFF_ADMIN"}
               >
-                <option value="">Select hostel</option>
+                <option value="">
+                  {newUser.role === "IT_STAFF_ADMIN" ? "Not required for admin" : "Select hostel"}
+                </option>
                 {hostels.map((h) => (
                   <option key={h.id} value={h.id}>
                     {h.name}
                   </option>
                 ))}
               </select>
+              {newUser.role === "STUDENT" ? (
+                <select
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm md:col-span-2"
+                  value={newUser.roomId}
+                  onChange={(e) => setNewUser((p) => ({ ...p, roomId: e.target.value }))}
+                >
+                  <option value="">Select room</option>
+                  {availableCreateRooms.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      {room.hostel.name} - {room.roomNumber} (Floor {room.floor})
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <div className="md:col-span-2">
                 <button
-                  className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={createUser}
                   disabled={saving}
                 >
@@ -321,9 +395,9 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                   return (
                     <tr
                       key={u.id}
-                      className={`cursor-pointer border-t border-slate-100 ${u.id === selectedId ? "bg-blue-50" : "hover:bg-slate-50"}`}
-                      onClick={() => setSelectedId(u.id)}
-                    >
+                    className={`cursor-pointer border-t border-slate-100 ${u.id === selectedId ? "bg-sky-50" : "hover:bg-slate-50"}`}
+                    onClick={() => setSelectedId(u.id)}
+                  >
                       <td className="py-2 font-medium text-slate-800">{u.id.slice(0, 8)}</td>
                       <td className="py-2 text-slate-700">{u.name}</td>
                       <td className="py-2 text-slate-600">{u.email}</td>
@@ -348,7 +422,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-900">User detail / edit</h2>
           {!selectedUser ? (
             <p className="text-sm text-slate-600">Select a user from the table.</p>
@@ -427,7 +501,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
 
               <div className="flex flex-wrap gap-2">
                 <button
-                  className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={saveSelected}
                   disabled={saving}
                 >

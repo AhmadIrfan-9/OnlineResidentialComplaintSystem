@@ -49,23 +49,23 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.98 0.01 260);
-  --foreground: oklch(0.24 0.02 260);
+  --background: oklch(0.97 0.01 255);
+  --foreground: oklch(0.24 0.02 255);
   --card: oklch(0.995 0.005 260);
   --card-foreground: oklch(0.24 0.02 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.57 0.17 257);
+  --primary: oklch(0.58 0.17 257);
   --primary-foreground: oklch(0.99 0.01 260);
-  --secondary: oklch(0.96 0.01 260);
-  --secondary-foreground: oklch(0.3 0.02 260);
+  --secondary: oklch(0.95 0.02 245);
+  --secondary-foreground: oklch(0.28 0.02 255);
   --muted: oklch(0.96 0.01 260);
   --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.94 0.03 255);
-  --accent-foreground: oklch(0.29 0.03 260);
+  --accent: oklch(0.92 0.05 240);
+  --accent-foreground: oklch(0.27 0.03 250);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 260);
-  --input: oklch(0.9 0.01 260);
+  --border: oklch(0.88 0.01 255);
+  --input: oklch(0.88 0.01 255);
   --ring: oklch(0.65 0.15 257);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -122,6 +122,24 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 45%);
+    background-image:
+      radial-gradient(circle at 8% 12%, rgba(14, 165, 233, 0.15), transparent 38%),
+      radial-gradient(circle at 88% 20%, rgba(59, 130, 246, 0.12), transparent 42%),
+      radial-gradient(circle at 50% 95%, rgba(34, 197, 94, 0.08), transparent 30%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur;
+  }
+
+  .surface-hero {
+    @apply rounded-3xl border border-sky-200/60 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm;
+  }
+
+  .nav-pill {
+    @apply whitespace-nowrap rounded-full border border-slate-200/90 bg-white/90 px-4 py-2 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-sky-200 hover:bg-sky-50;
   }
 }

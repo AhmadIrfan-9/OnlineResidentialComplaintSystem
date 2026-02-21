@@ -12,5 +12,5 @@ export const isAdminRole = (role: unknown): boolean =>
 
 export const isManagementRole = (role: unknown): boolean => {
   const normalized = normalizeRoleKey(role);
-  return normalized === "MANAGEMENT" || normalized === "IT_STAFF_ADMIN";
+  return normalized === "MANAGEMENT";
 };

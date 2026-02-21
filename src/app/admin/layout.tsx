@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { isAdminRole } from "@/lib/roles";
+import { SignOutButton } from "@/components/shared/SignOutButton";
 
 const navItems = [
   { label: "System Health", href: "/admin" },
@@ -20,11 +21,11 @@ export default async function AdminLayout({
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+    <main className="min-h-screen">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 md:px-6">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-blue-600" />
+            <div className="h-8 w-8 rounded bg-gradient-to-br from-sky-500 to-blue-700" />
             <span className="text-sm font-semibold text-slate-900">ORCS</span>
           </div>
 
@@ -33,16 +34,14 @@ export default async function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50"
+                className="nav-pill px-3 py-1.5"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
 
-          <button className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700">
-            {session.user.name ?? "Admin Name"} ↓
-          </button>
+          <SignOutButton label={`${session.user.name ?? "Admin"} | Logout`} />
         </div>
       </header>
 
@@ -50,4 +49,3 @@ export default async function AdminLayout({
     </main>
   );
 }
-

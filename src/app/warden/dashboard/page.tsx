@@ -13,6 +13,7 @@ import {
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { SignOutButton } from "@/components/shared/SignOutButton";
 
 const STATUS_OPEN: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
 const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
@@ -51,8 +52,7 @@ const chartStrokePoints = (values: number[], width = 360, height = 120): string 
     .join(" ");
 };
 
-const navClass =
-  "inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50";
+const navClass = "nav-pill inline-flex items-center";
 
 export default async function ManagementDashboardPage() {
   const session = await auth();
@@ -166,16 +166,16 @@ export default async function ManagementDashboardPage() {
   const histoMax = Math.max(...histo, 1);
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 md:p-6">
+    <main className="min-h-screen p-3 md:p-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+        <header className="surface-hero p-4 md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded bg-blue-600" />
               <span className="text-base font-semibold text-slate-900">ORCS</span>
             </div>
             <nav className="flex flex-wrap items-center gap-2">
-              <Link href="/warden/dashboard" className={`${navClass} border-blue-600 bg-blue-50 text-blue-700`}>
+              <Link href="/warden/dashboard" className="inline-flex items-center rounded-full border border-sky-700 bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200">
                 Dashboard
               </Link>
               <Link href="/warden/queue" className={navClass}>
@@ -185,14 +185,12 @@ export default async function ManagementDashboardPage() {
                 Reports
               </Link>
             </nav>
-            <button className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700">
-              {session.user.name ?? "Staff Name"} ↓
-            </button>
+            <SignOutButton label={`${session.user.name ?? "Management"} | Logout`} />
           </div>
         </header>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="surface-card p-4">
             <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
               <FileClock className="h-4 w-4" /> Pending complaints
             </div>
@@ -200,7 +198,7 @@ export default async function ManagementDashboardPage() {
               {pendingComplaints}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="surface-card p-4">
             <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
               <AlertTriangle className="h-4 w-4" /> Overdue complaints
             </div>
@@ -208,13 +206,13 @@ export default async function ManagementDashboardPage() {
               {overdueComplaints}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="surface-card p-4">
             <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
               <Clock3 className="h-4 w-4" /> Average response time
             </div>
             <p className="text-3xl font-semibold text-slate-900">{avgResponseTimeDays.toFixed(1)} days</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="surface-card p-4">
             <div className="mb-2 flex items-center gap-2 text-sm text-slate-600">
               <Activity className="h-4 w-4" /> SLA compliance
             </div>
@@ -225,7 +223,7 @@ export default async function ManagementDashboardPage() {
         </section>
 
         <section className="grid gap-4 xl:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2">
+          <div className="surface-card p-4 xl:col-span-2">
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
               <LineChart className="h-4 w-4" /> Complaint volume trend (last 30 days)
             </p>
@@ -246,7 +244,7 @@ export default async function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="surface-card p-4">
               <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <PieChart className="h-4 w-4" /> Status breakdown
               </p>
@@ -260,7 +258,7 @@ export default async function ManagementDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
             <BarChart3 className="h-4 w-4" /> Response time histogram
           </p>
@@ -279,7 +277,7 @@ export default async function ManagementDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="surface-card p-4">
           <p className="mb-3 text-sm font-semibold text-slate-800">Quick actions</p>
           <div className="flex flex-wrap gap-2">
             <Link href="/warden/queue" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
@@ -297,4 +295,3 @@ export default async function ManagementDashboardPage() {
     </main>
   );
 }
-

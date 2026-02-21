@@ -46,14 +46,14 @@ export function ResolutionFormClient({
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+    <section className="surface-card p-4 md:p-6">
       <h2 className="text-lg font-semibold text-slate-900">Resolve Complaint {ticketId}</h2>
 
       <div className="mt-4 space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Resolution category</label>
           <select
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -68,7 +68,7 @@ export function ResolutionFormClient({
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Resolution notes</label>
           <textarea
-            className="min-h-24 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+            className="min-h-24 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes"
@@ -82,7 +82,7 @@ export function ResolutionFormClient({
         </div>
 
         <button
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200 disabled:opacity-50"
           disabled={isPending}
           onClick={submitResolution}
         >
@@ -94,4 +94,3 @@ export function ResolutionFormClient({
     </section>
   );
 }
-

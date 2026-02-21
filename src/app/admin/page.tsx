@@ -21,7 +21,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+      <section className="surface-hero p-4 md:p-5">
         <h1 className="text-xl font-semibold text-slate-900">Admin Dashboard</h1>
         <p className="mt-1 text-sm text-slate-600">
           System administrators (IT staff) control panel.
@@ -29,21 +29,21 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium text-slate-700">Database</p>
           <p className="mt-2 inline-flex items-center gap-2 text-emerald-700">
             <CheckCircle2 className="h-4 w-4" /> Online
           </p>
           <p className="mt-1 text-xs text-slate-500">Updated: {nowLabel()}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium text-slate-700">Email service</p>
           <p className="mt-2 inline-flex items-center gap-2 text-emerald-700">
             <CheckCircle2 className="h-4 w-4" /> Online
           </p>
           <p className="mt-1 text-xs text-slate-500">Updated: {nowLabel()}</p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium text-slate-700">All services</p>
           <p className="mt-2 inline-flex items-center gap-2 text-emerald-700">
             <CheckCircle2 className="h-4 w-4" /> Healthy
@@ -53,7 +53,7 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-card p-4">
           <h2 className="text-base font-semibold text-slate-900">Recent activity</h2>
           <div className="mt-3 space-y-3 text-sm">
             <p>
@@ -75,22 +75,22 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="surface-card p-4">
           <h2 className="text-base font-semibold text-slate-900">System snapshot</h2>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
               <p className="text-xs text-slate-500">Total users</p>
               <p className="text-2xl font-semibold text-slate-900">{users}</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
               <p className="text-xs text-slate-500">Total complaints</p>
               <p className="text-2xl font-semibold text-slate-900">{complaints}</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
               <p className="text-xs text-slate-500">Management accounts</p>
               <p className="text-2xl font-semibold text-slate-900">{managementUsers}</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3">
               <p className="text-xs text-slate-500">Timestamp</p>
               <p className="inline-flex items-center gap-1 text-sm text-slate-700">
                 <Clock3 className="h-4 w-4" />
@@ -101,10 +101,10 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="surface-card p-4">
         <p className="mb-3 text-sm font-semibold text-slate-800">Quick actions</p>
         <div className="flex flex-wrap gap-2">
-          <Link href="/admin/configuration" className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+          <Link href="/admin/configuration" className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200">
             Manage Categories
           </Link>
           <Link href="/admin/users" className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm">
@@ -121,4 +121,3 @@ export default async function AdminDashboardPage() {
     </div>
   );
 }
-

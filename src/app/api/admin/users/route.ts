@@ -3,15 +3,34 @@ import { z } from "zod";
 import { hash } from "bcryptjs";
 import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
-import { normalizeStudentIdentifier } from "@/lib/identity";
+import { normalizeLoginIdentifier } from "@/lib/identity";
 
-const createSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().min(3),
-  role: z.enum(["STUDENT", "MANAGEMENT", "IT_STAFF_ADMIN"]),
-  hostelId: z.string().optional(),
-  isActive: z.boolean().default(true),
-});
+const createSchema = z
+  .object({
+    name: z.string().min(2),
+    email: z.string().min(3),
+    role: z.enum(["STUDENT", "MANAGEMENT", "IT_STAFF_ADMIN"]),
+    phone: z.string().optional(),
+    roomId: z.string().optional(),
+    hostelId: z.string().optional(),
+    isActive: z.boolean().default(true),
+  })
+  .superRefine((value, ctx) => {
+    if (value.role === "STUDENT" && !value.roomId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["roomId"],
+        message: "Room is required for student accounts",
+      });
+    }
+    if (value.role === "MANAGEMENT" && !value.hostelId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["hostelId"],
+        message: "Hostel is required for management accounts",
+      });
+    }
+  });
 
 export async function GET() {
   const admin = await requireAdminUser();
@@ -48,26 +67,45 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   try {
     const payload = createSchema.parse(await request.json());
-    const email = normalizeStudentIdentifier(payload.email);
+    const email = normalizeLoginIdentifier(payload.email, payload.role);
+    const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
+    if (existing) {
+      return NextResponse.json({ message: "Email or identifier already exists" }, { status: 409 });
+    }
+
     const defaultPassword = await hash("ChangeMe123!", 10);
 
-    const created = await db.user.create({
-      data: {
-        name: payload.name,
-        email,
-        role: payload.role,
-        isActive: payload.isActive,
-        password: defaultPassword,
-      },
-      select: { id: true, name: true, email: true, role: true, isActive: true },
-    });
-
-    if (payload.role === "MANAGEMENT" && payload.hostelId) {
-      await db.hostel.update({
-        where: { id: payload.hostelId },
-        data: { wardenId: created.id },
+    const created = await db.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: payload.name.trim(),
+          email,
+          role: payload.role,
+          phone: payload.phone?.trim() || null,
+          isActive: payload.isActive,
+          password: defaultPassword,
+        },
+        select: { id: true, name: true, email: true, role: true, isActive: true },
       });
-    }
+
+      if (payload.role === "STUDENT" && payload.roomId) {
+        await tx.studentProfile.create({
+          data: {
+            userId: newUser.id,
+            roomId: payload.roomId,
+          },
+        });
+      }
+
+      if (payload.role === "MANAGEMENT" && payload.hostelId) {
+        await tx.hostel.update({
+          where: { id: payload.hostelId },
+          data: { wardenId: newUser.id },
+        });
+      }
+
+      return newUser;
+    });
 
     await logAudit({
       userId: admin.id,
@@ -86,4 +124,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Failed to create user" }, { status: 500 });
   }
 }
-

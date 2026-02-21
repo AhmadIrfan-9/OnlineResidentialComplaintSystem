@@ -68,26 +68,25 @@ export default function StudentComplaintsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b bg-white shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen">
+      <header className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="surface-hero px-5 py-5">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-gray-900">My Complaints</h1>
-            <Link href="/student/complaints/new">
-              <Button>
+            <h1 className="text-3xl font-bold text-slate-900">My Complaints</h1>
+            <Link href="/complaints/new">
+              <Button className="bg-gradient-to-r from-sky-600 to-blue-700 text-white hover:from-sky-700 hover:to-blue-800">
                 <Plus className="mr-2 h-4 w-4" />
                 New Complaint
               </Button>
             </Link>
           </div>
+          <p className="mt-2 text-sm text-slate-700">Track all submissions, responses, and progress in one place.</p>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
+          <Card className="mb-6 border-red-200 bg-red-50/90 shadow-sm">
             <CardContent className="flex items-center gap-3 pt-6">
               <AlertCircle className="h-5 w-5 text-red-600" />
               <span className="text-sm text-red-800">{error}</span>
@@ -96,7 +95,7 @@ export default function StudentComplaintsPage() {
         )}
 
         {complaints.length === 0 ? (
-          <Card>
+          <Card className="surface-card">
             <CardContent className="pt-12 text-center">
               <h3 className="text-lg font-semibold text-gray-900">
                 No complaints yet
@@ -104,8 +103,8 @@ export default function StudentComplaintsPage() {
               <p className="mt-2 text-gray-600">
                 Submit your first complaint to get started.
               </p>
-              <Link href="/student/complaints/new">
-                <Button className="mt-4">
+              <Link href="/complaints/new">
+                <Button className="mt-4 bg-gradient-to-r from-sky-600 to-blue-700 text-white hover:from-sky-700 hover:to-blue-800">
                   <Plus className="mr-2 h-4 w-4" />
                   Submit First Complaint
                 </Button>
@@ -117,14 +116,14 @@ export default function StudentComplaintsPage() {
             {complaints.map((complaint) => (
               <Link
                 key={complaint.id}
-                href={`/student/complaints/${complaint.id}`}
+                href={`/complaints/${complaint.id}`}
               >
-                <Card className="cursor-pointer transition-shadow hover:shadow-md">
+                <Card className="surface-card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md">
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                          <h3 className="text-lg font-semibold text-slate-900">
                             {complaint.title}
                           </h3>
                           <Badge
@@ -134,7 +133,7 @@ export default function StudentComplaintsPage() {
                           </Badge>
                         </div>
 
-                        <p className="mt-2 line-clamp-2 text-sm text-gray-600">
+                        <p className="mt-2 line-clamp-2 text-sm text-slate-600">
                           {complaint.description}
                         </p>
 

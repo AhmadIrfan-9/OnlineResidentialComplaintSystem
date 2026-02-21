@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { assignmentComment, parseAssignmentText } from "@/lib/complaints";
 
 interface CreateComplaintResult {
   success: boolean;
@@ -271,6 +272,15 @@ interface UpdateComplaintStatusResult {
   error?: string;
 }
 
+interface UpdateComplaintCategoryResult {
+  success: boolean;
+  data?: {
+    id: string;
+    category: string;
+  };
+  error?: string;
+}
+
 export async function updateComplaintStatus(
   complaintId: string,
   newStatus: string
@@ -374,6 +384,84 @@ export async function updateComplaintStatus(
   }
 }
 
+export async function updateComplaintCategory(
+  complaintId: string,
+  newCategory: string
+): Promise<UpdateComplaintCategoryResult> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "You must be logged in to update complaints" };
+    }
+
+    if (!isManagementRole(session.user.role)) {
+      return {
+        success: false,
+        error: "Only management users can update complaint category",
+      };
+    }
+
+    const validatedCategory = ComplaintCategoryEnum.parse(newCategory);
+
+    const complaint = await db.complaint.findUnique({
+      where: { id: complaintId },
+      include: {
+        hostel: {
+          select: {
+            wardenId: true,
+          },
+        },
+      },
+    });
+
+    if (!complaint) {
+      return { success: false, error: "Complaint not found" };
+    }
+
+    if (complaint.hostel.wardenId !== session.user.id) {
+      return {
+        success: false,
+        error: "You can only update complaints from your assigned hostel",
+      };
+    }
+
+    const updatedComplaint = await db.complaint.update({
+      where: { id: complaintId },
+      data: { category: validatedCategory },
+      select: {
+        id: true,
+        category: true,
+      },
+    });
+
+    await db.complaintUpdate.create({
+      data: {
+        complaintId,
+        content: `Category changed from ${complaint.category} to ${validatedCategory}`,
+        updatedById: session.user.id,
+      },
+    });
+
+    revalidatePath("/warden/dashboard");
+    revalidatePath("/warden/queue");
+    revalidatePath(`/warden/complaints/${complaintId}`);
+
+    return {
+      success: true,
+      data: {
+        id: updatedComplaint.id,
+        category: updatedComplaint.category,
+      },
+    };
+  } catch (error) {
+    console.error("[Update Complaint Category Error]", error);
+    return {
+      success: false,
+      error: "Failed to update complaint category",
+    };
+  }
+}
+
 interface ComplaintUpdateRecord {
   id: string;
   updateType: string;
@@ -448,10 +536,15 @@ export async function getComplaintUpdates(
 
     const mappedUpdates: ComplaintUpdateRecord[] = updates.map((update) => {
       const isStatusChange = update.content.startsWith("Status changed from ");
+      const isAssignment = parseAssignmentText(update.content) !== null;
       const parsed = parseStatusTransition(update.content);
       return {
         id: update.id,
-        updateType: isStatusChange ? "STATUS_CHANGE" : "COMMENT",
+        updateType: isStatusChange
+          ? "STATUS_CHANGE"
+          : isAssignment
+          ? "ASSIGNMENT"
+          : "COMMENT",
         message: update.content,
         oldStatus: parsed.oldStatus,
         newStatus: parsed.newStatus,
@@ -496,13 +589,6 @@ export async function addComplaintComment(
       return { success: false, error: "You must be logged in to add comments" };
     }
 
-    if (!isManagementRole(session.user.role)) {
-      return {
-        success: false,
-        error: "Only management users can add comments",
-      };
-    }
-
     if (!message || message.trim().length === 0) {
       return { success: false, error: "Comment cannot be empty" };
     }
@@ -513,11 +599,28 @@ export async function addComplaintComment(
 
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
-      select: { id: true },
+      select: {
+        id: true,
+        hostel: { select: { wardenId: true } },
+        studentProfile: { select: { userId: true } },
+      },
     });
 
     if (!complaint) {
       return { success: false, error: "Complaint not found" };
+    }
+
+    const normalizedRole = normalizeRoleKey(session.user.role);
+    const isWardenOwner =
+      normalizedRole === "MANAGEMENT" && complaint.hostel.wardenId === session.user.id;
+    const isStudentOwner =
+      normalizedRole === "STUDENT" && complaint.studentProfile?.userId === session.user.id;
+
+    if (!isWardenOwner && !isStudentOwner) {
+      return {
+        success: false,
+        error: "You are not allowed to comment on this complaint",
+      };
     }
 
     const update = await db.complaintUpdate.create({
@@ -554,5 +657,66 @@ export async function addComplaintComment(
       success: false,
       error: "An unexpected error occurred while adding the comment",
     };
+  }
+}
+
+interface AssignComplaintResult {
+  success: boolean;
+  data?: {
+    complaintId: string;
+    assignedTo: string;
+  };
+  error?: string;
+}
+
+export async function assignComplaint(
+  complaintId: string,
+  assignee: string
+): Promise<AssignComplaintResult> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: "You must be logged in to assign complaints" };
+    }
+
+    if (!isManagementRole(session.user.role)) {
+      return { success: false, error: "Only management users can assign complaints" };
+    }
+
+    const complaint = await db.complaint.findUnique({
+      where: { id: complaintId },
+      include: { hostel: { select: { wardenId: true } } },
+    });
+
+    if (!complaint) {
+      return { success: false, error: "Complaint not found" };
+    }
+
+    if (complaint.hostel.wardenId !== session.user.id) {
+      return { success: false, error: "You can only assign complaints from your assigned hostel" };
+    }
+
+    const assignedTo = assignee.trim() || "Unassigned";
+    await db.complaintUpdate.create({
+      data: {
+        complaintId,
+        content: assignmentComment(assignedTo),
+        updatedById: session.user.id,
+      },
+    });
+
+    revalidatePath("/warden/queue");
+    revalidatePath(`/warden/complaints/${complaintId}`);
+
+    return {
+      success: true,
+      data: {
+        complaintId,
+        assignedTo,
+      },
+    };
+  } catch (error) {
+    console.error("[Assign Complaint Error]", error);
+    return { success: false, error: "Failed to assign complaint" };
   }
 }

@@ -4,12 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { ComplaintQueueTable, type QueueItem } from "@/components/warden/ComplaintQueueTable";
-
-const severitySlaDays = (severity: string): number => {
-  if (severity === "EMERGENCY") return 4 / 24;
-  if (severity === "URGENT") return 1;
-  return 7;
-};
+import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 
 const categoryLabel = (value: string): string =>
   value
@@ -56,16 +51,24 @@ export default async function ComplaintQueuePage() {
           },
         },
       },
+      complaintUpdates: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          content: true,
+          createdAt: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const now = Date.now();
+  const now = new Date();
   const items: QueueItem[] = complaints.map((c) => {
-    const pendingDays = Math.max(0, (now - c.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    const remaining = severitySlaDays(c.priority) - pendingDays;
-    const slaState =
-      remaining < 0 ? "OVERDUE" : remaining <= 2 ? "APPROACHING" : "WITHIN";
+    const pendingDays = toPendingDays(c.createdAt, now);
+    const ageBand = toAgeBand(pendingDays);
+    const assignedUpdate = c.complaintUpdates
+      .map((update) => parseAssignmentText(update.content))
+      .find((value): value is string => Boolean(value));
 
     return {
       complaintId: c.id,
@@ -76,25 +79,28 @@ export default async function ComplaintQueuePage() {
       daysPending: Number(pendingDays.toFixed(1)),
       student: c.isAnonymous ? "Anonymous" : c.studentProfile?.user.name ?? "Unknown",
       category: categoryLabel(c.category),
-      assignedTo: c.status === "UNDER_REVIEW" || c.status === "IN_PROGRESS" ? "My Assignments" : "Unassigned",
-      slaState,
+      assignedTo: assignedUpdate ?? "Unassigned",
+      ageBand,
     };
   });
 
   return (
-    <main className="min-h-screen bg-slate-50 p-3 md:p-6">
+    <main className="min-h-screen p-3 md:p-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <header className="surface-hero p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-lg font-semibold text-slate-900">Complaint Queue</p>
               <p className="text-sm text-slate-600">Hostel: {hostel.name}</p>
+              <p className="text-xs text-slate-500">
+                Color code: Green (0-14 days), Yellow (15-30 days), Red (over 30 days)
+              </p>
             </div>
             <div className="flex gap-2">
-              <Link href="/warden/dashboard" className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+              <Link href="/warden/dashboard" className="nav-pill px-3 py-2">
                 Back to Dashboard
               </Link>
-              <Link href="/warden/reports" className="rounded-md bg-blue-600 px-3 py-2 text-sm text-white">
+              <Link href="/warden/reports" className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white shadow-md shadow-sky-200">
                 Generate Report
               </Link>
             </div>

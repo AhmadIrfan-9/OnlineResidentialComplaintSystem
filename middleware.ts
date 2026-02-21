@@ -40,23 +40,31 @@ export async function middleware(request: NextRequest) {
 
   const wantsStudentArea =
     pathnameNormalized.startsWith("/student") ||
-    pathnameNormalized.startsWith("/dashboard/student");
+    pathnameNormalized.startsWith("/dashboard/student") ||
+    pathnameNormalized.startsWith("/complaints");
 
   const wantsWardenArea =
     pathnameNormalized.startsWith("/warden") ||
     pathnameNormalized.startsWith("/dashboard/warden");
   const wantsAdminArea = pathnameNormalized.startsWith("/admin");
 
+  const dashboardByRole = (): string => {
+    if (isAdminRole(userRole)) return "/admin";
+    if (isManagementRole(userRole)) return "/dashboard/warden";
+    if (isStudentRole(userRole)) return "/dashboard/student";
+    return "/dashboard";
+  };
+
   if (wantsStudentArea && !isStudentRole(userRole)) {
-    return NextResponse.redirect(new URL("/dashboard/warden", request.url));
+    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
   }
 
   if (wantsAdminArea && !isAdminRole(userRole)) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
   }
 
   if (wantsWardenArea && !isManagementRole(userRole)) {
-    return NextResponse.redirect(new URL("/dashboard/student", request.url));
+    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
   }
 
   // Allow access if all checks pass
