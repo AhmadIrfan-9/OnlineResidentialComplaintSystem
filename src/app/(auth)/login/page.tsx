@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { LoginForm } from "@/components/shared/LoginForm";
-import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
+import { dashboardPathByRole } from "@/lib/roles";
 
 export const metadata = {
   title: "Sign In | ORCS",
@@ -12,25 +11,8 @@ export const metadata = {
 export default async function LoginPage() {
   // Redirect if already authenticated
   const session = await auth();
-  if (session?.user?.id) {
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true },
-    });
-
-    if (isStudentRole(user?.role)) {
-      redirect("/dashboard/student");
-    }
-
-    if (isAdminRole(user?.role)) {
-      redirect("/admin");
-    }
-
-    if (isManagementRole(user?.role)) {
-      redirect("/dashboard/warden");
-    }
-
-    redirect("/dashboard");
+  if (session?.user) {
+    redirect(dashboardPathByRole(session.user.role));
   }
 
   return (

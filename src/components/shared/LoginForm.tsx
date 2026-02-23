@@ -46,7 +46,7 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push("/");
       router.refresh();
     } catch {
       setError("An error occurred. Please try again.");

@@ -14,3 +14,10 @@ export const isManagementRole = (role: unknown): boolean => {
   const normalized = normalizeRoleKey(role);
   return normalized === "MANAGEMENT";
 };
+
+export const dashboardPathByRole = (role: unknown): string => {
+  if (isAdminRole(role)) return "/admin";
+  if (isManagementRole(role)) return "/warden/dashboard";
+  if (isStudentRole(role)) return "/dashboard/student";
+  return "/dashboard";
+};
