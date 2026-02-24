@@ -197,97 +197,105 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
             </tr>
           </thead>
           <tbody>
-            {paged.map((item) => (
-              <tr
-                key={item.complaintId}
-                className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.ageBand)}`}
-                onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
-              >
-                <td className="px-3 py-3">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(selected[item.complaintId])}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      setSelected((prev) => ({ ...prev, [item.complaintId]: e.target.checked }))
-                    }
-                  />
-                </td>
-                <td className="px-3 py-3 font-medium text-slate-800">
-                  <Link href={`/warden/complaints/${item.complaintId}`} onClick={(e) => e.stopPropagation()}>
-                    {item.ticketId}
-                  </Link>
-                </td>
-                <td className="px-3 py-3">
-                  <select
-                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700"
-                    value={statusByComplaint[item.complaintId] ?? item.statusCode}
-                    disabled={updatingComplaintId === item.complaintId}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      handleStatusChange(
-                        item.complaintId,
-                        e.target.value as QueueItem["statusCode"]
-                      )
-                    }
-                  >
-                    <option value="SUBMITTED">Submitted</option>
-                    <option value="ACKNOWLEDGED">Acknowledged</option>
-                    <option value="UNDER_REVIEW">Under Review</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="RESOLVED">Resolved</option>
-                    <option value="CLOSED">Closed</option>
-                  </select>
-                </td>
-                <td className="px-3 py-3">{item.severity}</td>
-                <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
-                <td className="px-3 py-3">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs ${
-                      item.ageBand === "RED"
-                        ? "bg-red-100 text-red-700"
-                        : item.ageBand === "YELLOW"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-emerald-100 text-emerald-700"
-                    }`}
-                  >
-                    {item.daysPending}
-                  </span>
-                </td>
-                <td className="px-3 py-3">{item.student}</td>
-                <td className="px-3 py-3">{item.category}</td>
-                <td className="px-3 py-3">{item.assignedTo}</td>
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
-                    <Link
-                      href={`/warden/complaints/${item.complaintId}`}
-                      className="nav-pill px-2 py-1 text-xs"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      View
-                    </Link>
-                    <button
-                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <UserPlus2 className="h-3 w-3" /> Assign to Me
-                    </button>
-                    <button
-                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MessageSquare className="h-3 w-3" /> Message
-                    </button>
-                    <button
-                      className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <TriangleAlert className="h-3 w-3" /> Escalate
-                    </button>
-                  </div>
+            {paged.length === 0 ? (
+              <tr className="border-t border-slate-100">
+                <td colSpan={10} className="px-3 py-8 text-center text-sm text-slate-500">
+                  No complaints found for the current filters.
                 </td>
               </tr>
-            ))}
+            ) : (
+              paged.map((item) => (
+                <tr
+                  key={item.complaintId}
+                  className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.ageBand)}`}
+                  onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
+                >
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selected[item.complaintId])}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        setSelected((prev) => ({ ...prev, [item.complaintId]: e.target.checked }))
+                      }
+                    />
+                  </td>
+                  <td className="px-3 py-3 font-medium text-slate-800">
+                    <Link href={`/warden/complaints/${item.complaintId}`} onClick={(e) => e.stopPropagation()}>
+                      {item.ticketId}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-3">
+                    <select
+                      className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700"
+                      value={statusByComplaint[item.complaintId] ?? item.statusCode}
+                      disabled={updatingComplaintId === item.complaintId}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        handleStatusChange(
+                          item.complaintId,
+                          e.target.value as QueueItem["statusCode"]
+                        )
+                      }
+                    >
+                      <option value="SUBMITTED">Submitted</option>
+                      <option value="ACKNOWLEDGED">Acknowledged</option>
+                      <option value="UNDER_REVIEW">Under Review</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="RESOLVED">Resolved</option>
+                      <option value="CLOSED">Closed</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-3">{item.severity}</td>
+                  <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
+                  <td className="px-3 py-3">
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs ${
+                        item.ageBand === "RED"
+                          ? "bg-red-100 text-red-700"
+                          : item.ageBand === "YELLOW"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {item.daysPending}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">{item.student}</td>
+                  <td className="px-3 py-3">{item.category}</td>
+                  <td className="px-3 py-3">{item.assignedTo}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2 opacity-0 transition group-hover:opacity-100">
+                      <Link
+                        href={`/warden/complaints/${item.complaintId}`}
+                        className="nav-pill px-2 py-1 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View
+                      </Link>
+                      <button
+                        className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <UserPlus2 className="h-3 w-3" /> Assign to Me
+                      </button>
+                      <button
+                        className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MessageSquare className="h-3 w-3" /> Message
+                      </button>
+                      <button
+                        className="nav-pill inline-flex items-center gap-1 px-2 py-1 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <TriangleAlert className="h-3 w-3" /> Escalate
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

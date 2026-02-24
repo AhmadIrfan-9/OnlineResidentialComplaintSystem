@@ -30,17 +30,38 @@ export default async function ComplaintQueuePage() {
     redirect("/login");
   }
 
-  const hostel = await db.hostel.findFirst({
+  const assignedHostels = await db.hostel.findMany({
     where: role === "MANAGEMENT" ? { wardenId: session.user.id } : undefined,
     select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
 
-  if (!hostel) {
-    redirect("/warden/dashboard");
+  const scopedHostels =
+    assignedHostels.length > 0
+      ? assignedHostels
+      : await db.hostel.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        });
+
+  if (scopedHostels.length === 0) {
+    return (
+      <main className="min-h-screen p-3 md:p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            No hostel is configured yet. Please create at least one hostel in admin settings.
+          </div>
+        </div>
+      </main>
+    );
   }
 
+  const isFallbackScope = assignedHostels.length === 0;
+  const scopeLabel =
+    scopedHostels.length === 1 ? scopedHostels[0].name : `${scopedHostels.length} hostels`;
+
   const complaints = await db.complaint.findMany({
-    where: { hostelId: hostel.id },
+    where: { hostelId: { in: scopedHostels.map((item) => item.id) } },
     include: {
       studentProfile: {
         include: {
@@ -92,7 +113,7 @@ export default async function ComplaintQueuePage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-lg font-semibold text-slate-900">Complaint Queue</p>
-              <p className="text-sm text-slate-600">Hostel: {hostel.name}</p>
+              <p className="text-sm text-slate-600">Scope: {scopeLabel}</p>
               <p className="text-xs text-slate-500">
                 Color code: Green (0-14 days), Yellow (15-30 days), Red (over 30 days)
               </p>
@@ -106,6 +127,11 @@ export default async function ComplaintQueuePage() {
               </Link>
             </div>
           </div>
+          {isFallbackScope && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              No hostel assignment found for this management account. Showing data from all hostels.
+            </div>
+          )}
         </header>
 
         <ComplaintQueueTable items={items} />
