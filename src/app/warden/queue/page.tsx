@@ -73,6 +73,7 @@ export default async function ComplaintQueuePage() {
     return {
       complaintId: c.id,
       ticketId: ticketId(c.id, c.createdAt),
+      statusCode: c.status,
       status: statusLabel(c.status),
       severity: categoryLabel(c.priority),
       submitted: c.createdAt.toISOString(),

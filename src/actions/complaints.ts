@@ -351,6 +351,8 @@ export async function updateComplaintStatus(
     });
 
     revalidatePath("/warden/dashboard");
+    revalidatePath("/warden/queue");
+    revalidatePath(`/warden/complaints/${complaintId}`);
     revalidatePath("/student/complaints");
 
     console.log(

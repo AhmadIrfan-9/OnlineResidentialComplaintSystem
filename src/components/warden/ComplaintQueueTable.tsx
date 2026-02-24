@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpDown, MessageSquare, TriangleAlert, UserPlus2 } from "lucide-react";
+import { updateComplaintStatus } from "@/actions/complaints";
 
 export interface QueueItem {
   complaintId: string;
   ticketId: string;
+  statusCode: "SUBMITTED" | "ACKNOWLEDGED" | "UNDER_REVIEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
   status: string;
   severity: string;
   submitted: string;
@@ -29,8 +31,21 @@ type SortKey = keyof Pick<
   "ticketId" | "status" | "severity" | "submitted" | "daysPending" | "student" | "category" | "assignedTo"
 >;
 
+const STATUS_LABEL_MAP: Record<QueueItem["statusCode"], string> = {
+  SUBMITTED: "Submitted",
+  ACKNOWLEDGED: "Acknowledged",
+  UNDER_REVIEW: "Under Review",
+  IN_PROGRESS: "In Progress",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+};
+
 export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
   const router = useRouter();
+  const [statusByComplaint, setStatusByComplaint] = useState<Record<string, QueueItem["statusCode"]>>(
+    () => Object.fromEntries(items.map((item) => [item.complaintId, item.statusCode]))
+  );
+  const [updatingComplaintId, setUpdatingComplaintId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
   const [severityFilter, setSeverityFilter] = useState("All");
   const [assignedFilter, setAssignedFilter] = useState("All");
@@ -40,9 +55,22 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+  const itemsWithLiveStatus = useMemo(
+    () =>
+      items.map((item) => {
+        const statusCode = statusByComplaint[item.complaintId] ?? item.statusCode;
+        return {
+          ...item,
+          statusCode,
+          status: STATUS_LABEL_MAP[statusCode],
+        };
+      }),
+    [items, statusByComplaint]
+  );
+
   const filtered = useMemo(() => {
     const lowered = (v: string) => v.toLowerCase();
-    return items
+    return itemsWithLiveStatus
       .filter((item) =>
         statusFilter === "All" ? true : lowered(item.status) === lowered(statusFilter)
       )
@@ -63,7 +91,22 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
             : String(left).localeCompare(String(right));
         return sortOrder === "asc" ? base : -base;
       });
-  }, [assignedFilter, items, severityFilter, sortKey, sortOrder, statusFilter]);
+  }, [assignedFilter, itemsWithLiveStatus, severityFilter, sortKey, sortOrder, statusFilter]);
+
+  const handleStatusChange = async (complaintId: string, nextStatus: QueueItem["statusCode"]) => {
+    const previousStatus = statusByComplaint[complaintId];
+    setStatusByComplaint((prev) => ({ ...prev, [complaintId]: nextStatus }));
+    setUpdatingComplaintId(complaintId);
+
+    const result = await updateComplaintStatus(complaintId, nextStatus);
+    if (!result.success) {
+      setStatusByComplaint((prev) => ({ ...prev, [complaintId]: previousStatus }));
+      window.alert(result.error ?? "Failed to update complaint status");
+    }
+
+    setUpdatingComplaintId(null);
+    router.refresh();
+  };
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
   const selectedCount = Object.values(selected).filter(Boolean).length;
@@ -175,7 +218,27 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                     {item.ticketId}
                   </Link>
                 </td>
-                <td className="px-3 py-3">{item.status}</td>
+                <td className="px-3 py-3">
+                  <select
+                    className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700"
+                    value={statusByComplaint[item.complaintId] ?? item.statusCode}
+                    disabled={updatingComplaintId === item.complaintId}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      handleStatusChange(
+                        item.complaintId,
+                        e.target.value as QueueItem["statusCode"]
+                      )
+                    }
+                  >
+                    <option value="SUBMITTED">Submitted</option>
+                    <option value="ACKNOWLEDGED">Acknowledged</option>
+                    <option value="UNDER_REVIEW">Under Review</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                  </select>
+                </td>
                 <td className="px-3 py-3">{item.severity}</td>
                 <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
                 <td className="px-3 py-3">
