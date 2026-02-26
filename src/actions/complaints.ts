@@ -32,6 +32,10 @@ const createComplaintSubmissionSchema = z
     description: z.string().min(10).max(2000),
     category: ComplaintCategoryEnum,
     priority: PriorityEnum.default("ROUTINE"),
+    locationBlock: z
+      .string()
+      .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
+      .optional(),
     roomId: z.string().min(1),
     studentId: z.string().min(1).optional().nullable(),
     isAnonymous: z.boolean().default(false),
@@ -57,6 +61,7 @@ interface CreateComplaintSubmissionResult {
     title: string;
     category: string;
     priority: string;
+    locationBlock?: string | null;
     roomId: string;
     studentProfileId: string | null;
     isAnonymous: boolean;
@@ -111,6 +116,7 @@ export async function createComplaintSubmission(
         description: validatedInput.description,
         category: validatedInput.category,
         priority: validatedInput.priority,
+        locationBlock: validatedInput.locationBlock ?? null,
         status: "SUBMITTED",
         roomId: room.id,
         hostelId: room.hostelId,
@@ -122,6 +128,7 @@ export async function createComplaintSubmission(
         title: true,
         category: true,
         priority: true,
+        locationBlock: true,
         roomId: true,
         studentProfileId: true,
         isAnonymous: true,
@@ -202,6 +209,7 @@ export async function createComplaint(
         description: validatedData.description,
         category: validatedData.category,
         priority: validatedData.priority ?? "ROUTINE",
+        locationBlock: validatedData.locationBlock ?? null,
         status: "SUBMITTED",
         studentProfileId: studentProfile.id,
         isAnonymous: false,

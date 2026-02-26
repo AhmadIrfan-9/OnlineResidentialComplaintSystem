@@ -7,6 +7,16 @@ import {
   isStudentRole,
 } from "@/lib/roles";
 
+function withNoStore(response: NextResponse): NextResponse {
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -23,9 +33,12 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't require authentication
   const publicRoutes = ["/", "/login"];
-  const isPublicRoute = publicRoutes.some((route) =>
-    pathname === route || pathname.startsWith(route)
-  );
+  const isPublicRoute = publicRoutes.some((route) => {
+    if (route === "/") {
+      return pathname === "/";
+    }
+    return pathname === route || pathname.startsWith(`${route}/`);
+  });
 
   // If public route, allow access
   if (isPublicRoute) {
@@ -36,7 +49,7 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    return withNoStore(NextResponse.redirect(loginUrl));
   }
 
   // Role-based route protection
@@ -56,19 +69,25 @@ export async function middleware(request: NextRequest) {
   const dashboardByRole = (): string => dashboardPathByRole(userRole);
 
   if (wantsStudentArea && !isStudentRole(userRole)) {
-    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
+    return withNoStore(
+      NextResponse.redirect(new URL(dashboardByRole(), request.url))
+    );
   }
 
   if (wantsAdminArea && !isAdminRole(userRole)) {
-    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
+    return withNoStore(
+      NextResponse.redirect(new URL(dashboardByRole(), request.url))
+    );
   }
 
   if (wantsWardenArea && !isManagementRole(userRole)) {
-    return NextResponse.redirect(new URL(dashboardByRole(), request.url));
+    return withNoStore(
+      NextResponse.redirect(new URL(dashboardByRole(), request.url))
+    );
   }
 
   // Allow access if all checks pass
-  return NextResponse.next();
+  return withNoStore(NextResponse.next());
 }
 
 // Configure which routes to protect

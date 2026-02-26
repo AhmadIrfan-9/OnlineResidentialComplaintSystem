@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileImage, Film, UploadCloud } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-type Severity = "ROUTINE" | "URGENT" | "EMERGENCY";
 type Mode = "IDENTIFIED" | "ANONYMOUS";
 
 interface CategoryOption {
@@ -34,6 +33,20 @@ const MAX_FILES = 3;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "video/mp4"];
 const MIN_DESCRIPTION_LENGTH = 20;
+const LOCATION_FIRST_OPTIONS = ["C1", "C2", "C3"] as const;
+const LOCATION_SECOND_OPTIONS = [
+  "01",
+  "02",
+  "03",
+  "04",
+  "05",
+  "06",
+  "07",
+  "08",
+  "09",
+  "10",
+] as const;
+const LOCATION_THIRD_OPTIONS = ["01", "02", "03", "04", "05", "06", "07", "08"] as const;
 
 export function StudentComplaintForm({
   categories,
@@ -45,8 +58,9 @@ export function StudentComplaintForm({
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(categories[0]?.value ?? "");
-  const [locationBlock, setLocationBlock] = useState("");
-  const [severity, setSeverity] = useState<Severity>("ROUTINE");
+  const [locationFirst, setLocationFirst] = useState<string>("");
+  const [locationSecond, setLocationSecond] = useState<string>("");
+  const [locationThird, setLocationThird] = useState<string>("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<Mode>("IDENTIFIED");
   const [files, setFiles] = useState<File[]>([]);
@@ -57,27 +71,29 @@ export function StudentComplaintForm({
   const [touched, setTouched] = useState({
     title: false,
     category: false,
+    location: false,
     description: false,
-    severity: false,
   });
 
   const titleValid = title.trim().length >= 5;
   const descriptionCount = description.length;
   const categoryValid = category.trim().length > 0;
-  const severityValid = severity === "ROUTINE" || severity === "URGENT" || severity === "EMERGENCY";
+  const locationValid =
+    LOCATION_FIRST_OPTIONS.includes(locationFirst as (typeof LOCATION_FIRST_OPTIONS)[number]) &&
+    LOCATION_SECOND_OPTIONS.includes(
+      locationSecond as (typeof LOCATION_SECOND_OPTIONS)[number]
+    ) &&
+    LOCATION_THIRD_OPTIONS.includes(locationThird as (typeof LOCATION_THIRD_OPTIONS)[number]);
+  const locationBlock = locationValid
+    ? `${locationFirst}-${locationSecond}-${locationThird}`
+    : "";
   const descriptionRequiredValid = description.trim().length > 0;
   const descriptionValid = descriptionCount >= MIN_DESCRIPTION_LENGTH;
-  const formValid = titleValid && categoryValid && severityValid && descriptionValid;
-
-  const helperText = useMemo(
-    () =>
-      "Routine = 7 days, Urgent = 24 hours, Emergency = 4 hours",
-    []
-  );
+  const formValid = titleValid && categoryValid && locationValid && descriptionValid;
 
   const showTitleError = (attemptedSubmit || touched.title) && !titleValid;
   const showCategoryError = (attemptedSubmit || touched.category) && !categoryValid;
-  const showSeverityError = (attemptedSubmit || touched.severity) && !severityValid;
+  const showLocationError = (attemptedSubmit || touched.location) && !locationValid;
   const showDescriptionRequiredError =
     (attemptedSubmit || touched.description) && !descriptionRequiredValid;
   const showDescriptionMinError =
@@ -137,7 +153,7 @@ export function StudentComplaintForm({
           title: title.trim(),
           description: description.trim(),
           category,
-          priority: severity,
+          locationBlock,
           roomId,
           attachments: [],
           isAnonymous: mode === "ANONYMOUS",
@@ -165,7 +181,6 @@ export function StudentComplaintForm({
       title,
       category,
       locationBlock,
-      severity,
       description,
       mode,
       files: files.map((file) => ({ name: file.name, size: file.size, type: file.type })),
@@ -254,51 +269,89 @@ export function StudentComplaintForm({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="locationBlock">Location / Block (Optional)</Label>
-            <Input
-              id="locationBlock"
-              placeholder="Example: Block B, 3rd Floor Corridor"
-              value={locationBlock}
-              onChange={(event) => setLocationBlock(event.target.value)}
-            />
-          </div>
-
-          <div
-            className={cn(
-              "space-y-3 rounded-xl border bg-slate-50 p-4",
-              showSeverityError ? "border-red-500" : "border-slate-200",
-              severityValid && "border-emerald-500"
-            )}
-          >
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between">
-              <Label>Severity</Label>
-              {severityValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              <Label>Location / Block</Label>
+              {locationValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
             </div>
-            <div className="flex flex-wrap gap-4">
-              {[
-                { value: "ROUTINE", label: "Routine" },
-                { value: "URGENT", label: "Urgent" },
-                { value: "EMERGENCY", label: "Emergency" },
-              ].map((item) => (
-                <label key={item.value} className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="severity"
-                    value={item.value}
-                    checked={severity === item.value}
-                    onChange={() => {
-                      setSeverity(item.value as Severity);
-                      setTouched((prev) => ({ ...prev, severity: true }));
-                    }}
-                  />
-                  {item.label}
-                </label>
-              ))}
+            <div className="grid gap-3 md:grid-cols-3">
+              <Select
+                value={locationFirst}
+                onValueChange={(value) => {
+                  setLocationFirst(value);
+                  setTouched((prev) => ({ ...prev, location: true }));
+                }}
+              >
+                <SelectTrigger
+                  className={cn(
+                    showLocationError && "border-red-500 focus-visible:ring-red-500",
+                    locationFirst && "border-emerald-500"
+                  )}
+                >
+                  <SelectValue placeholder="First" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_FIRST_OPTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={locationSecond}
+                onValueChange={(value) => {
+                  setLocationSecond(value);
+                  setTouched((prev) => ({ ...prev, location: true }));
+                }}
+              >
+                <SelectTrigger
+                  className={cn(
+                    showLocationError && "border-red-500 focus-visible:ring-red-500",
+                    locationSecond && "border-emerald-500"
+                  )}
+                >
+                  <SelectValue placeholder="Second" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_SECOND_OPTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={locationThird}
+                onValueChange={(value) => {
+                  setLocationThird(value);
+                  setTouched((prev) => ({ ...prev, location: true }));
+                }}
+              >
+                <SelectTrigger
+                  className={cn(
+                    showLocationError && "border-red-500 focus-visible:ring-red-500",
+                    locationThird && "border-emerald-500"
+                  )}
+                >
+                  <SelectValue placeholder="Third" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOCATION_THIRD_OPTIONS.map((item) => (
+                    <SelectItem key={item} value={item}>
+                      {item}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-xs text-slate-600">{helperText}</p>
-            {showSeverityError && (
-              <p className="text-xs text-red-600">This field is required</p>
+            <p className="text-xs text-slate-600">
+              Selected format: {locationBlock || "first-second-third"}
+            </p>
+            {showLocationError && (
+              <p className="text-xs text-red-600">Please select all three location values</p>
             )}
           </div>
 

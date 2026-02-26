@@ -47,6 +47,10 @@ export const complaintSubmissionSchema = z.object({
     "Please select a category"
   ),
   priority: PriorityEnum.default("ROUTINE"),
+  locationBlock: z
+    .string()
+    .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
+    .optional(),
   roomId: z.string().min(1, "Room is required"),
   attachments: z
     .array(z.string().url("Invalid image URL"))

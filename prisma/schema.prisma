@@ -131,10 +131,10 @@ model Complaint {
   id          String   @id @default(cuid())
   title       String
   description String   @db.Text
+  locationBlock String?
   category    ComplaintCategory
   status      Status   @default(SUBMITTED)
   priority    Priority @default(ROUTINE)
-  studentId   Int?
   isAnonymous Boolean  @default(false)
   resolvedAt  DateTime?
   closedAt    DateTime?
