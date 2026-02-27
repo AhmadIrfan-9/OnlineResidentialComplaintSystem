@@ -9,6 +9,7 @@ import {
   serializeMessage,
   toChatRole,
 } from "@/lib/messaging";
+import { createInAppNotification } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -109,6 +110,20 @@ export async function POST(request: NextRequest) {
         contentType,
       },
     });
+
+    if (senderRole === "MANAGEMENT") {
+      await createInAppNotification({
+        userId: context.studentId,
+        complaintId: context.complaintId,
+        message: "Management sent you a new support message.",
+      });
+    } else {
+      await createInAppNotification({
+        userId: context.managementRecipientId,
+        complaintId: context.complaintId,
+        message: "A student sent you a new support message.",
+      });
+    }
 
     try {
       const io = (globalThis as typeof globalThis & { __orcsIo?: import("socket.io").Server })

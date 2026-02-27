@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { complaintSubmissionSchema } from "@/lib/validations";
 import { normalizeRoleKey } from "@/lib/roles";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
+import { createInAppNotification } from "@/lib/notifications";
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -110,6 +111,14 @@ export async function POST(request: NextRequest) {
 
     const resolvedEvidences = await resolveEvidenceListUrls(complaint.evidences);
 
+    if (room.hostel.wardenId) {
+      await createInAppNotification({
+        userId: room.hostel.wardenId,
+        complaintId: complaint.id,
+        message: "A new complaint was submitted and requires review.",
+      });
+    }
+
     console.log(`[Complaint Created] ${session.user.id} - ${complaint.id}`);
 
     return NextResponse.json(
@@ -149,6 +158,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const hostelId = searchParams.get("hostelId");
     const studentId = searchParams.get("studentId");
+    const query = searchParams.get("q")?.trim();
     const limit = parseInt(searchParams.get("limit") || "10");
     const skip = parseInt(searchParams.get("skip") || "0");
 
@@ -179,6 +189,21 @@ export async function GET(request: NextRequest) {
     if (hostelId) where.hostelId = hostelId;
     if (studentId && role !== "STUDENT") {
       where.studentProfileId = studentId;
+    }
+    if (query) {
+      where.OR = [
+        { id: { contains: query, mode: "insensitive" } },
+        { title: { contains: query, mode: "insensitive" } },
+        { description: { contains: query, mode: "insensitive" } },
+        { locationBlock: { contains: query, mode: "insensitive" } },
+        {
+          studentProfile: {
+            user: {
+              name: { contains: query, mode: "insensitive" },
+            },
+          },
+        },
+      ];
     }
 
     const complaints = await db.complaint.findMany({

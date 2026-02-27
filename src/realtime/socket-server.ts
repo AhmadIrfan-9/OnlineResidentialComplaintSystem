@@ -1,6 +1,15 @@
 import http from "http";
 import { Server } from "socket.io";
 import { db } from "../lib/db";
+import { redisServiceProvider } from "../lib/redis";
+import { createInAppNotification } from "../lib/notifications";
+import {
+  REDIS_CHANNEL_WS_CHAT_ACTIVE_REFRESH,
+  REDIS_CHANNEL_WS_MESSAGE_NEW,
+  REDIS_CHANNEL_WS_MESSAGE_READ,
+  REDIS_CHANNEL_WS_NOTIFICATION_NEW,
+  REDIS_CHANNEL_WS_PRESENCE_CHANGED,
+} from "../lib/redis/channels";
 import {
   canAccessComplaint,
   managementRoomName,
@@ -38,6 +47,20 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
 });
 
+const hasActiveSocketForUser = (userId: string): boolean => {
+  for (const connectedSocket of io.sockets.sockets.values()) {
+    const identity = connectedSocket.data.user as AuthPayload | undefined;
+    if (identity?.userId === userId && connectedSocket.connected) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const publishWsEvent = async (channel: string, payload: unknown): Promise<void> => {
+  await redisServiceProvider.publish(channel, JSON.stringify(payload));
+};
+
 io.use((socket, next) => {
   const auth = socket.handshake.auth as Partial<AuthPayload>;
   if (!auth?.userId || !auth?.role) {
@@ -54,6 +77,19 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   const identity = socket.data.user as AuthPayload;
   const senderRole = toChatRole(identity.role);
+  socket.join(`user:${identity.userId}`);
+
+  void redisServiceProvider
+    .addActiveUser(identity.userId)
+    .then(() =>
+      publishWsEvent(REDIS_CHANNEL_WS_PRESENCE_CHANGED, {
+        userId: identity.userId,
+        isActive: true,
+      })
+    )
+    .catch((error) => {
+      console.error("[Socket presence add error]", error);
+    });
 
   if (senderRole === "STUDENT") {
     socket.join(roomNameForStudent(identity.userId));
@@ -139,10 +175,23 @@ io.on("connection", (socket) => {
         },
       });
 
+      if (senderRole === "MANAGEMENT") {
+        await createInAppNotification({
+          userId: context.studentId,
+          complaintId: context.complaintId,
+          message: "Management sent you a new support message.",
+        });
+      } else {
+        await createInAppNotification({
+          userId: context.managementRecipientId,
+          complaintId: context.complaintId,
+          message: "A student sent you a new support message.",
+        });
+      }
+
       const serialized = serializeMessage(created);
-      io.to(roomNameForStudent(context.studentId)).emit("message:new", serialized);
-      io.to(roomNameForComplaint(context.complaintId)).emit("message:new", serialized);
-      io.to(managementRoomName()).emit("chat:active:refresh", {
+      await publishWsEvent(REDIS_CHANNEL_WS_MESSAGE_NEW, serialized);
+      await publishWsEvent(REDIS_CHANNEL_WS_CHAT_ACTIVE_REFRESH, {
         studentId: context.studentId,
         complaintId: context.complaintId,
       });
@@ -181,7 +230,7 @@ io.on("connection", (socket) => {
         data: { readStatus: true },
       });
 
-      io.to(roomNameForStudent(context.studentId)).emit("message:read", {
+      await publishWsEvent(REDIS_CHANNEL_WS_MESSAGE_READ, {
         complaintId: context.complaintId,
         studentId: context.studentId,
         readerId: identity.userId,
@@ -193,8 +242,78 @@ io.on("connection", (socket) => {
       ack?.({ ok: false, message: "Failed to mark as read" });
     }
   });
+
+  socket.on("disconnect", () => {
+    void (async () => {
+      if (hasActiveSocketForUser(identity.userId)) return;
+      try {
+        await redisServiceProvider.removeActiveUser(identity.userId);
+        await publishWsEvent(REDIS_CHANNEL_WS_PRESENCE_CHANGED, {
+          userId: identity.userId,
+          isActive: false,
+        });
+      } catch (error) {
+        console.error("[Socket presence remove error]", error);
+      }
+    })();
+  });
 });
 
-server.listen(port, () => {
-  console.log(`[Socket] Listening on :${port}`);
+const bootstrap = async () => {
+  await redisServiceProvider.connect();
+
+  await redisServiceProvider.subscribe(REDIS_CHANNEL_WS_MESSAGE_NEW, (message) => {
+    try {
+      const payload = JSON.parse(message) as { studentId: string; complaintId: string };
+      io.to(roomNameForStudent(payload.studentId)).emit("message:new", payload);
+      io.to(roomNameForComplaint(payload.complaintId)).emit("message:new", payload);
+    } catch (error) {
+      console.error("[Socket redis message:new parse error]", error);
+    }
+  });
+
+  await redisServiceProvider.subscribe(REDIS_CHANNEL_WS_MESSAGE_READ, (message) => {
+    try {
+      const payload = JSON.parse(message) as { studentId: string };
+      io.to(roomNameForStudent(payload.studentId)).emit("message:read", payload);
+    } catch (error) {
+      console.error("[Socket redis message:read parse error]", error);
+    }
+  });
+
+  await redisServiceProvider.subscribe(REDIS_CHANNEL_WS_CHAT_ACTIVE_REFRESH, (message) => {
+    try {
+      const payload = JSON.parse(message) as Record<string, unknown>;
+      io.to(managementRoomName()).emit("chat:active:refresh", payload);
+    } catch (error) {
+      console.error("[Socket redis chat:active:refresh parse error]", error);
+    }
+  });
+
+  await redisServiceProvider.subscribe(REDIS_CHANNEL_WS_PRESENCE_CHANGED, (message) => {
+    try {
+      const payload = JSON.parse(message) as Record<string, unknown>;
+      io.emit("presence:changed", payload);
+    } catch (error) {
+      console.error("[Socket redis presence:changed parse error]", error);
+    }
+  });
+
+  await redisServiceProvider.subscribe(REDIS_CHANNEL_WS_NOTIFICATION_NEW, (message) => {
+    try {
+      const payload = JSON.parse(message) as { userId: string };
+      io.to(`user:${payload.userId}`).emit("notification:new", payload);
+    } catch (error) {
+      console.error("[Socket redis notification:new parse error]", error);
+    }
+  });
+
+  server.listen(port, () => {
+    console.log(`[Socket] Listening on :${port}`);
+  });
+};
+
+bootstrap().catch((error) => {
+  console.error("[Socket bootstrap error]", error);
+  process.exit(1);
 });

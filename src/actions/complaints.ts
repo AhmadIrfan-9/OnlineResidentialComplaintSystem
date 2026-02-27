@@ -14,6 +14,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { assignmentComment, parseAssignmentText } from "@/lib/complaints";
+import { createInAppNotification } from "@/lib/notifications";
 
 interface CreateComplaintResult {
   success: boolean;
@@ -316,6 +317,11 @@ export async function updateComplaintStatus(
             wardenId: true,
           },
         },
+        studentProfile: {
+          select: {
+            userId: true,
+          },
+        },
       },
     });
 
@@ -357,6 +363,14 @@ export async function updateComplaintStatus(
         updatedById: session.user.id,
       },
     });
+
+    if (complaint.studentProfile?.userId) {
+      await createInAppNotification({
+        userId: complaint.studentProfile.userId,
+        complaintId,
+        message: `Your complaint status was updated to ${validatedStatus}.`,
+      });
+    }
 
     revalidatePath("/warden/dashboard");
     revalidatePath("/warden/queue");
@@ -421,6 +435,11 @@ export async function updateComplaintCategory(
             wardenId: true,
           },
         },
+        studentProfile: {
+          select: {
+            userId: true,
+          },
+        },
       },
     });
 
@@ -451,6 +470,14 @@ export async function updateComplaintCategory(
         updatedById: session.user.id,
       },
     });
+
+    if (complaint.studentProfile?.userId) {
+      await createInAppNotification({
+        userId: complaint.studentProfile.userId,
+        complaintId,
+        message: `Your complaint category was updated to ${validatedCategory}.`,
+      });
+    }
 
     revalidatePath("/warden/dashboard");
     revalidatePath("/warden/queue");
@@ -645,6 +672,22 @@ export async function addComplaintComment(
       },
     });
 
+    if (normalizedRole === "MANAGEMENT" && complaint.studentProfile?.userId) {
+      await createInAppNotification({
+        userId: complaint.studentProfile.userId,
+        complaintId,
+        message: "Management sent you a new complaint message.",
+      });
+    }
+
+    if (normalizedRole === "STUDENT" && complaint.hostel.wardenId) {
+      await createInAppNotification({
+        userId: complaint.hostel.wardenId,
+        complaintId,
+        message: "Student sent a new message on a complaint.",
+      });
+    }
+
     revalidatePath("/student/complaints");
 
     console.log(`[Comment Added] User: ${session.user.id}, Complaint: ${complaintId}`);
@@ -695,7 +738,10 @@ export async function assignComplaint(
 
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
-      include: { hostel: { select: { wardenId: true } } },
+      include: {
+        hostel: { select: { wardenId: true } },
+        studentProfile: { select: { userId: true } },
+      },
     });
 
     if (!complaint) {
@@ -714,6 +760,14 @@ export async function assignComplaint(
         updatedById: session.user.id,
       },
     });
+
+    if (complaint.studentProfile?.userId) {
+      await createInAppNotification({
+        userId: complaint.studentProfile.userId,
+        complaintId,
+        message: `Your complaint was assigned to ${assignedTo}.`,
+      });
+    }
 
     revalidatePath("/warden/queue");
     revalidatePath(`/warden/complaints/${complaintId}`);
