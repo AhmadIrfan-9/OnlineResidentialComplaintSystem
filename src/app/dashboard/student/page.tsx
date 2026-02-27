@@ -96,6 +96,7 @@ export default async function StudentDashboardPage() {
               { label: "Dashboard", href: "/dashboard/student" },
               { label: "My Complaints", href: "/complaints" },
               { label: "Submit New", href: "/student/new" },
+              { label: "Support Chat", href: "/dashboard/student/support" },
             ].map((item) => (
               <Link
                 key={item.label}

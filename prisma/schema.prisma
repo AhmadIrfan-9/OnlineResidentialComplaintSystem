@@ -42,6 +42,11 @@ enum UserRole {
   IT_STAFF_ADMIN @map("IT STAFF/ADMIN")
 }
 
+enum ChatSenderRole {
+  STUDENT
+  MANAGEMENT
+}
+
 // User model - represents all user types (Students, Wardens, Staff)
 model User {
   id        String   @id @default(cuid())
@@ -60,11 +65,35 @@ model User {
   complaintUpdates ComplaintUpdate[]
   notifications    Notification[]
   auditLogs        AuditLog[]
+  supportMessagesSent     SupportMessage[] @relation("SupportMessagesSent")
+  supportMessagesReceived SupportMessage[] @relation("SupportMessagesReceived")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model SupportMessage {
+  messageId   String         @id @default(uuid()) @map("message_id")
+  complaintId String         @map("complaint_id")
+  studentId   String         @map("student_id")
+  senderId    String         @map("sender_id")
+  senderRole  ChatSenderRole @map("sender_role")
+  recipientId String         @map("recipient_id")
+  content     String         @db.Text
+  contentType String         @default("TEXT") @map("content_type")
+  timestamp   DateTime       @default(now())
+  readStatus  Boolean        @default(false) @map("read_status")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  sender    User      @relation("SupportMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User      @relation("SupportMessagesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId, timestamp(sort: Desc)])
+  @@index([studentId, timestamp(sort: Desc)])
+  @@index([recipientId, readStatus])
+  @@map("support_messages")
 }
 
 // StudentProfile model - extends User with student-specific data
@@ -152,6 +181,7 @@ model Complaint {
   complaintUpdates ComplaintUpdate[]
   evidences        Evidence[]
   notifications    Notification[]
+  supportMessages  SupportMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

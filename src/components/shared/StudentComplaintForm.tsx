@@ -47,6 +47,18 @@ const LOCATION_SECOND_OPTIONS = [
   "10",
 ] as const;
 const LOCATION_THIRD_OPTIONS = ["01", "02", "03", "04", "05", "06", "07", "08"] as const;
+type UploadedEvidence = { key: string; fileType: string };
+const parseEvidenceKey = (key: string): { complaintId: string; fileUuid: string; ext: string } | null => {
+  const match = key.match(
+    /^([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9]{1,16})$/i
+  );
+  if (!match) return null;
+  return {
+    complaintId: match[1],
+    fileUuid: match[2],
+    ext: match[3].toLowerCase(),
+  };
+};
 
 export function StudentComplaintForm({
   categories,
@@ -144,6 +156,9 @@ export function StudentComplaintForm({
       return;
     }
 
+    const uploadedKeys: string[] = [];
+    const linkedKeys = new Set<string>();
+
     try {
       setIsSubmitting(true);
       const response = await fetch("/api/complaints", {
@@ -167,11 +182,81 @@ export function StudentComplaintForm({
         return;
       }
 
+      const complaintId = String(payload?.id ?? "").trim();
+      if (!complaintId) {
+        setSubmitMessage("Complaint created but missing complaint id in response.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const uploadedEvidence: UploadedEvidence[] = [];
+      if (files.length > 0) {
+        for (const file of files) {
+          const uploadFormData = new FormData();
+          uploadFormData.append("file", file);
+          uploadFormData.append("complaintId", complaintId);
+          uploadFormData.append("virusScanStatus", "PENDING");
+
+          const uploadResponse = await fetch("/api/storage/evidence", {
+            method: "PUT",
+            body: uploadFormData,
+          });
+          const uploadPayload = await uploadResponse.json();
+
+          if (!uploadResponse.ok || !uploadPayload?.data?.key) {
+            throw new Error(uploadPayload?.message ?? "Failed to upload evidence file.");
+          }
+
+          uploadedEvidence.push({
+            key: String(uploadPayload.data.key),
+            fileType: file.type || "application/octet-stream",
+          });
+          uploadedKeys.push(String(uploadPayload.data.key));
+        }
+
+        for (const evidence of uploadedEvidence) {
+          const linkResponse = await fetch(`/api/complaints/${complaintId}/evidence`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              key: evidence.key,
+              fileType: evidence.fileType,
+            }),
+          });
+
+          if (!linkResponse.ok) {
+            const linkPayload = await linkResponse.json();
+            throw new Error(linkPayload?.message ?? "Failed to link uploaded evidence.");
+          }
+          linkedKeys.add(evidence.key);
+        }
+      }
+
       setSubmitMessage("Complaint submitted successfully.");
-      router.push("/complaints");
+      router.push(`/student/complaints/${complaintId}`);
       router.refresh();
-    } catch {
-      setSubmitMessage("Failed to submit complaint.");
+    } catch (error) {
+      // Best-effort cleanup of uploaded but unlinked objects.
+      const rollbackTargets = uploadedKeys.filter((key) => !linkedKeys.has(key));
+      await Promise.all(
+        rollbackTargets.map(async (key) => {
+          const parsed = parseEvidenceKey(key);
+          if (!parsed) return;
+          const query = new URLSearchParams({
+            complaintId: parsed.complaintId,
+            fileUuid: parsed.fileUuid,
+            ext: parsed.ext,
+          });
+          try {
+            await fetch(`/api/storage/evidence?${query.toString()}`, { method: "DELETE" });
+          } catch {
+            // no-op best-effort rollback
+          }
+        })
+      );
+      setSubmitMessage(
+        error instanceof Error ? error.message : "Failed to submit complaint."
+      );
       setIsSubmitting(false);
     }
   };

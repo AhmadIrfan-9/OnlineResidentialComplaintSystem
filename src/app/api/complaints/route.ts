@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { complaintSubmissionSchema } from "@/lib/validations";
 import { normalizeRoleKey } from "@/lib/roles";
+import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -107,6 +108,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const resolvedEvidences = await resolveEvidenceListUrls(complaint.evidences);
+
     console.log(`[Complaint Created] ${session.user.id} - ${complaint.id}`);
 
     return NextResponse.json(
@@ -115,6 +118,7 @@ export async function POST(request: NextRequest) {
         message: "Complaint submitted successfully",
         complaint: {
           ...complaint,
+          evidences: resolvedEvidences,
           student: complaint.studentProfile?.user ?? null,
         },
       },
@@ -220,11 +224,17 @@ export async function GET(request: NextRequest) {
       skip,
     });
 
-    const normalizedComplaints = complaints.map((complaint) => ({
-      ...complaint,
-      student: complaint.studentProfile?.user ?? null,
-      attachments: complaint.evidences.map((evidence) => evidence.fileUrl),
-    }));
+    const normalizedComplaints = await Promise.all(
+      complaints.map(async (complaint) => {
+        const resolvedEvidences = await resolveEvidenceListUrls(complaint.evidences);
+        return {
+          ...complaint,
+          evidences: resolvedEvidences,
+          student: complaint.studentProfile?.user ?? null,
+          attachments: resolvedEvidences.map((evidence) => evidence.fileUrl),
+        };
+      })
+    );
 
     const total = await db.complaint.count({ where });
 

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { ManagementComplaintDetailClient } from "@/components/warden/ManagementComplaintDetailClient";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
+import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 const pretty = (value: string): string =>
   value
@@ -62,6 +63,8 @@ export default async function ManagementComplaintDetailPage({
     redirect("/warden/queue");
   }
 
+  const evidenceWithAccess = await resolveEvidenceListUrls(complaint.evidences);
+
   const assignees = await db.user.findMany({
     where: {
       isActive: true,
@@ -119,7 +122,7 @@ export default async function ManagementComplaintDetailPage({
     updatedAt: complaint.updatedAt.toISOString(),
     description: complaint.description,
     isAnonymous: complaint.isAnonymous,
-    evidence: complaint.evidences,
+    evidence: evidenceWithAccess,
     updates: complaint.complaintUpdates.map((u) => ({
       id: u.id,
       createdAt: u.createdAt.toISOString(),

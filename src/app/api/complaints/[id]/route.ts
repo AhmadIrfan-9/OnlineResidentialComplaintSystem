@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeRoleKey } from "@/lib/roles";
 import { ComplaintCategoryEnum, PriorityEnum } from "@/lib/validations";
+import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 const studentUpdateSchema = z.object({
   title: z.string().min(5).max(100).optional(),
@@ -65,11 +66,14 @@ export async function GET(
       return NextResponse.json({ message: "Complaint not found" }, { status: 404 });
     }
 
+    const resolvedEvidences = await resolveEvidenceListUrls(complaint.evidences);
+
     return NextResponse.json({
       complaint: {
         ...complaint,
+        evidences: resolvedEvidences,
         student: complaint.studentProfile?.user ?? null,
-        attachments: complaint.evidences.map((evidence) => evidence.fileUrl),
+        attachments: resolvedEvidences.map((evidence) => evidence.fileUrl),
       },
     });
   } catch (error) {

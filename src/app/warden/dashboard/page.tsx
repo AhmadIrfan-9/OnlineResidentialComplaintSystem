@@ -199,6 +199,9 @@ export default async function ManagementDashboardPage() {
               <Link href="/warden/queue" className={navClass}>
                 Complaint Queue
               </Link>
+              <Link href="/warden/support" className={navClass}>
+                Support Chat
+              </Link>
               <Link href="/warden/reports" className={navClass}>
                 Reports
               </Link>

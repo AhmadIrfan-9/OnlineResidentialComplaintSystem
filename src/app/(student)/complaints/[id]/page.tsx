@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ComplaintUpdates } from "@/components/shared/ComplaintUpdates";
 import { StudentComplaintDetailClient } from "@/components/student/StudentComplaintDetailClient";
 import { categoryLabels, priorityLabels, statusLabels } from "@/lib/validations";
+import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 export default async function StudentComplaintDetailPage({
   params,
@@ -44,6 +45,8 @@ export default async function StudentComplaintDetailPage({
   if (!complaint) {
     notFound();
   }
+
+  const evidenceWithAccess = await resolveEvidenceListUrls(complaint.evidences);
 
   return (
     <main className="min-h-screen p-4 md:p-6">
@@ -88,11 +91,11 @@ export default async function StudentComplaintDetailPage({
 
         <section className="surface-card p-4">
           <h2 className="mb-2 text-base font-semibold text-slate-900">Evidence</h2>
-          {complaint.evidences.length === 0 ? (
+          {evidenceWithAccess.length === 0 ? (
             <p className="text-sm text-slate-600">No evidence uploaded.</p>
           ) : (
             <div className="grid gap-2 md:grid-cols-2">
-              {complaint.evidences.map((file) => (
+              {evidenceWithAccess.map((file) => (
                 <a
                   key={file.id}
                   href={file.fileUrl}
