@@ -3,8 +3,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
-import { ComplaintQueueTable, type QueueItem } from "@/components/warden/ComplaintQueueTable";
+import { type QueueItem } from "@/components/warden/ComplaintQueueTable";
+import { QueueViewSwitcher } from "@/components/warden/QueueViewSwitcher";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
+import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
+import { storageService } from "@/lib/storage/StorageService";
 
 const categoryLabel = (value: string): string =>
   value
@@ -63,6 +66,13 @@ export default async function ComplaintQueuePage() {
   const complaints = await db.complaint.findMany({
     where: { hostelId: { in: scopedHostels.map((item) => item.id) } },
     include: {
+      hostel: {
+        include: {
+          warden: {
+            select: { name: true },
+          },
+        },
+      },
       studentProfile: {
         include: {
           user: {
@@ -70,6 +80,13 @@ export default async function ComplaintQueuePage() {
               name: true,
             },
           },
+        },
+      },
+      evidences: {
+        select: {
+          id: true,
+          fileUrl: true,
+          fileType: true,
         },
       },
       complaintUpdates: {
@@ -84,27 +101,72 @@ export default async function ComplaintQueuePage() {
   });
 
   const now = new Date();
-  const items: QueueItem[] = complaints.map((c) => {
-    const pendingDays = toPendingDays(c.createdAt, now);
-    const ageBand = toAgeBand(pendingDays);
-    const assignedUpdate = c.complaintUpdates
-      .map((update) => parseAssignmentText(update.content))
-      .find((value): value is string => Boolean(value));
+  const items: QueueItem[] = await Promise.all(
+    complaints.map(async (c) => {
+      const pendingDays = toPendingDays(c.createdAt, now);
+      const ageBand = toAgeBand(pendingDays);
+      const assignedUpdate = c.complaintUpdates
+        .map((update) => parseAssignmentText(update.content))
+        .find((value): value is string => Boolean(value));
 
-    return {
-      complaintId: c.id,
-      ticketId: ticketId(c.id, c.createdAt),
-      statusCode: c.status,
-      status: statusLabel(c.status),
-      severity: categoryLabel(c.priority),
-      submitted: c.createdAt.toISOString(),
-      daysPending: Number(pendingDays.toFixed(1)),
-      student: c.isAnonymous ? "Anonymous" : c.studentProfile?.user.name ?? "Unknown",
-      category: categoryLabel(c.category),
-      assignedTo: assignedUpdate ?? "Unassigned",
-      ageBand,
-    };
-  });
+      const resolvedEvidence = await resolveEvidenceListUrls(c.evidences);
+      const evidencesWithMetadata = await Promise.all(
+        resolvedEvidence.map(async (evidence) => {
+          const parsed = storageService.parseObjectKey(evidence.fileUrl);
+          if (!parsed) {
+            return {
+              ...evidence,
+              uploadDate: null,
+              uploaderId: null,
+              virusScanStatus: null,
+            };
+          }
+
+          try {
+            const objectMeta = await storageService.getObjectMetadata(
+              parsed.complaintId,
+              parsed.fileUuid,
+              parsed.extension
+            );
+            return {
+              ...evidence,
+              uploadDate: objectMeta.metadata.upload_date ?? objectMeta.lastModified,
+              uploaderId: objectMeta.metadata.uploader_id ?? null,
+              virusScanStatus: objectMeta.metadata.virus_scan_status ?? null,
+            };
+          } catch {
+            return {
+              ...evidence,
+              uploadDate: null,
+              uploaderId: null,
+              virusScanStatus: null,
+            };
+          }
+        })
+      );
+
+      return {
+        complaintId: c.id,
+        title: c.title,
+        ticketId: ticketId(c.id, c.createdAt),
+        statusCode: c.status,
+        status: statusLabel(c.status),
+        severity: categoryLabel(c.priority),
+        submitted: c.createdAt.toISOString(),
+        daysPending: Number(pendingDays.toFixed(1)),
+        student: c.isAnonymous ? "Anonymous" : c.studentProfile?.user.name ?? "Unknown",
+        management: assignedUpdate ?? c.hostel.warden.name ?? "Management",
+        category: categoryLabel(c.category),
+        assignedTo: assignedUpdate ?? "Unassigned",
+        ageBand,
+        evidences: evidencesWithMetadata,
+        messageHistory: c.complaintUpdates.map((update) => ({
+          content: update.content,
+          createdAt: update.createdAt.toISOString(),
+        })),
+      };
+    })
+  );
 
   return (
     <main className="min-h-screen p-3 md:p-6">
@@ -134,7 +196,7 @@ export default async function ComplaintQueuePage() {
           )}
         </header>
 
-        <ComplaintQueueTable items={items} />
+        <QueueViewSwitcher items={items} />
       </div>
     </main>
   );

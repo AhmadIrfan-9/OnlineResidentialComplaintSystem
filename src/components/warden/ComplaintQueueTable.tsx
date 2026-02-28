@@ -8,6 +8,7 @@ import { updateComplaintStatus } from "@/actions/complaints";
 
 export interface QueueItem {
   complaintId: string;
+  title: string;
   ticketId: string;
   statusCode: "SUBMITTED" | "ACKNOWLEDGED" | "UNDER_REVIEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
   status: string;
@@ -15,9 +16,22 @@ export interface QueueItem {
   submitted: string;
   daysPending: number;
   student: string;
+  management: string;
   category: string;
   assignedTo: string;
   ageBand: "GREEN" | "YELLOW" | "RED";
+  evidences: Array<{
+    id: string;
+    fileUrl: string;
+    fileType: string;
+    uploadDate?: string | null;
+    uploaderId?: string | null;
+    virusScanStatus?: string | null;
+  }>;
+  messageHistory: Array<{
+    content: string;
+    createdAt: string;
+  }>;
 }
 
 const rowColor = (ageBand: QueueItem["ageBand"]): string => {
