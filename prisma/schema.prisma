@@ -250,7 +250,7 @@ model AdminCategory {
 }
 
 model AdminDepartment {
-  id                String   @id @id @default(cuid())
+  id                String   @id @default(cuid())
   name              String   @unique
   email             String
   slaRoutineHours   Int      @default(168)
