@@ -46,7 +46,6 @@ export const db =
   (isDbDisabled
     ? createDisabledDbClient()
     : new PrismaClient({
-        adapter: new PrismaPg(buildPoolConfig(connectionString as string)),
         log: ["query", "info", "warn", "error"],
       }));
 

@@ -6,7 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ComplaintCategory {
@@ -248,7 +250,7 @@ model AdminCategory {
 }
 
 model AdminDepartment {
-  id                String   @id @default(cuid())
+  id                String   @id @id @default(cuid())
   name              String   @unique
   email             String
   slaRoutineHours   Int      @default(168)
