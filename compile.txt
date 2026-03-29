@@ -1,0 +1,4 @@
+src/app/student/new/page.tsx(62,22): error TS18047: 'studentProfile.room' is possibly 'null'.
+src/app/student/new/page.tsx(88,7): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/lib/messaging.ts(99,10): error TS18047: 'studentProfile.room' is possibly 'null'.

@@ -4,16 +4,14 @@ import { type Complaint, type Status } from "@prisma/client";
 import {
   Activity,
   AlertTriangle,
-  BarChart3,
   Clock3,
   FileClock,
-  LineChart,
-  PieChart,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { SignOutButton } from "@/components/shared/SignOutButton";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 
 const STATUS_OPEN: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
 const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
@@ -97,13 +95,18 @@ export default async function ManagementDashboardPage() {
   start30.setDate(now.getDate() - 29);
   start30.setHours(0, 0, 0, 0);
 
+  const startSemester = new Date(now);
+  startSemester.setDate(now.getDate() - 149); // Roughly 5 months
+  startSemester.setHours(0, 0, 0, 0);
+
   const complaints = await db.complaint.findMany({
     where: {
       hostelId: { in: scopedHostels.map((item) => item.id) },
-      createdAt: { gte: start30 },
+      createdAt: { gte: startSemester },
     },
     select: {
       id: true,
+      category: true,
       priority: true,
       status: true,
       createdAt: true,
@@ -114,29 +117,31 @@ export default async function ManagementDashboardPage() {
     orderBy: { createdAt: "asc" },
   });
 
-  const pendingComplaints = complaints.filter((c) => STATUS_OPEN.includes(c.status)).length;
+  const monthComplaints = complaints.filter((c) => c.createdAt >= start30);
 
-  const overdueComplaints = complaints.filter((c) => {
+  const pendingComplaints = monthComplaints.filter((c) => STATUS_OPEN.includes(c.status)).length;
+
+  const overdueComplaints = monthComplaints.filter((c) => {
     if (!STATUS_OPEN.includes(c.status)) return false;
     const elapsed = asDays(now.getTime() - c.createdAt.getTime());
     return elapsed > slaDaysByPriority(c.priority);
   }).length;
 
-  const resolved = complaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
+  const resolvedMonth = monthComplaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
   const avgResponseTimeDays =
-    resolved.length === 0
+    resolvedMonth.length === 0
       ? 0
-      : resolved.reduce((acc, c) => {
+      : resolvedMonth.reduce((acc, c) => {
           const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
           return acc + asDays(end.getTime() - c.createdAt.getTime());
-        }, 0) / resolved.length;
+        }, 0) / resolvedMonth.length;
 
-  const slaCompliantCount = complaints.filter((c) => {
+  const slaCompliantCount = monthComplaints.filter((c) => {
     const end = STATUS_OPEN.includes(c.status) ? now : c.resolvedAt ?? c.closedAt ?? c.updatedAt;
     const elapsed = asDays(end.getTime() - c.createdAt.getTime());
     return elapsed <= slaDaysByPriority(c.priority);
   }).length;
-  const slaCompliance = complaints.length ? (slaCompliantCount / complaints.length) * 100 : 0;
+  const slaCompliance = monthComplaints.length ? (slaCompliantCount / monthComplaints.length) * 100 : 0;
 
   const trendBuckets = Array.from({ length: 30 }, (_, i) => {
     const day = new Date(start30);
@@ -144,41 +149,55 @@ export default async function ManagementDashboardPage() {
     day.setHours(0, 0, 0, 0);
     return day;
   });
-  const trendCounts = trendBuckets.map((day) =>
-    complaints.filter((c) => c.createdAt.toDateString() === day.toDateString()).length
-  );
 
-  const statusPending = complaints.filter((c) =>
-    c.status === "SUBMITTED" || c.status === "ACKNOWLEDGED"
-  ).length;
-  const statusInProgress = complaints.filter((c) =>
-    c.status === "UNDER_REVIEW" || c.status === "IN_PROGRESS"
-  ).length;
-  const statusResolved = complaints.filter((c) =>
-    c.status === "RESOLVED" || c.status === "CLOSED"
-  ).length;
-  const statusTotal = Math.max(complaints.length, 1);
-  const pieGradient = `conic-gradient(
-    #ef4444 0 ${cssPercent(statusPending, statusTotal)},
-    #f59e0b ${cssPercent(statusPending, statusTotal)} ${cssPercent(
-      statusPending + statusInProgress,
-      statusTotal
-    )},
-    #10b981 ${cssPercent(statusPending + statusInProgress, statusTotal)} 100%
-  )`;
+  const trendData = trendBuckets.map((day) => {
+    const dateStr = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const count = monthComplaints.filter((c) => c.createdAt.toDateString() === day.toDateString()).length;
+    return { dateStr, date: day.toISOString(), count };
+  });
 
-  const responseTimes = resolved.map((c) => {
+  const categoryData = trendBuckets.map((day) => {
+    const dateStr = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const dayComplaints = monthComplaints.filter((c) => c.createdAt.toDateString() === day.toDateString());
+    
+    const IT = dayComplaints.filter(c => c.category === 'WIFI').length;
+    const Admin = dayComplaints.filter(c => ['SECURITY', 'NOISE', 'OTHER'].includes(c.category)).length;
+    const Facilities = dayComplaints.length - IT - Admin; 
+
+    return { dateStr, date: day.toISOString(), IT, Facilities, Admin };
+  });
+
+  const responseTimesMonth = resolvedMonth.map((c) => {
     const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
     return asDays(end.getTime() - c.createdAt.getTime());
   });
-  const histo = RESPONSE_HISTO_BUCKETS.map((bucket) => {
-    if (bucket === "0-1 day") return responseTimes.filter((d) => d <= 1).length;
-    if (bucket === "1-2 days") return responseTimes.filter((d) => d > 1 && d <= 2).length;
-    if (bucket === "2-3 days") return responseTimes.filter((d) => d > 2 && d <= 3).length;
-    if (bucket === "3-5 days") return responseTimes.filter((d) => d > 3 && d <= 5).length;
-    return responseTimes.filter((d) => d > 5).length;
+
+  const resolvedSemester = complaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
+  const responseTimesSemester = resolvedSemester.map((c) => {
+    const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+    return asDays(end.getTime() - c.createdAt.getTime());
   });
-  const histoMax = Math.max(...histo, 1);
+
+  const getBucketCounts = (times: number[]) => ({
+    "0-1": times.filter((d) => d <= 1).length,
+    "1-2": times.filter((d) => d > 1 && d <= 2).length,
+    "2-3": times.filter((d) => d > 2 && d <= 3).length,
+    "3-5": times.filter((d) => d > 3 && d <= 5).length,
+    "5+": times.filter((d) => d > 5).length,
+  });
+
+  const monthCounts = getBucketCounts(responseTimesMonth);
+  const semesterCountsRaw = getBucketCounts(responseTimesSemester);
+  const MONTHS_IN_SEMESTER = 5;
+
+  const histogramData = RESPONSE_HISTO_BUCKETS.map(bucket => {
+    const key = bucket === "0-1 day" ? "0-1" : bucket === "1-2 days" ? "1-2" : bucket === "2-3 days" ? "2-3" : bucket === "3-5 days" ? "3-5" : "5+";
+    return {
+      bucket,
+      currentMonth: monthCounts[key as keyof typeof monthCounts],
+      semesterAvg: parseFloat((semesterCountsRaw[key as keyof typeof semesterCountsRaw] / MONTHS_IN_SEMESTER).toFixed(1))
+    };
+  });
 
   return (
     <main className="min-h-screen p-3 md:p-6">
@@ -248,60 +267,11 @@ export default async function ManagementDashboardPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-3">
-          <div className="surface-card p-4 xl:col-span-2">
-            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <LineChart className="h-4 w-4" /> Complaint volume trend (last 30 days)
-            </p>
-            <svg viewBox="0 0 360 130" className="h-48 w-full">
-              <polyline
-                fill="none"
-                stroke="#2563eb"
-                strokeWidth="3"
-                points={chartStrokePoints(trendCounts)}
-              />
-              {trendCounts.map((count, i) => {
-                const maxVal = Math.max(...trendCounts, 1);
-                const x = trendCounts.length > 1 ? (i * 360) / (trendCounts.length - 1) : 0;
-                const y = 120 - (count / maxVal) * 110;
-                return <circle key={i} cx={x} cy={y} r="2.5" fill="#1d4ed8" />;
-              })}
-            </svg>
-          </div>
-
-          <div className="space-y-4">
-            <div className="surface-card p-4">
-              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <PieChart className="h-4 w-4" /> Status breakdown
-              </p>
-              <div className="mx-auto h-36 w-36 rounded-full" style={{ background: pieGradient }} />
-              <div className="mt-3 space-y-1 text-xs text-slate-600">
-                <p>Pending: {statusPending}</p>
-                <p>In Progress: {statusInProgress}</p>
-                <p>Resolved: {statusResolved}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="surface-card p-4">
-          <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <BarChart3 className="h-4 w-4" /> Response time histogram
-          </p>
-          <div className="grid gap-3 md:grid-cols-5">
-            {RESPONSE_HISTO_BUCKETS.map((bucket, idx) => (
-              <div key={bucket} className="space-y-2">
-                <div className="h-28 rounded bg-slate-100 p-2">
-                  <div
-                    className="h-full rounded bg-blue-600"
-                    style={{ marginTop: `${100 - (histo[idx] / histoMax) * 100}%` }}
-                  />
-                </div>
-                <p className="text-center text-xs text-slate-600">{bucket}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <DashboardCharts
+          trendData={trendData}
+          categoryData={categoryData}
+          histogramData={histogramData}
+        />
 
         <section className="surface-card p-4">
           <p className="mb-3 text-sm font-semibold text-slate-800">Quick actions</p>

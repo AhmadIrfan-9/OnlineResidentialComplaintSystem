@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
 
@@ -74,6 +75,9 @@ export function UserManagementClient({
 }) {
   const [roleFilter, setRoleFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
   const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -92,13 +96,25 @@ export function UserManagementClient({
 
   const selectedUser = users.find((u) => u.id === selectedId) ?? null;
 
-  const filtered = useMemo(
-    () =>
-      users
-        .filter((u) => (roleFilter === "All" ? true : prettyRole(u.role) === roleFilter))
-        .filter((u) => (statusFilter === "All" ? true : u.status === statusFilter)),
-    [roleFilter, statusFilter, users]
-  );
+  const filtered = useMemo(() => {
+    return users
+      .filter((u) => (roleFilter === "All" ? true : prettyRole(u.role) === roleFilter))
+      .filter((u) => (statusFilter === "All" ? true : u.status === statusFilter))
+      .filter((u) => {
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
+      });
+  }, [roleFilter, statusFilter, searchQuery, users]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginatedUsers = useMemo(() => {
+    return filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  }, [filtered, currentPage, ITEMS_PER_PAGE]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [roleFilter, statusFilter, searchQuery]);
 
   const availableCreateRooms = useMemo(() => {
     if (!newUser.hostelId) return rooms;
@@ -229,15 +245,17 @@ export function UserManagementClient({
     }
   };
 
-  const deleteSelected = async () => {
-    if (!selectedUser) return;
+  const deleteSelected = async (idToDelete?: string) => {
+    const defaultId = idToDelete ?? selectedUser?.id;
+    if (!defaultId) return;
 
-    const confirmed = window.confirm(`Delete user ${selectedUser.name}?`);
+    const uName = users.find(u => u.id === defaultId)?.name ?? "user";
+    const confirmed = window.confirm(`Delete user ${uName}?`);
     if (!confirmed) return;
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      const response = await fetch(`/api/admin/users/${defaultId}`, {
         method: "DELETE",
       });
       const data = await response.json();
@@ -351,7 +369,17 @@ export function UserManagementClient({
             </div>
           ) : null}
 
-          <div className="mb-3 grid gap-2 md:grid-cols-2">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search users by name, email, or ID..."
+                className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <select
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
               value={roleFilter}
@@ -375,54 +403,111 @@ export function UserManagementClient({
 
           {loading ? <p className="text-sm text-slate-600">Loading users...</p> : null}
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-[#f8f9fa] text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
                 <tr>
-                  <th className="py-2">User ID</th>
-                  <th className="py-2">Name</th>
-                  <th className="py-2">Email</th>
-                  <th className="py-2">Role</th>
-                  <th className="py-2">Hostel</th>
-                  <th className="py-2">Status</th>
-                  <th className="py-2">Last Login</th>
-                  <th className="py-2">Actions</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">User ID</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">User Profile</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">Role</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">Hostel</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900">Status</th>
+                  <th className="py-3 px-4 font-semibold text-slate-900 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtered.map((u) => {
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {paginatedUsers.map((u) => {
                   const hostelName = hostels.find((h) => h.id === u.hostelId)?.name ?? "-";
                   return (
                     <tr
                       key={u.id}
-                    className={`cursor-pointer border-t border-slate-100 ${u.id === selectedId ? "bg-sky-50" : "hover:bg-slate-50"}`}
-                    onClick={() => setSelectedId(u.id)}
-                  >
-                      <td className="py-2 font-medium text-slate-800">{u.id.slice(0, 8)}</td>
-                      <td className="py-2 text-slate-700">{u.name}</td>
-                      <td className="py-2 text-slate-600">{u.email}</td>
-                      <td className="py-2 text-slate-700">{prettyRole(u.role)}</td>
-                      <td className="py-2 text-slate-600">{hostelName}</td>
-                      <td className="py-2">
+                      className={`group relative border-t border-slate-100 transition-colors ${
+                        u.id === selectedId ? "bg-sky-50" : "hover:bg-[#f8f9fa]"
+                      }`}
+                      onClick={(e) => {
+                         // Prevent row click if clicking action buttons
+                         if ((e.target as HTMLElement).closest('button')) return;
+                         setSelectedId(u.id);
+                      }}
+                    >
+                      <td className="py-3 px-4 font-semibold text-slate-900">{u.id.split("-")[0]}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-900">{u.name}</span>
+                          <span className="text-xs text-slate-500">{u.email}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700">{prettyRole(u.role)}</td>
+                      <td className="py-3 px-4 text-slate-600">{hostelName}</td>
+                      <td className="py-3 px-4">
                         <span
-                          className={`rounded-full px-2 py-1 text-xs ${u.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"}`}
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                            u.status === "Active"
+                              ? "bg-[#e2f5ec] text-[#2ebd6c]"
+                              : "bg-slate-200 text-slate-700"
+                          }`}
                         >
                           {u.status}
                         </span>
                       </td>
-                      <td className="py-2 text-slate-600">{u.lastLogin}</td>
-                      <td className="py-2">
-                        <button className="rounded border border-slate-300 px-2 py-1 text-xs">Edit</button>
+                      <td className="py-3 px-4 text-right">
+                        <div className="relative inline-flex items-center justify-end gap-2 w-full">
+                          <button 
+                             className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all"
+                             onClick={(e) => { e.stopPropagation(); setSelectedId(u.id); }}
+                             title="Edit User"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button 
+                             className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                             onClick={(e) => { e.stopPropagation(); deleteSelected(u.id); }}
+                             title="Delete User"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+
+                          {/* Hover Tooltip below Actions column */}
+                          <div className="absolute top-full right-0 mt-1 z-10 hidden group-hover:block w-48 rounded bg-slate-800 p-2 text-xs font-medium text-white shadow-xl">
+                            <span className="mb-1 block text-slate-400">Last Login Details</span>
+                            {u.lastLogin}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
+                {paginatedUsers.length === 0 && !loading && (
+                   <tr>
+                     <td colSpan={6} className="py-8 text-center text-slate-500">No users found based on filters.</td>
+                   </tr>
+                )}
               </tbody>
             </table>
           </div>
+
+          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+            <p>Page {currentPage} of {totalPages}</p>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50 text-slate-700"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                className="rounded-md border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50 text-slate-700"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </section>
 
-        <section className="surface-card p-4">
+        <section className="h-fit surface-card p-4 sticky top-6">
           <h2 className="mb-3 text-base font-semibold text-slate-900">User detail / edit</h2>
           {!selectedUser ? (
             <p className="text-sm text-slate-600">Select a user from the table.</p>
@@ -516,7 +601,7 @@ export function UserManagementClient({
                 </button>
                 <button
                   className="rounded-md border border-red-300 px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={deleteSelected}
+                  onClick={() => deleteSelected()}
                   disabled={saving}
                 >
                   Delete

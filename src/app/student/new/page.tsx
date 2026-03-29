@@ -55,8 +55,8 @@ export default async function NewComplaintPage() {
     },
   });
 
-  if (!studentProfile) {
-    redirect("/dashboard/student");
+  if (!studentProfile?.roomId || !studentProfile.room) {
+    redirect("/profile");
   }
 
   const hostelName = studentProfile.room.hostel.name;
@@ -85,7 +85,7 @@ export default async function NewComplaintPage() {
     <StudentComplaintForm
       categories={categories}
       hostelName={hostelName}
-      roomId={studentProfile.roomId}
+      roomId={studentProfile.roomId as string}
     />
   );
 }

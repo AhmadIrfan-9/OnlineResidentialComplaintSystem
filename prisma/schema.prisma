@@ -98,19 +98,22 @@ model SupportMessage {
 
 // StudentProfile model - extends User with student-specific data
 model StudentProfile {
-  id     String @id @default(cuid())
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @unique
+  id              String  @id @default(cuid())
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String  @unique
+
+  studentId       String? @unique
+  academicProgram String?
 
   // Student's current room assignment
-  room   Room   @relation(fields: [roomId], references: [id])
-  roomId String
+  room            Room?   @relation(fields: [roomId], references: [id])
+  roomId          String?
 
   // Relations
-  complaints Complaint[]
+  complaints      Complaint[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("student_profiles")
 }

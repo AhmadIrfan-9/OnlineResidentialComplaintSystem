@@ -62,17 +62,24 @@ const defaultConfig = (): StorageServiceConfig => ({
 class StorageService {
   private static instance: StorageService | null = null;
 
-  private readonly client: S3Client;
+  private readonly client: S3Client | null;
   private readonly config: StorageServiceConfig;
+  private readonly isLocalFallback: boolean;
 
   private constructor(config: StorageServiceConfig) {
     const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
     const sessionToken = process.env.AWS_SESSION_TOKEN;
     const hasStaticCredentials = Boolean(accessKeyId && secretAccessKey);
+    this.isLocalFallback = !hasStaticCredentials && process.env.NODE_ENV !== "production";
 
     this.config = config;
-    this.client = new S3Client({
+    
+    if (this.isLocalFallback) {
+      this.client = null;
+      console.warn("⚠️ STORAGE WARNING: No AWS/S3 credentials found. Falling back to local file system (public/uploads).");
+    } else {
+      this.client = new S3Client({
       region: config.region,
       endpoint: config.endpoint,
       forcePathStyle: config.forcePathStyle,
@@ -87,7 +94,8 @@ class StorageService {
             sessionToken,
           }
         : undefined,
-    });
+      });
+    }
   }
 
   public static getInstance(minioEndpointOverride?: string): StorageService {
@@ -142,8 +150,30 @@ class StorageService {
     const key = this.buildObjectKey(params.complaintId, params.fileUuid, params.extension);
     const uploadDate = (params.uploadDate ?? new Date()).toISOString();
 
+    if (this.isLocalFallback) {
+      try {
+        const { mkdir, writeFile } = require("fs").promises;
+        const { join, dirname } = require("path");
+        const filePath = join(process.cwd(), "public", "uploads", this.config.bucket, key);
+        await mkdir(dirname(filePath), { recursive: true });
+        
+        let fileData = params.body;
+        if (typeof Blob !== "undefined" && fileData instanceof Blob) {
+           fileData = Buffer.from(await fileData.arrayBuffer());
+        }
+        await writeFile(filePath, fileData as any);
+        return {
+          bucket: this.config.bucket,
+          key,
+          etag: `local-${Date.now()}`,
+        };
+      } catch (error) {
+        throw new StorageServiceError(`Local upload failed: ${(error as Error).message}`);
+      }
+    }
+
     try {
-      const response = await this.client.send(
+      const response = await this.client!.send(
         new PutObjectCommand({
           Bucket: this.config.bucket,
           Key: key,
@@ -193,8 +223,17 @@ class StorageService {
     }
 
     try {
+      if (this.isLocalFallback) {
+        return {
+          bucket: this.config.bucket,
+          key: parsed.key,
+          expiresInSeconds,
+          signedUrl: `/uploads/${this.config.bucket}/${parsed.key}`,
+        };
+      }
+
       const signedUrl = await getSignedUrl(
-        this.client,
+        this.client!,
         new GetObjectCommand({
           Bucket: this.config.bucket,
           Key: parsed.key,
@@ -216,8 +255,27 @@ class StorageService {
   public async getObjectMetadata(complaintId: string, fileUuid: string, extension: string) {
     const key = this.buildObjectKey(complaintId, fileUuid, extension);
 
+    if (this.isLocalFallback) {
+      try {
+        const { stat } = require("fs").promises;
+        const { join } = require("path");
+        const filePath = join(process.cwd(), "public", "uploads", this.config.bucket, key);
+        const stats = await stat(filePath);
+        return {
+          bucket: this.config.bucket,
+          key,
+          contentType: "application/octet-stream",
+          contentLength: stats.size,
+          metadata: {},
+          lastModified: stats.mtime.toISOString(),
+        };
+      } catch {
+         throw new StorageServiceError("File not found.", 404, "FILE_NOT_FOUND");
+      }
+    }
+
     try {
-      const response = await this.client.send(
+      const response = await this.client!.send(
         new HeadObjectCommand({
           Bucket: this.config.bucket,
           Key: key,
@@ -254,8 +312,22 @@ class StorageService {
   public async deleteObject(complaintId: string, fileUuid: string, extension: string) {
     const key = this.buildObjectKey(complaintId, fileUuid, extension);
 
+    if (this.isLocalFallback) {
+      try {
+        const { unlink } = require("fs").promises;
+        const { join } = require("path");
+        const filePath = join(process.cwd(), "public", "uploads", this.config.bucket, key);
+        await unlink(filePath).catch((e: any) => {
+          if (e.code !== 'ENOENT') throw e;
+        });
+        return { bucket: this.config.bucket, key, deleted: true };
+      } catch (error) {
+         throw new StorageServiceError(`Local delete failed: ${(error as Error).message}`);
+      }
+    }
+
     try {
-      await this.client.send(
+      await this.client!.send(
         new DeleteObjectCommand({
           Bucket: this.config.bucket,
           Key: key,

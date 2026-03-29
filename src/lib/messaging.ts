@@ -96,7 +96,7 @@ export const findPrimaryManagementRecipientForStudent = async (
     },
   });
 
-  return studentProfile?.room.hostel.wardenId ?? null;
+  return studentProfile?.room?.hostel?.wardenId ?? null;
 };
 
 export const resolveComplaintMessagingContext = async (complaintId: string) => {

@@ -128,11 +128,12 @@ export default async function ComplaintQueuePage() {
               parsed.fileUuid,
               parsed.extension
             );
+            const metadataAny = objectMeta.metadata as any;
             return {
               ...evidence,
-              uploadDate: objectMeta.metadata.upload_date ?? objectMeta.lastModified,
-              uploaderId: objectMeta.metadata.uploader_id ?? null,
-              virusScanStatus: objectMeta.metadata.virus_scan_status ?? null,
+              uploadDate: metadataAny.upload_date ?? objectMeta.lastModified,
+              uploaderId: metadataAny.uploader_id ?? null,
+              virusScanStatus: metadataAny.virus_scan_status ?? null,
             };
           } catch {
             return {
