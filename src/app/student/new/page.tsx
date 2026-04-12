@@ -59,7 +59,7 @@ export default async function NewComplaintPage() {
     redirect("/profile");
   }
 
-  const hostelName = studentProfile.room.hostel.name;
+  const hostelName = studentProfile.room!.hostel.name;
 
   let categories: CategoryOption[] = fallbackCategories;
   try {
@@ -85,7 +85,7 @@ export default async function NewComplaintPage() {
     <StudentComplaintForm
       categories={categories}
       hostelName={hostelName}
-      roomId={studentProfile.roomId as string}
+      roomId={studentProfile.roomId!}
     />
   );
 }

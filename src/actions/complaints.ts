@@ -97,18 +97,20 @@ export async function createComplaintSubmission(
       return { success: false, error: "Room not found" };
     }
 
+    // Always look up the student profile so notifications/chat can work
+    // even for anonymous complaints. The isAnonymous flag controls UI visibility.
     let studentProfileId: string | null = null;
-    if (!validatedInput.isAnonymous) {
+    if (validatedInput.studentId) {
       const studentProfile = await prisma.studentProfile.findUnique({
         where: { id: validatedInput.studentId as string },
         select: { id: true },
       });
 
-      if (!studentProfile) {
+      if (!studentProfile && !validatedInput.isAnonymous) {
         return { success: false, error: "Student profile not found" };
       }
 
-      studentProfileId = studentProfile.id;
+      studentProfileId = studentProfile?.id ?? null;
     }
 
     const complaint = await prisma.complaint.create({

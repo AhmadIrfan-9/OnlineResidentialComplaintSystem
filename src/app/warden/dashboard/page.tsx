@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { getUnitenSemester } from "@/lib/semester";
 
 const STATUS_OPEN: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
 const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
@@ -95,9 +96,8 @@ export default async function ManagementDashboardPage() {
   start30.setDate(now.getDate() - 29);
   start30.setHours(0, 0, 0, 0);
 
-  const startSemester = new Date(now);
-  startSemester.setDate(now.getDate() - 149); // Roughly 5 months
-  startSemester.setHours(0, 0, 0, 0);
+  const semester = getUnitenSemester(now);
+  const startSemester = semester.start;
 
   const complaints = await db.complaint.findMany({
     where: {
@@ -188,7 +188,7 @@ export default async function ManagementDashboardPage() {
 
   const monthCounts = getBucketCounts(responseTimesMonth);
   const semesterCountsRaw = getBucketCounts(responseTimesSemester);
-  const MONTHS_IN_SEMESTER = 5;
+  const MONTHS_IN_SEMESTER = semester.months;
 
   const histogramData = RESPONSE_HISTO_BUCKETS.map(bucket => {
     const key = bucket === "0-1 day" ? "0-1" : bucket === "1-2 days" ? "1-2" : bucket === "2-3 days" ? "2-3" : bucket === "3-5 days" ? "3-5" : "5+";

@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+const STUDENT_ID_REGEX = /^[A-Z]{2}\d{7}$/;
+
 export async function updateStudentProfile(data: {
   studentId: string;
   name: string;
@@ -20,9 +22,10 @@ export async function updateStudentProfile(data: {
   }
 
   try {
-    // Validate Student ID
-    if (!/^[A-Z]{2}\d{7,8}$/.test(data.studentId)) {
-      return { success: false, error: "Invalid student ID format." };
+    // Normalize and validate Student ID
+    const normalizedStudentId = data.studentId.trim().toUpperCase();
+    if (!STUDENT_ID_REGEX.test(normalizedStudentId)) {
+      return { success: false, error: "Invalid student ID format. Must be 2 uppercase letters followed by 7 digits (e.g. SW0108123)." };
     }
 
     // Validate empty string requirements
@@ -64,12 +67,12 @@ export async function updateStudentProfile(data: {
         where: { userId: session.user.id },
         create: {
           userId: session.user.id,
-          studentId: data.studentId,
+          studentId: normalizedStudentId,
           academicProgram: data.academicProgram,
           roomId: room.id
         },
         update: {
-          studentId: data.studentId,
+          studentId: normalizedStudentId,
           academicProgram: data.academicProgram,
           roomId: room.id
         }
@@ -85,4 +88,27 @@ export async function updateStudentProfile(data: {
     }
     return { success: false, error: "Failed to save profile changes." };
   }
+}
+
+export async function checkStudentIdAvailable(
+  studentId: string
+): Promise<{ available: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) {
+    return { available: false, error: "Unauthorized" };
+  }
+
+  const normalized = studentId.trim().toUpperCase();
+  if (!STUDENT_ID_REGEX.test(normalized)) {
+    return { available: false, error: "Invalid format" };
+  }
+
+  const existing = await db.studentProfile.findUnique({
+    where: { studentId: normalized },
+    select: { userId: true },
+  });
+
+  // Available if no one has it, or if the current user already owns it
+  const available = !existing || existing.userId === session.user.id;
+  return { available };
 }

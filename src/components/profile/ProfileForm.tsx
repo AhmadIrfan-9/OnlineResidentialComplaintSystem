@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle, Phone, Upload, Loader2, Check } from "lucide-react";
-import { updateStudentProfile } from "@/app/profile/actions";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { CheckCircle, Phone, Upload, Loader2, Check, AlertCircle } from "lucide-react";
+import { updateStudentProfile, checkStudentIdAvailable } from "@/app/profile/actions";
 
-export default function ProfileForm({ initialData }: { initialData: any }) {
+type HostelOption = { id: string; name: string };
+
+const STUDENT_ID_REGEX = /^[A-Z]{2}\d{7}$/;
+
+export default function ProfileForm({
+  initialData,
+  hostels,
+}: {
+  initialData: any;
+  hostels: HostelOption[];
+}) {
   const roomParts = initialData.roomNumberStr ? initialData.roomNumberStr.split("-") : [];
-  
+
   const [formData, setFormData] = useState({
     studentId: initialData.studentId || "",
     name: initialData.name || "",
@@ -16,7 +26,7 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
     block: roomParts[0] || "",
     floor: roomParts[1] || "",
     roomNo: roomParts[2] || "",
-    academicProgram: initialData.academicProgram || ""
+    academicProgram: initialData.academicProgram || "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -25,8 +35,40 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
   const [showToast, setShowToast] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
-  const isStudentIdValid = /^[A-Z]{2}\d{7,8}$/.test(formData.studentId);
-  
+  // Student ID availability state
+  const [idCheckStatus, setIdCheckStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isStudentIdValid = STUDENT_ID_REGEX.test(formData.studentId.toUpperCase());
+
+  // Debounced Student ID availability check
+  const checkIdAvailability = useCallback(
+    (value: string) => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+      const normalized = value.trim().toUpperCase();
+      if (!STUDENT_ID_REGEX.test(normalized)) {
+        setIdCheckStatus(normalized.length > 0 ? "invalid" : "idle");
+        return;
+      }
+
+      setIdCheckStatus("checking");
+      debounceTimer.current = setTimeout(async () => {
+        const result = await checkStudentIdAvailable(normalized);
+        setIdCheckStatus(result.available ? "available" : "taken");
+      }, 500);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
   const isValid = (field: string) => {
     if (!attemptedSubmit) return null;
     if (field === "studentId") return isStudentIdValid;
@@ -36,18 +78,29 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
   const getBorderColor = (field: string) => {
     const valid = isValid(field);
     if (valid === null) return "border-slate-200 focus:border-blue-500 focus:ring-blue-500";
-    return valid ? "border-green-500 ring-1 ring-green-500" : "border-red-400 ring-1 ring-red-400";
+    return valid
+      ? "border-green-500 ring-1 ring-green-500"
+      : "border-red-400 ring-1 ring-red-400";
   };
 
   const handleChange = (e: any) => {
     setSaved(false);
     setErrorToast("");
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+
+    if (name === "studentId") {
+      // Auto-uppercase Student ID
+      const upper = value.toUpperCase();
+      setFormData((prev) => ({ ...prev, studentId: upper }));
+      checkIdAvailability(upper);
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
     setAttemptedSubmit(true);
-    
+
     const missing = [];
     if (!isStudentIdValid) missing.push("Student ID correctly");
     if (!formData.name) missing.push("Full Name");
@@ -59,7 +112,14 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
     if (!formData.academicProgram) missing.push("Academic Program");
 
     if (missing.length > 0) {
-      setErrorToast(`Your profile is not completed because you leave ${missing[0]} empty.`);
+      setErrorToast(
+        `Your profile is not completed because you leave ${missing[0]} empty.`
+      );
+      return;
+    }
+
+    if (idCheckStatus === "taken") {
+      setErrorToast("This Student ID is already registered to another account.");
       return;
     }
 
@@ -81,8 +141,25 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
 
   // Helper arrays for dropdowns
   const blocks = ["C1", "C2", "C3"];
-  const floors = Array.from({ length: 10 }, (_, i) => (i + 1).toString().padStart(2, "0"));
-  const rooms = Array.from({ length: 8 }, (_, i) => (i + 1).toString().padStart(2, "0"));
+  const floors = Array.from({ length: 10 }, (_, i) =>
+    (i + 1).toString().padStart(2, "0")
+  );
+  const rooms = Array.from({ length: 8 }, (_, i) =>
+    (i + 1).toString().padStart(2, "0")
+  );
+
+  const idStatusIcon = () => {
+    if (!formData.studentId) return null;
+    if (idCheckStatus === "checking")
+      return <Loader2 className="absolute right-3 top-2.5 h-5 w-5 animate-spin text-blue-500" />;
+    if (idCheckStatus === "available")
+      return <CheckCircle className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />;
+    if (idCheckStatus === "taken")
+      return <AlertCircle className="absolute right-3 top-2.5 h-5 w-5 text-red-500" />;
+    if (isStudentIdValid)
+      return <CheckCircle className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />;
+    return <CheckCircle className="absolute right-3 top-2.5 h-5 w-5 text-slate-300" />;
+  };
 
   return (
     <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-10 font-sans">
@@ -91,7 +168,6 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
       </div>
 
       <div className="grid gap-10 md:grid-cols-[200px_1fr]">
-        
         {/* Left Column: Avatar */}
         <div className="flex flex-col items-center top-6 space-y-4">
           <div className="flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-5xl font-bold text-slate-400 shadow-inner">
@@ -104,14 +180,17 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
 
         {/* Right Column: Form Fields */}
         <div className="space-y-8">
-          
           {/* Section 1: Basic Information */}
           <section className="space-y-6">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Basic Information</h2>
-            
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+              Basic Information
+            </h2>
+
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-1 relative">
-                <label className="text-sm font-medium text-slate-700">UNITEN Student ID</label>
+                <label className="text-sm font-medium text-slate-700">
+                  UNITEN Student ID
+                </label>
                 <div className="relative">
                   <input
                     name="studentId"
@@ -120,26 +199,39 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                     placeholder="e.g. SW0108XXX"
                     className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("studentId")}`}
                   />
-                  {formData.studentId.length > 0 && (
-                    <CheckCircle className={`absolute right-3 top-2.5 h-5 w-5 ${isStudentIdValid ? "text-green-500" : "text-slate-300"}`} />
-                  )}
+                  {idStatusIcon()}
                 </div>
-                {isValid("studentId") === false && <p className="text-xs text-red-500">Must be valid format (e.g. SW0108XXX)</p>}
+                {isValid("studentId") === false && (
+                  <p className="text-xs text-red-500">
+                    Must be 2 uppercase letters + 7 digits (e.g. SW0108123)
+                  </p>
+                )}
+                {idCheckStatus === "taken" && (
+                  <p className="text-xs text-red-500">
+                    This Student ID is already registered to another account
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Full Name (as per UNITEN record)</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Full Name (as per UNITEN record)
+                </label>
                 <input
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("name")}`}
                 />
-                {isValid("name") === false && <p className="text-xs text-red-500">This field is required</p>}
+                {isValid("name") === false && (
+                  <p className="text-xs text-red-500">This field is required</p>
+                )}
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">UNITEN Student Email</label>
+                <label className="text-sm font-medium text-slate-700">
+                  UNITEN Student Email
+                </label>
                 <input
                   name="email"
                   value={formData.email}
@@ -149,7 +241,9 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Contact Number</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Contact Number
+                </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                   <input
@@ -159,15 +253,19 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                     className={`w-full rounded-md border bg-white pl-9 pr-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("phone")}`}
                   />
                 </div>
-                {isValid("phone") === false && <p className="text-xs text-red-500">This field is required</p>}
+                {isValid("phone") === false && (
+                  <p className="text-xs text-red-500">This field is required</p>
+                )}
               </div>
             </div>
           </section>
 
           {/* Section 2: Hostel & Accommodation */}
           <section className="space-y-6 pt-2">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Hostel & Accommodation</h2>
-            
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+              Hostel & Accommodation
+            </h2>
+
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Hostel</label>
@@ -178,16 +276,21 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                   className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("hostelId")}`}
                 >
                   <option value="">Select Hostel</option>
-                  <option value={initialData.hostelId || "cendikiawan"}>Cendikiawan</option>
-                  <option value="ilmu">Ilmu</option>
-                  <option value="murni">Murni</option>
-                  <option value="amanah">Amanah</option>
+                  {hostels.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
                 </select>
-                {isValid("hostelId") === false && <p className="text-xs text-red-500">This field is required</p>}
+                {isValid("hostelId") === false && (
+                  <p className="text-xs text-red-500">This field is required</p>
+                )}
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Academic Program</label>
+                <label className="text-sm font-medium text-slate-700">
+                  Academic Program
+                </label>
                 <input
                   name="academicProgram"
                   value={formData.academicProgram}
@@ -195,11 +298,15 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                   placeholder="e.g. Bachelor of Computer Science"
                   className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("academicProgram")}`}
                 />
-                {isValid("academicProgram") === false && <p className="text-xs text-red-500">This field is required</p>}
+                {isValid("academicProgram") === false && (
+                  <p className="text-xs text-red-500">This field is required</p>
+                )}
               </div>
 
               <div className="space-y-1 md:col-span-2">
-                <label className="text-sm font-medium text-slate-700 mb-1 block">Room Number Format: [Block]-[Floor]-[Room]</label>
+                <label className="text-sm font-medium text-slate-700 mb-1 block">
+                  Room Number Format: [Block]-[Floor]-[Room]
+                </label>
                 <div className="flex items-center gap-2 sm:gap-4 max-w-lg">
                   <div className="flex-1">
                     <select
@@ -209,7 +316,11 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                       className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("block")}`}
                     >
                       <option value="">Block</option>
-                      {blocks.map(b => <option key={b} value={b}>{b}</option>)}
+                      {blocks.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <span className="text-slate-400 font-bold">-</span>
@@ -221,7 +332,11 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                       className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("floor")}`}
                     >
                       <option value="">Floor</option>
-                      {floors.map(f => <option key={f} value={f}>{f}</option>)}
+                      {floors.map((f) => (
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <span className="text-slate-400 font-bold">-</span>
@@ -233,12 +348,20 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
                       className={`w-full rounded-md border bg-white px-3 py-2.5 text-sm transition-all focus:outline-none ${getBorderColor("roomNo")}`}
                     >
                       <option value="">Room</option>
-                      {rooms.map(r => <option key={r} value={r}>{r}</option>)}
+                      {rooms.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
-                {(isValid("block") === false || isValid("floor") === false || isValid("roomNo") === false) && (
-                  <p className="text-xs text-red-500 mt-1">Please completely fill out block, floor, and room number</p>
+                {(isValid("block") === false ||
+                  isValid("floor") === false ||
+                  isValid("roomNo") === false) && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Please completely fill out block, floor, and room number
+                  </p>
                 )}
               </div>
             </div>
@@ -255,15 +378,19 @@ export default function ProfileForm({ initialData }: { initialData: any }) {
               onClick={handleSave}
               disabled={saving}
               className={`flex min-w-[200px] items-center justify-center gap-2 rounded-lg px-6 py-3 font-bold text-white shadow-md transition-all ${
-                saved 
-                  ? "bg-green-600 hover:bg-green-700 shadow-green-200" 
+                saved
+                  ? "bg-green-600 hover:bg-green-700 shadow-green-200"
                   : "bg-[#0b4a99] hover:bg-[#093c7d] shadow-blue-200"
               } disabled:opacity-70`}
             >
               {saving ? (
-                <><Loader2 className="h-5 w-5 animate-spin" /> Saving...</>
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" /> Saving...
+                </>
               ) : saved ? (
-                <><CheckCircle className="h-5 w-5" /> Profile Saved!</>
+                <>
+                  <CheckCircle className="h-5 w-5" /> Profile Saved!
+                </>
               ) : (
                 "Save Changes"
               )}

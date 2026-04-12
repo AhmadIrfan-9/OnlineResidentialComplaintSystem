@@ -104,7 +104,7 @@ model StudentProfile {
   user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId          String  @unique
 
-  studentId       String? @unique
+  studentId       String  @unique
   academicProgram String?
 
   // Student's current room assignment

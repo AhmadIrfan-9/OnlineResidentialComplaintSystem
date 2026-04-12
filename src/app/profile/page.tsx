@@ -9,15 +9,21 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  // Fetch full user and profile
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      studentProfile: {
-        include: { room: true }
+  // Fetch full user and profile + all hostels
+  const [user, hostels] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        studentProfile: {
+          include: { room: true }
+        }
       }
-    }
-  });
+    }),
+    db.hostel.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!user) {
     redirect("/login");
@@ -30,20 +36,14 @@ export default async function ProfilePage() {
     phone: user.phone ?? "",
     studentId: user.studentProfile?.studentId ?? "",
     academicProgram: user.studentProfile?.academicProgram ?? "",
-    hostelId: user.studentProfile?.room?.hostelId ?? "cm29d93o00000jlcqd70m6yze", // default string or fetch correctly
+    hostelId: user.studentProfile?.room?.hostelId ?? (hostels[0]?.id ?? ""),
     roomNumberStr: user.studentProfile?.room?.roomNumber ?? ""
   };
-
-  // Because the db might have random hostel IDs, let's just fetch Cendikiawan's ID to use as a fallback default
-  const cendikiawan = await db.hostel.findUnique({ where: { name: "Cendikiawan" } });
-  if (cendikiawan && !user.studentProfile?.room?.hostelId) {
-    clientData.hostelId = cendikiawan.id;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        <ProfileForm initialData={clientData} />
+        <ProfileForm initialData={clientData} hostels={hostels} />
       </div>
     </div>
   );
