@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Submit Complaint", href: "/student/new", icon: SendHorizontal },
+  { label: "Submit Complaint", href: "/complaints/new", icon: SendHorizontal },
   { label: "My History", href: "/complaints", icon: History },
   { label: "Profile", href: "/profile", icon: UserCircle2 },
 ];

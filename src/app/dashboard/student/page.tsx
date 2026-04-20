@@ -87,7 +87,7 @@ export default async function StudentDashboardPage() {
             {[
               { label: "Dashboard", href: "/dashboard/student" },
               { label: "My Complaints", href: "/complaints" },
-              { label: "Submit New", href: "/student/new" },
+              { label: "Submit New", href: "/complaints/new" },
               { label: "Support Chat", href: "/dashboard/student/support" },
             ].map((item) => (
               <Link
@@ -141,7 +141,7 @@ export default async function StudentDashboardPage() {
 
           <div className="mt-5">
             <Link
-              href="/student/new"
+              href="/complaints/new"
               className="inline-flex h-11 items-center justify-center rounded-md bg-blue-600 px-6 text-sm font-medium text-white transition hover:bg-blue-700"
             >
               Submit New Complaint

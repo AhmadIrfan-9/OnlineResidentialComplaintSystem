@@ -233,7 +233,7 @@ export function StudentComplaintForm({
       }
 
       setSubmitMessage("Complaint submitted successfully.");
-      router.push(`/student/complaints/${complaintId}`);
+      router.push(`/complaints/${complaintId}`);
       router.refresh();
     } catch (error) {
       // Best-effort cleanup of uploaded but unlinked objects.

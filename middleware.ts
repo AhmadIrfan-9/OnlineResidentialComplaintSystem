@@ -96,7 +96,7 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  if (wantsWardenArea && !isManagementRole(userRole)) {
+  if (wantsWardenArea && !isManagementRole(userRole) && !isAdminRole(userRole)) {
     return withNoStore(
       NextResponse.redirect(new URL(dashboardByRole(), request.url))
     );

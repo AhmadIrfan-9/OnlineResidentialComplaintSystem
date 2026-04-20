@@ -92,7 +92,7 @@ export function NotificationBell() {
 
   const toComplaintPath = (complaintId: string): string => {
     const role = String(session.user.role ?? "").toUpperCase();
-    if (role === "STUDENT") return `/student/complaints/${complaintId}`;
+    if (role === "STUDENT") return `/complaints/${complaintId}`;
     if (role === "MANAGEMENT" || role === "IT_STAFF_ADMIN") return `/warden/complaints/${complaintId}`;
     return `/complaints/${complaintId}`;
   };
