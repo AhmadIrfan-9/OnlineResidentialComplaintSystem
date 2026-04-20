@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { ResolutionFormClient } from "@/components/warden/ResolutionFormClient";
 
 const ticketId = (id: string, createdAt: Date): string => {
@@ -21,7 +21,7 @@ export default async function ResolveComplaintPage({
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
 
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

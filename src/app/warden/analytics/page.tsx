@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { db } from "@/lib/db";
 import { getUnitenSemester } from "@/lib/semester";
 
 export default async function ManagementAnalyticsPage() {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

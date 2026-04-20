@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { type QueueItem } from "@/components/warden/ComplaintQueueTable";
 import { QueueViewSwitcher } from "@/components/warden/QueueViewSwitcher";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
@@ -29,7 +29,7 @@ export default async function ComplaintQueuePage() {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
 
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

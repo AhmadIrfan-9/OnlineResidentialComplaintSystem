@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { db } from "@/lib/db";
 
 export default async function ManagementReportsPage() {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

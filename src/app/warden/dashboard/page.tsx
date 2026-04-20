@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { getUnitenSemester } from "@/lib/semester";
@@ -57,7 +57,7 @@ export default async function ManagementDashboardPage() {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
 
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

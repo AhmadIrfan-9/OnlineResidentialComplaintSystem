@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { ManagementComplaintDetailClient } from "@/components/warden/ManagementComplaintDetailClient";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
@@ -29,7 +29,7 @@ export default async function ManagementComplaintDetailPage({
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
 
-  if (!session?.user || !isManagementRole(role)) {
+  if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 

@@ -12,7 +12,7 @@ import {
 } from "@/lib/validations";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { isManagementRole, normalizeRoleKey } from "@/lib/roles";
+import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { assignmentComment, parseAssignmentText } from "@/lib/complaints";
 import { createInAppNotification } from "@/lib/notifications";
 
@@ -302,7 +302,7 @@ export async function updateComplaintStatus(
       return { success: false, error: "You must be logged in to update complaints" };
     }
 
-    if (!isManagementRole(session.user.role)) {
+    if (!isManagementRole(session.user.role) && !isAdminRole(session.user.role)) {
       return {
         success: false,
         error: "Only management users can update complaint status",
@@ -420,7 +420,7 @@ export async function updateComplaintCategory(
       return { success: false, error: "You must be logged in to update complaints" };
     }
 
-    if (!isManagementRole(session.user.role)) {
+    if (!isManagementRole(session.user.role) && !isAdminRole(session.user.role)) {
       return {
         success: false,
         error: "Only management users can update complaint category",
@@ -734,7 +734,7 @@ export async function assignComplaint(
       return { success: false, error: "You must be logged in to assign complaints" };
     }
 
-    if (!isManagementRole(session.user.role)) {
+    if (!isManagementRole(session.user.role) && !isAdminRole(session.user.role)) {
       return { success: false, error: "Only management users can assign complaints" };
     }
 
