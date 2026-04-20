@@ -11,6 +11,7 @@ const createSchema = z
     email: z.string().min(3),
     role: z.enum(["STUDENT", "MANAGEMENT", "IT_STAFF_ADMIN"]),
     phone: z.string().optional(),
+    studentId: z.string().optional(), // Required for students; admin-assigned placeholder if omitted
     roomId: z.string().optional(),
     hostelId: z.string().optional(),
     isActive: z.boolean().default(true),
@@ -89,9 +90,15 @@ export async function POST(request: NextRequest) {
       });
 
       if (payload.role === "STUDENT" && payload.roomId) {
+        // Use admin-supplied studentId if provided; otherwise generate a placeholder.
+        // The student can update their real ID via the Profile Setup page.
+        const studentId =
+          payload.studentId?.trim().toUpperCase() ||
+          `PENDING-${newUser.id.slice(0, 8).toUpperCase()}`;
         await tx.studentProfile.create({
           data: {
             userId: newUser.id,
+            studentId,
             roomId: payload.roomId,
           },
         });

@@ -20,7 +20,7 @@ function withNoStore(response: NextResponse): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ignore static and auth API paths quickly.
+  // Ignore static and auth API paths quickly (includes /api/auth/emergency-signout).
   if (pathname.startsWith("/api/auth")) {
     return NextResponse.next();
   }
@@ -50,6 +50,22 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return withNoStore(NextResponse.redirect(loginUrl));
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SAFE MODE PATHS — always accessible to any authenticated user.
+  // These routes MUST remain reachable even if the user's student profile is
+  // missing.  They allow recovery (profile setup) or escape (sign out)
+  // without falling into an infinite redirect loop.
+  // ─────────────────────────────────────────────────────────────────────────
+  const safeModePaths = [
+    "/profile", // Profile setup / edit — works even with no StudentProfile row
+  ];
+  const isSafeModePath = safeModePaths.some(
+    (safe) => pathname === safe || pathname.startsWith(`${safe}/`)
+  );
+  if (isSafeModePath) {
+    return withNoStore(NextResponse.next());
   }
 
   // Role-based route protection
@@ -99,6 +115,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api/auth  (NextAuth handlers + emergency-signout)
      */
     "/((?!_next/static|_next/image|favicon.ico|public|api/auth).*)",
   ],

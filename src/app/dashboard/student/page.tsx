@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { SignOutButton } from "@/components/shared/SignOutButton";
+import { ProfileMissingRecovery } from "@/components/shared/ProfileMissingRecovery";
 
 const OPEN_STATUSES: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
@@ -36,16 +37,7 @@ export default async function StudentDashboardPage() {
   });
 
   if (!studentProfile) {
-    return (
-      <main className="min-h-screen p-4 md:p-8">
-        <Card className="mx-auto max-w-5xl border border-red-200 bg-red-50 p-6">
-          <h1 className="text-lg font-semibold text-red-900">Student profile not found</h1>
-          <p className="mt-1 text-sm text-red-800">
-            Your account has no linked student profile. Please contact management.
-          </p>
-        </Card>
-      </main>
-    );
+    return <ProfileMissingRecovery userName={session.user.name ?? "Student"} />;
   }
 
   const [activeCount, resolvedCount, unreadMessages, recentComplaints] = await Promise.all([

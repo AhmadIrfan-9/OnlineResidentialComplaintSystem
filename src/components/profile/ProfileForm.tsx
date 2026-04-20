@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle, Phone, Upload, Loader2, Check, AlertCircle } from "lucide-react";
 import { updateStudentProfile, checkStudentIdAvailable } from "@/app/profile/actions";
 
@@ -15,6 +16,8 @@ export default function ProfileForm({
   initialData: any;
   hostels: HostelOption[];
 }) {
+  const router = useRouter();
+  const isFirstSetup = !initialData.studentId; // No profile yet = first-time setup
   const roomParts = initialData.roomNumberStr ? initialData.roomNumberStr.split("-") : [];
 
   const [formData, setFormData] = useState({
@@ -130,7 +133,12 @@ export default function ProfileForm({
     if (res.success) {
       setSaved(true);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 4000);
+      if (isFirstSetup) {
+        // Profile was just created for the first time — send user to dashboard
+        setTimeout(() => router.replace("/dashboard/student"), 1500);
+      } else {
+        setTimeout(() => setShowToast(false), 4000);
+      }
     } else {
       setErrorToast(res.error || "Failed to update profile.");
     }
@@ -164,7 +172,14 @@ export default function ProfileForm({
   return (
     <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-10 font-sans">
       <div className="mb-8 border-b border-slate-100 pb-6">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          {isFirstSetup ? "Complete Your Profile" : "Profile"}
+        </h1>
+        {isFirstSetup && (
+          <p className="mt-1 text-sm text-blue-700 font-medium">
+            Please fill in all fields below to activate your student account.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-10 md:grid-cols-[200px_1fr]">
