@@ -299,3 +299,36 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// ─── RAG: Complaint Intelligence ──────────────────────────────────────────────
+
+// Stores metadata for each complaint that has been vectorised.
+// The actual `embedding vector(1536)` column is created by raw SQL migration
+// (pgvector is not representable in Prisma SDL) and managed outside Prisma.
+model ComplaintEmbedding {
+  id               String            @id @default(cuid())
+  complaintId      String            @unique @map("complaint_id")
+  category         ComplaintCategory
+  priority         Priority
+  hostelBlock      String?           @map("hostel_block")
+  hostelName       String            @map("hostel_name")
+  // Plain-text snapshot used for display in AI context window
+  descriptionSnap  String            @db.Text  @map("description_snap")
+  resolutionSnap   String?           @db.Text  @map("resolution_snap")
+  embeddedAt       DateTime          @default(now()) @map("embedded_at")
+
+  @@map("complaint_embeddings")
+}
+
+// Stores pre-chunked UNITEN Residential Policy segments.
+// The actual `embedding vector(1536)` column is added by raw SQL migration.
+model PolicyChunk {
+  id          String   @id @default(cuid())
+  sectionRef  String   @map("section_ref")   // e.g. "Section 4.2"
+  category    String?                          // matches ComplaintCategory or NULL for general
+  title       String
+  content     String   @db.Text
+  embeddedAt  DateTime @default(now()) @map("embedded_at")
+
+  @@map("policy_chunks")
+}

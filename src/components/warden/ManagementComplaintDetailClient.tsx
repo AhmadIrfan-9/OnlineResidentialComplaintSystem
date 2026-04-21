@@ -10,6 +10,7 @@ import {
   updateComplaintStatus,
 } from "@/actions/complaints";
 import { normalizeRoleKey } from "@/lib/roles";
+import { AiInsightSidebar } from "@/components/warden/AiInsightSidebar";
 
 interface DetailData {
   id: string;
@@ -132,7 +133,9 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-6 xl:grid-cols-[1fr_340px] items-start">
+      {/* ── Left column: all existing complaint panels ── */}
+      <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="surface-card p-4">
           <h2 className="mb-3 text-base font-semibold text-slate-900">Student Information</h2>
@@ -366,6 +369,13 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           {feedback}
         </div>
       )}
+
+      </div>{/* end left column */}
+
+      {/* ── Right column: AI Insight Sidebar ── */}
+      <div className="xl:sticky xl:top-6">
+        <AiInsightSidebar complaintId={detail.id} />
+      </div>
     </div>
   );
 }

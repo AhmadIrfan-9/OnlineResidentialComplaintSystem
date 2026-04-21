@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { assignmentComment, parseAssignmentText } from "@/lib/complaints";
 import { createInAppNotification } from "@/lib/notifications";
+import { embedAndStoreResolvedComplaint } from "@/lib/ai/auto-embed";
 
 interface CreateComplaintResult {
   success: boolean;
@@ -378,6 +379,14 @@ export async function updateComplaintStatus(
     revalidatePath("/warden/queue");
     revalidatePath(`/warden/complaints/${complaintId}`);
     revalidatePath("/student/complaints");
+
+    // Phase 6: Auto-embed resolved complaints into the RAG vector store.
+    // Fire-and-forget — never block the UI response.
+    if (validatedStatus === "RESOLVED") {
+      embedAndStoreResolvedComplaint(complaintId).catch((err) =>
+        console.warn("[AI] Auto-embed failed (non-critical):", err)
+      );
+    }
 
     console.log(
       `[Complaint Updated] User: ${session.user.id}, Complaint: ${complaintId}, New Status: ${validatedStatus}`
