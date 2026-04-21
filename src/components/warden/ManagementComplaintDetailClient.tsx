@@ -48,9 +48,7 @@ interface DetailData {
 }
 
 const NEXT_STATUS: Record<string, string[]> = {
-  SUBMITTED: ["ACKNOWLEDGED"],
-  ACKNOWLEDGED: ["UNDER_REVIEW"],
-  UNDER_REVIEW: ["IN_PROGRESS", "RESOLVED"],
+  PENDING: ["IN_PROGRESS", "RESOLVED"],
   IN_PROGRESS: ["RESOLVED"],
   RESOLVED: ["CLOSED"],
   CLOSED: [],
@@ -321,7 +319,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                {["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((s) => (
+                {["PENDING", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((s) => (
                   <option key={s} value={s}>{pretty(s)}</option>
                 ))}
               </select>

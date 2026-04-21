@@ -14,37 +14,29 @@ import {
 } from "@/components/ui/dialog";
 
 const STATUS_ORDER: QueueItem["statusCode"][] = [
-  "SUBMITTED",
-  "ACKNOWLEDGED",
-  "UNDER_REVIEW",
+  "PENDING",
   "IN_PROGRESS",
   "RESOLVED",
   "CLOSED",
 ];
 
 const STATUS_LABEL_MAP: Record<QueueItem["statusCode"], string> = {
-  SUBMITTED: "Submitted",
-  ACKNOWLEDGED: "Acknowledged",
-  UNDER_REVIEW: "Under Review",
+  PENDING: "Pending",
   IN_PROGRESS: "In Progress",
   RESOLVED: "Resolved",
   CLOSED: "Closed",
 };
 
 const STATUS_BADGE_STYLE: Record<QueueItem["statusCode"], string> = {
-  SUBMITTED: "bg-blue-100 text-blue-800",
-  ACKNOWLEDGED: "bg-indigo-100 text-indigo-800",
-  UNDER_REVIEW: "bg-purple-100 text-purple-800",
-  IN_PROGRESS: "bg-amber-100 text-amber-800",
+  PENDING: "bg-amber-100 text-amber-800",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
   RESOLVED: "bg-emerald-100 text-emerald-800",
   CLOSED: "bg-slate-100 text-slate-700",
 };
 
 const columnStyle = (status: QueueItem["statusCode"]): string => {
-  if (status === "SUBMITTED") return "border-blue-200 bg-blue-50/60";
-  if (status === "ACKNOWLEDGED") return "border-indigo-200 bg-indigo-50/60";
-  if (status === "UNDER_REVIEW") return "border-purple-200 bg-purple-50/60";
-  if (status === "IN_PROGRESS") return "border-amber-200 bg-amber-50/60";
+  if (status === "PENDING") return "border-amber-200 bg-amber-50/60";
+  if (status === "IN_PROGRESS") return "border-blue-200 bg-blue-50/60";
   if (status === "RESOLVED") return "border-emerald-200 bg-emerald-50/60";
   return "border-slate-200 bg-slate-50/70";
 };

@@ -45,7 +45,7 @@ export default async function ManagementReportsPage() {
       where: {
         ...whereScope,
         createdAt: { lte: overdueCutoff },
-        status: { in: ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"] },
+        status: { in: ["PENDING", "IN_PROGRESS"] },
       },
       include: {
         hostel: { select: { name: true } },

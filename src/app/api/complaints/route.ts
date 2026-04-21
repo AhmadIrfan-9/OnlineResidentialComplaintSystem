@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         category: validatedData.category,
         priority: "ROUTINE",
         locationBlock: validatedData.locationBlock ?? null,
-        status: "SUBMITTED",
+        status: "PENDING",
         studentProfileId: studentProfile.id,
         isAnonymous: validatedData.isAnonymous,
         hostelId: room.hostelId,

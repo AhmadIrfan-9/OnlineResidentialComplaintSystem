@@ -10,7 +10,7 @@ export interface QueueItem {
   complaintId: string;
   title: string;
   ticketId: string;
-  statusCode: "SUBMITTED" | "ACKNOWLEDGED" | "UNDER_REVIEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+  statusCode: "PENDING" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
   status: string;
   severity: string;
   submitted: string;
@@ -46,12 +46,10 @@ type SortKey = keyof Pick<
 >;
 
 const STATUS_LABEL_MAP: Record<QueueItem["statusCode"], string> = {
-  SUBMITTED: "Submitted",
-  ACKNOWLEDGED: "Acknowledged",
-  UNDER_REVIEW: "Under Review",
+  PENDING:     "Pending",
   IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
+  RESOLVED:    "Resolved",
+  CLOSED:      "Closed",
 };
 
 export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
@@ -143,9 +141,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option>All</option>
-          <option>Submitted</option>
-          <option>Acknowledged</option>
-          <option>Under Review</option>
+          <option>Pending</option>
           <option>In Progress</option>
           <option>Resolved</option>
           <option>Closed</option>
@@ -252,9 +248,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                         )
                       }
                     >
-                      <option value="SUBMITTED">Submitted</option>
-                      <option value="ACKNOWLEDGED">Acknowledged</option>
-                      <option value="UNDER_REVIEW">Under Review</option>
+                      <option value="PENDING">Pending</option>
                       <option value="IN_PROGRESS">In Progress</option>
                       <option value="RESOLVED">Resolved</option>
                       <option value="CLOSED">Closed</option>

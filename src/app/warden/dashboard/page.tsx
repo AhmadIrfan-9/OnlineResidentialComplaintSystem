@@ -14,7 +14,7 @@ import { SignOutButton } from "@/components/shared/SignOutButton";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { getUnitenSemester } from "@/lib/semester";
 
-const STATUS_OPEN: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
+const STATUS_OPEN: Status[] = ["PENDING", "IN_PROGRESS"];
 const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
 
 const slaDaysByPriority = (priority: Complaint["priority"]): number => {

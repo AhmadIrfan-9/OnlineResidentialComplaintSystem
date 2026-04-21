@@ -53,7 +53,7 @@ async function main() {
   report += "|---|---|---|---|---|---|---|\n";
 
   for (const user of users) {
-    let userComplaints = [];
+    let userComplaints: any[] = [];
     if (user.role === 'STUDENT' && user.studentProfile) {
       userComplaints = user.studentProfile.complaints;
     } else if (user.role === 'MANAGEMENT' && user.wardenHostels) {

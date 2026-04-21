@@ -7,9 +7,7 @@ import { updateComplaintStatus } from "@/actions/complaints";
 import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
 
 const STATUS_LABEL_MAP: Record<QueueItem["statusCode"], string> = {
-  SUBMITTED: "Submitted",
-  ACKNOWLEDGED: "Acknowledged",
-  UNDER_REVIEW: "Under Review",
+  PENDING: "Pending",
   IN_PROGRESS: "In Progress",
   RESOLVED: "Resolved",
   CLOSED: "Closed",

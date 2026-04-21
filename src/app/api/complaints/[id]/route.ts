@@ -14,7 +14,7 @@ const studentUpdateSchema = z.object({
   isAnonymous: z.boolean().optional(),
 });
 
-const STUDENT_EDITABLE_STATUSES = new Set(["SUBMITTED", "ACKNOWLEDGED"]);
+const STUDENT_EDITABLE_STATUSES = new Set(["PENDING"]);
 
 const complaintScopeWhere = async (userId: string, role: string) => {
   if (role === "STUDENT") {
@@ -117,7 +117,7 @@ export async function PATCH(
     }
     if (!STUDENT_EDITABLE_STATUSES.has(complaint.status)) {
       return NextResponse.json(
-        { message: "Complaint can only be edited when status is Submitted or Acknowledged" },
+        { message: "Complaint can only be edited when status is Pending" },
         { status: 409 }
       );
     }
@@ -198,7 +198,7 @@ export async function DELETE(
     }
     if (!STUDENT_EDITABLE_STATUSES.has(complaint.status)) {
       return NextResponse.json(
-        { message: "Complaint can only be deleted when status is Submitted or Acknowledged" },
+        { message: "Complaint can only be deleted when status is Pending" },
         { status: 409 }
       );
     }

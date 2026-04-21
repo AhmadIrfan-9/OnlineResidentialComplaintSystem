@@ -20,11 +20,15 @@ export const PriorityEnum = z.enum(["ROUTINE", "URGENT", "EMERGENCY"]);
 
 export type Priority = z.infer<typeof PriorityEnum>;
 
-// Complaint Status enum - matches Prisma
+// ─── Complaint Status enum ── 4 logical workflow states (matches Prisma) ──────
+//
+//  PENDING      → New ticket or Assigned — awaiting management action
+//  IN_PROGRESS  → Work on-site underway
+//  RESOLVED     → Fix complete, awaiting student verification
+//  CLOSED       → Finalized / archived
+//
 export const ComplaintStatusEnum = z.enum([
-  "SUBMITTED",
-  "ACKNOWLEDGED",
-  "UNDER_REVIEW",
+  "PENDING",
   "IN_PROGRESS",
   "RESOLVED",
   "CLOSED",
@@ -102,21 +106,23 @@ export const priorityColors: Record<Priority, string> = {
   EMERGENCY: "bg-red-100 text-red-800",
 };
 
-// Status display with colors
+// ─── Status display ────────────────────────────────────────────────────────────
+// Human-friendly labels
 export const statusLabels: Record<ComplaintStatus, string> = {
-  SUBMITTED: "Submitted",
-  ACKNOWLEDGED: "Acknowledged",
-  UNDER_REVIEW: "Under Review",
+  PENDING:     "Pending",
   IN_PROGRESS: "In Progress",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
+  RESOLVED:    "Resolved",
+  CLOSED:      "Closed",
 };
 
+// Status pill color map (Tailwind CSS classes)
+//  PENDING     → Amber / Yellow  — waiting, needs attention
+//  IN_PROGRESS → Blue            — active work on-site
+//  RESOLVED    → Green           — fix done, awaiting verification
+//  CLOSED      → Gray            — archived / finalized
 export const statusColors: Record<ComplaintStatus, string> = {
-  SUBMITTED: "bg-blue-100 text-blue-800",
-  ACKNOWLEDGED: "bg-indigo-100 text-indigo-800",
-  UNDER_REVIEW: "bg-purple-100 text-purple-800",
-  IN_PROGRESS: "bg-orange-100 text-orange-800",
-  RESOLVED: "bg-green-100 text-green-800",
-  CLOSED: "bg-gray-100 text-gray-800",
+  PENDING:     "bg-amber-100 text-amber-800 border border-amber-200",
+  IN_PROGRESS: "bg-blue-100  text-blue-800  border border-blue-200",
+  RESOLVED:    "bg-green-100 text-green-800 border border-green-200",
+  CLOSED:      "bg-gray-100  text-gray-700  border border-gray-200",
 };

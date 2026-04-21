@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
 
-const OPEN_STATUSES = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"] as const;
+const OPEN_STATUSES = ["PENDING", "IN_PROGRESS"] as const;
 
 const readList = (value: string | undefined): string[] =>
   (value ?? "")

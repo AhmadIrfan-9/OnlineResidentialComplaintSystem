@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { SignOutButton } from "@/components/shared/SignOutButton";
 import { ProfileMissingRecovery } from "@/components/shared/ProfileMissingRecovery";
 
-const OPEN_STATUSES: Status[] = ["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS"];
+const OPEN_STATUSES: Status[] = ["PENDING", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
 
 const formatStatus = (status: string): string =>
@@ -85,7 +85,7 @@ export default async function StudentDashboardPage() {
 
       <section className="surface-card p-4 md:p-6">
         <div className="grid gap-3 md:grid-cols-3">
-          <Link href="/complaints?status=SUBMITTED">
+          <Link href="/complaints?status=PENDING">
             <Card className="h-full border border-amber-200/80 bg-gradient-to-br from-amber-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
               <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
                 Active Complaints
