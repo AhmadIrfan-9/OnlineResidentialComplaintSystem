@@ -200,37 +200,17 @@ export default async function ManagementDashboardPage() {
   });
 
   return (
-    <main className="min-h-screen p-3 md:p-6">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <header className="surface-hero p-4 md:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded bg-blue-600" />
-              <div>
-                <p className="text-base font-semibold text-slate-900">ORCS</p>
-                <p className="text-xs text-slate-600">Dashboard scope: {scopeLabel}</p>
-              </div>
-            </div>
-            <nav className="flex flex-wrap items-center gap-2">
-              <Link href="/warden/dashboard" className="inline-flex items-center rounded-full border border-sky-700 bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200">
-                Dashboard
-              </Link>
-              <Link href="/warden/queue" className={navClass}>
-                Complaint Queue
-              </Link>
-
-              <Link href="/warden/reports" className={navClass}>
-                Reports
-              </Link>
-            </nav>
-            <SignOutButton label={`${session.user.name ?? "Management"} | Logout`} />
+    <div className="space-y-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
+        <p className="text-sm text-slate-500">Scope: {scopeLabel}</p>
+        {isFallbackScope && (
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            No hostel assignment found for this management account. Showing data from all hostels.
           </div>
-          {isFallbackScope && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No hostel assignment found for this management account. Showing data from all hostels.
-            </div>
-          )}
-        </header>
+        )}
+      </header>
+
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="surface-card p-4">
@@ -285,7 +265,6 @@ export default async function ManagementDashboardPage() {
             </Link>
           </div>
         </section>
-      </div>
-    </main>
+    </div>
   );
 }

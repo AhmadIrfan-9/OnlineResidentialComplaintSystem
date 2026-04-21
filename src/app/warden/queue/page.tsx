@@ -170,35 +170,21 @@ export default async function ComplaintQueuePage() {
   );
 
   return (
-    <main className="min-h-screen p-3 md:p-6">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <header className="surface-hero p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-lg font-semibold text-slate-900">Complaint Queue</p>
-              <p className="text-sm text-slate-600">Scope: {scopeLabel}</p>
-              <p className="text-xs text-slate-500">
-                Color code: Green (0-14 days), Yellow (15-30 days), Red (over 30 days)
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link href="/warden/dashboard" className="nav-pill px-3 py-2">
-                Back to Dashboard
-              </Link>
-              <Link href="/warden/reports" className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm text-white shadow-md shadow-sky-200">
-                Generate Report
-              </Link>
-            </div>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold text-slate-900">Complaint Queue</h1>
+        <p className="text-sm text-slate-500">Scope: {scopeLabel}</p>
+        <p className="text-xs text-slate-400">
+          Color code: Green (0-14 days), Yellow (15-30 days), Red (over 30 days)
+        </p>
+        {isFallbackScope && (
+          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            No hostel assignment found for this management account. Showing data from all hostels.
           </div>
-          {isFallbackScope && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No hostel assignment found for this management account. Showing data from all hostels.
-            </div>
-          )}
-        </header>
+        )}
+      </header>
 
-        <QueueViewSwitcher items={items} />
-      </div>
-    </main>
+      <QueueViewSwitcher items={items} />
+    </div>
   );
 }
