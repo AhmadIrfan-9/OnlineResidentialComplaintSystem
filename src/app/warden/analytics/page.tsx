@@ -3,181 +3,195 @@ import { auth } from "@/lib/auth";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { db } from "@/lib/db";
 import { getUnitenSemester } from "@/lib/semester";
+import { AnalyticsClient, TrendData, CategoryData, HistogramData } from "@/components/analytics/AnalyticsClient";
+import { Prisma } from "@prisma/client";
 
-export default async function ManagementAnalyticsPage() {
+const RESPONSE_HISTO_BUCKETS = ["0-1 day", "1-2 days", "2-3 days", "3-5 days", "5+ days"];
+const asDays = (ms: number): number => ms / (1000 * 60 * 60 * 24);
+
+export default async function ManagementAnalyticsPage(props: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
   if (!session?.user || (!isManagementRole(role) && !isAdminRole(role))) {
     redirect("/login");
   }
 
-  const hostels = await db.hostel.findMany({
+  // Handle Search Params
+  const searchParams = await props.searchParams;
+  const hostelFilter = typeof searchParams?.hostel === "string" ? searchParams.hostel : "ALL";
+  const rangeFilter = typeof searchParams?.range === "string" ? searchParams.range : "30D"; // 7D, 30D, SEMESTER
+
+  // Base scope based on RBAC
+  const assignedHostels = await db.hostel.findMany({
     where: role === "MANAGEMENT" ? { wardenId: session.user.id } : undefined,
-    select: { id: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" }
   });
-  const whereScope =
-    role === "MANAGEMENT" ? { hostelId: { in: hostels.map((h) => h.id) } } : {};
+
+  const assignedHostelIds = assignedHostels.map(h => h.id);
+  
+  // Apply UI Filters
+  let activeHostelIds = assignedHostelIds;
+  if (hostelFilter !== "ALL" && assignedHostelIds.includes(hostelFilter)) {
+    activeHostelIds = [hostelFilter];
+  }
+
+  const whereScope = { hostelId: { in: activeHostelIds } };
 
   const now = new Date();
   const semester = getUnitenSemester(now);
 
-  // Also keep 30-day view for quick glance
-  const start30 = new Date(now);
-  start30.setDate(start30.getDate() - 29);
-  start30.setHours(0, 0, 0, 0);
+  // Determine Time Range
+  let startDate = new Date(now);
+  if (rangeFilter === "7D") {
+    startDate.setDate(now.getDate() - 6);
+  } else if (rangeFilter === "30D") {
+    startDate.setDate(now.getDate() - 29);
+  } else {
+    startDate = semester.start;
+  }
+  startDate.setHours(0, 0, 0, 0);
 
-  const [semesterComplaints, recentComplaints] = await Promise.all([
-    db.complaint.findMany({
-      where: {
-        ...whereScope,
-        createdAt: { gte: semester.start, lte: now },
-      },
-      select: {
-        id: true,
-        category: true,
-        priority: true,
-        status: true,
-        createdAt: true,
-        resolvedAt: true,
-        closedAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    db.complaint.findMany({
-      where: {
-        ...whereScope,
-        createdAt: { gte: start30 },
-      },
-      select: {
-        id: true,
-        category: true,
-        priority: true,
-        status: true,
-        createdAt: true,
-        resolvedAt: true,
-        closedAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-
-  const total = semesterComplaints.length;
-  const totalRecent = recentComplaints.length;
-  const resolved = semesterComplaints.filter(
-    (c) => c.status === "RESOLVED" || c.status === "CLOSED"
-  );
-  const avgResolutionHours =
-    resolved.length === 0
-      ? 0
-      : resolved.reduce((sum, item) => {
-          const end = item.resolvedAt ?? item.closedAt ?? item.updatedAt;
-          return (
-            sum + (end.getTime() - item.createdAt.getTime()) / (1000 * 60 * 60)
-          );
-        }, 0) / resolved.length;
-
-  const categoryTrend = semesterComplaints.reduce<Record<string, number>>(
-    (acc, item) => {
-      acc[item.category] = (acc[item.category] ?? 0) + 1;
-      return acc;
+  // 1. Prisma GroupBy for Category Breakdown
+  const categoryGroups = await db.complaint.groupBy({
+    by: ['category'],
+    where: {
+      ...whereScope,
+      createdAt: { gte: startDate, lte: now }
     },
-    {}
-  );
+    _count: {
+      id: true
+    }
+  });
 
-  const dailyVolume = Array.from({ length: 30 }, (_, idx) => {
-    const day = new Date(start30);
-    day.setDate(start30.getDate() + idx);
+  const categoryData: CategoryData[] = categoryGroups.map(g => ({
+    name: g.category.charAt(0) + g.category.slice(1).toLowerCase(),
+    count: g._count.id
+  })).sort((a, b) => b.count - a.count);
+
+  // 2. Fetch Base Data for other metrics
+  const complaints = await db.complaint.findMany({
+    where: {
+      ...whereScope,
+      createdAt: { gte: semester.start, lte: now },
+    },
+    select: {
+      id: true,
+      category: true,
+      priority: true,
+      status: true,
+      createdAt: true,
+      resolvedAt: true,
+      closedAt: true,
+      updatedAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const rangeComplaints = complaints.filter(c => c.createdAt >= startDate);
+
+  const totalComplaints = rangeComplaints.length;
+  
+  const resolvedSemester = complaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
+  const resolvedRange = rangeComplaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
+  
+  const avgResolutionHours =
+    resolvedRange.length === 0
+      ? 0
+      : resolvedRange.reduce((sum, item) => {
+          const end = item.resolvedAt ?? item.closedAt ?? item.updatedAt;
+          return sum + (end.getTime() - item.createdAt.getTime()) / (1000 * 60 * 60);
+        }, 0) / resolvedRange.length;
+
+  // SLA Calculation for Range
+  const getSlaDays = (priority: string) => {
+    if (priority === "EMERGENCY") return 4 / 24;
+    if (priority === "URGENT") return 1;
+    return 7;
+  };
+
+  const slaCompliantCount = rangeComplaints.filter((c) => {
+    const end = (c.status === "PENDING" || c.status === "IN_PROGRESS") ? now : (c.resolvedAt ?? c.closedAt ?? c.updatedAt);
+    const elapsed = asDays(end.getTime() - c.createdAt.getTime());
+    return elapsed <= getSlaDays(c.priority);
+  }).length;
+  
+  const slaCompliance = totalComplaints ? (slaCompliantCount / totalComplaints) * 100 : 100;
+
+  // 3. Trend Data Mapping (Days)
+  // We calculate buckets based on the range length
+  const rangeDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const maxBuckets = Math.min(rangeDays || 1, 60); // Cap at 60 points for line chart
+  
+  const trendBuckets = Array.from({ length: maxBuckets }, (_, i) => {
+    const day = new Date(startDate);
+    day.setDate(startDate.getDate() + i);
     day.setHours(0, 0, 0, 0);
-    const count = recentComplaints.filter(
-      (item) => item.createdAt.toDateString() === day.toDateString()
-    ).length;
-    return { day: day.toISOString().slice(0, 10), count };
+    return day;
+  });
+
+  // Prisma `$queryRaw` could be used here but JS mapping on pre-fetched `rangeComplaints` is safer for timezone alignment 
+  // since this system stores dates in UTC.
+  const trendData: TrendData[] = trendBuckets.map((day) => {
+    const dateStr = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const count = rangeComplaints.filter((c) => c.createdAt.toDateString() === day.toDateString()).length;
+    return { dateStr, date: day.toISOString(), count };
+  });
+
+  // 4. Histogram mapping
+  const responseTimesRange = resolvedRange.map((c) => {
+    const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+    return asDays(end.getTime() - c.createdAt.getTime());
+  });
+
+  const responseTimesSemester = resolvedSemester.map((c) => {
+    const end = c.resolvedAt ?? c.closedAt ?? c.updatedAt;
+    return asDays(end.getTime() - c.createdAt.getTime());
+  });
+
+  const getBucketCounts = (times: number[]) => ({
+    "0-1": times.filter((d) => d <= 1).length,
+    "1-2": times.filter((d) => d > 1 && d <= 2).length,
+    "2-3": times.filter((d) => d > 2 && d <= 3).length,
+    "3-5": times.filter((d) => d > 3 && d <= 5).length,
+    "5+": times.filter((d) => d > 5).length,
+  });
+
+  const rangeCounts = getBucketCounts(responseTimesRange);
+  const semesterCountsRaw = getBucketCounts(responseTimesSemester);
+  const scaleFactor = Math.max(1, semester.months); // Simplified average divisor
+
+  const histogramData: HistogramData[] = RESPONSE_HISTO_BUCKETS.map(bucket => {
+    const key = bucket === "0-1 day" ? "0-1" : bucket === "1-2 days" ? "1-2" : bucket === "2-3 days" ? "2-3" : bucket === "3-5 days" ? "3-5" : "5+";
+    return {
+      bucket,
+      current: rangeCounts[key as keyof typeof rangeCounts],
+      avg: parseFloat((semesterCountsRaw[key as keyof typeof semesterCountsRaw] / scaleFactor).toFixed(1))
+    };
   });
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <div className="mx-auto max-w-6xl space-y-4">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">Analytics</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Semester:{" "}
-            <span className="font-medium text-slate-800">{semester.name}</span> (
-            {semester.start.toLocaleDateString()} –{" "}
-            {semester.end.toLocaleDateString()})
+    <main className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-slate-900">Performance Analytics</h1>
+          <p className="text-sm text-slate-500">
+            Deep-dive operational metrics for your assigned student accommodations.
           </p>
-        </section>
+        </header>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Semester Total</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">
-              {total}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Last 30 Days</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">
-              {totalRecent}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Resolved/Closed (Semester)</p>
-            <p className="mt-1 text-3xl font-semibold text-emerald-700">
-              {resolved.length}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm text-slate-600">Avg Resolution Time</p>
-            <p className="mt-1 text-3xl font-semibold text-slate-900">
-              {avgResolutionHours.toFixed(1)}h
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Recurring Issues (Semester)
-          </h2>
-          <ul className="mt-3 grid gap-2 md:grid-cols-2">
-            {Object.entries(categoryTrend)
-              .sort((a, b) => b[1] - a[1])
-              .map(([category, count]) => (
-                <li
-                  key={category}
-                  className="flex items-center justify-between rounded border border-slate-200 px-3 py-2 text-sm"
-                >
-                  <span>{category}</span>
-                  <span className="font-medium">{count}</span>
-                </li>
-              ))}
-          </ul>
-        </section>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Daily Complaint Volume (Last 30 Days)
-          </h2>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[520px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="py-2 pr-3">Date</th>
-                  <th className="py-2 pr-3">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dailyVolume.map((entry) => (
-                  <tr key={entry.day} className="border-b border-slate-100">
-                    <td className="py-2 pr-3">{entry.day}</td>
-                    <td className="py-2 pr-3 font-medium">{entry.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <AnalyticsClient
+          trendData={trendData}
+          categoryData={categoryData}
+          histogramData={histogramData}
+          hostels={assignedHostels}
+          semesterName={semester.name}
+          totalComplaints={totalComplaints}
+          slaCompliance={slaCompliance}
+          avgResolutionHours={avgResolutionHours}
+        />
       </div>
     </main>
   );
