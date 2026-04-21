@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import {
   History,
   LayoutDashboard,
@@ -106,8 +107,8 @@ export function DashboardSidebar() {
   const brand = (
     <div className="px-6 py-8">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-600 text-xs font-bold text-white">
-          ORCS
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1 ring-1 ring-slate-200 shadow-sm">
+          <Image src="/assets/logo-light.png" alt="ORCS" width={40} height={40} className="object-contain" />
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -143,8 +144,8 @@ export function DashboardSidebar() {
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-sky-600 text-[10px] font-bold text-white">
-              O
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-slate-50 p-0.5 ring-1 ring-slate-200">
+              <Image src="/assets/logo-light.png" alt="ORCS" width={24} height={24} className="object-contain" />
             </div>
             <h2 className="text-sm font-bold text-slate-900">
               Residential Portal

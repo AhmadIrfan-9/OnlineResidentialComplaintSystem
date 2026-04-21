@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { LoginForm } from "@/components/shared/LoginForm";
 import { dashboardPathByRole } from "@/lib/roles";
 
+import Image from "next/image";
+
 export const metadata = {
   title: "Sign In | ORCS",
   description: "Sign in to your account",
@@ -20,7 +22,9 @@ export default async function LoginPage() {
       <div className="w-full max-w-5xl">
         <div className="surface-hero mb-6 grid gap-4 p-6 text-slate-900 md:grid-cols-2 md:p-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">ORCS</p>
+            <div className="mb-4 inline-flex items-center justify-center rounded-2xl bg-white p-2.5 shadow-md ring-1 ring-slate-100">
+              <Image src="/assets/logo-light.png" alt="ORCS Logo" width={56} height={56} className="object-contain" priority />
+            </div>
             <h1 className="mt-3 text-3xl font-bold sm:text-4xl">
               Online Residential Complaint System
             </h1>
