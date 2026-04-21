@@ -15,7 +15,6 @@ import { revalidatePath } from "next/cache";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { assignmentComment, parseAssignmentText } from "@/lib/complaints";
 import { createInAppNotification } from "@/lib/notifications";
-import { embedAndStoreResolvedComplaint } from "@/lib/ai/auto-embed";
 
 interface CreateComplaintResult {
   success: boolean;
@@ -381,11 +380,19 @@ export async function updateComplaintStatus(
     revalidatePath("/student/complaints");
 
     // Phase 6: Auto-embed resolved complaints into the RAG vector store.
-    // Fire-and-forget — never block the UI response.
+    // Dynamic import avoids bundler/TS resolution issues in server actions.
+    // Fire-and-forget — never blocks the UI response.
     if (validatedStatus === "RESOLVED") {
-      embedAndStoreResolvedComplaint(complaintId).catch((err) =>
-        console.warn("[AI] Auto-embed failed (non-critical):", err)
-      );
+      import("@/lib/ai/auto-embed")
+        .then(({ embedAndStoreResolvedComplaint }) =>
+          embedAndStoreResolvedComplaint(complaintId)
+        )
+        .catch((err: unknown) =>
+          console.warn(
+            "[AI] Auto-embed failed (non-critical):",
+            err instanceof Error ? err.message : err
+          )
+        );
     }
 
     console.log(

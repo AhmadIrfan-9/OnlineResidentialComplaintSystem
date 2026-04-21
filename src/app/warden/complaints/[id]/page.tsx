@@ -135,10 +135,7 @@ export default async function ManagementComplaintDetailPage({
   return (
     <main className="min-h-screen p-3 md:p-6">
       <div className="mx-auto max-w-7xl space-y-4">
-        <header className="surface-hero p-4">
-          <h1 className="text-lg font-semibold text-slate-900">Complaint Detail - Management View</h1>
-          <p className="text-sm text-slate-600">{detail.ticketId}</p>
-        </header>
+        {/* Header + AI drawer trigger are rendered inside the client component */}
         <ManagementComplaintDetailClient detail={detail} />
       </div>
     </main>

@@ -74,6 +74,9 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
   const [newMessage, setNewMessage] = useState("");
   const [feedback, setFeedback] = useState("");
 
+  // ── AI Drawer state ──
+  const [aiOpen, setAiOpen] = useState(false);
+
   const applyStatusChange = (targetStatus: string, message?: string) => {
     startTransition(async () => {
       const statusRes = await updateComplaintStatus(detail.id, targetStatus);
@@ -81,11 +84,9 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
         setFeedback(statusRes.error ?? "Failed to update status");
         return;
       }
-
       if (message && message.trim().length > 0) {
         await addComplaintComment(detail.id, message.trim());
       }
-
       setFeedback(`Status updated to ${pretty(targetStatus)}`);
       router.refresh();
     });
@@ -133,249 +134,355 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_340px] items-start">
-      {/* ── Left column: all existing complaint panels ── */}
+    <>
+      {/* ── Injected Keyframes (button shimmer etc.) ── */}
+      <style>{`
+        @keyframes ai-btn-shimmer {
+          0%   { background-position: -200% center; }
+          100% { background-position:  200% center; }
+        }
+        .ai-trigger-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 14px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          border: none;
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.15s, box-shadow 0.2s;
+          background: linear-gradient(
+            135deg,
+            #4f46e5 0%, #7c3aed 50%, #6d28d9 100%
+          );
+          color: #fff;
+          box-shadow: 0 4px 14px rgba(79,70,229,0.45);
+        }
+        .ai-trigger-btn::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            rgba(255,255,255,0.18) 50%,
+            transparent 100%
+          );
+          background-size: 200% 100%;
+          animation: ai-btn-shimmer 2.5s linear infinite;
+        }
+        .ai-trigger-btn:hover   { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,70,229,0.6); }
+        .ai-trigger-btn:active  { transform: translateY(0); }
+        .ai-trigger-btn.open {
+          background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+          box-shadow: 0 2px 8px rgba(30,27,75,0.5), inset 0 0 0 1px rgba(99,102,241,0.4);
+        }
+      `}</style>
+
+      {/* ── Page Header (replaces static server header) ── */}
+      <header className="surface-hero p-4 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">
+            Complaint Detail — Management View
+          </h1>
+          <p className="text-sm text-slate-500">{detail.ticketId}</p>
+        </div>
+
+        {/* ✨ AI Trigger Button */}
+        <button
+          id="ai-analysis-toggle"
+          className={`ai-trigger-btn${aiOpen ? " open" : ""}`}
+          onClick={() => setAiOpen((v) => !v)}
+          aria-expanded={aiOpen}
+          aria-controls="ai-insight-drawer"
+        >
+          <span style={{ fontSize: "15px" }}>✨</span>
+          {aiOpen ? "Hide AI Analysis" : "AI Analysis"}
+          <span
+            style={{
+              fontSize: "9px",
+              letterSpacing: "0.06em",
+              background: "rgba(255,255,255,0.18)",
+              borderRadius: "4px",
+              padding: "1px 5px",
+              lineHeight: "16px",
+            }}
+          >
+            RAG
+          </span>
+        </button>
+      </header>
+
+      {/* ── Main Content (full-width, no grid shift) ── */}
       <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-2">
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          {/* Student Information */}
+          <section className="surface-card p-4">
+            <h2 className="mb-3 text-base font-semibold text-slate-900">Student Information</h2>
+            <div className="space-y-2 text-sm">
+              <p><span className="font-medium">Student name:</span> {detail.studentName}</p>
+              <p><span className="font-medium">Student ID:</span> {detail.studentIdentifier}</p>
+              <p><span className="font-medium">Hostel:</span> {detail.hostelName}</p>
+              <p><span className="font-medium">Contact:</span> {detail.contact}</p>
+              <p><span className="font-medium">Submission date:</span> {new Date(detail.submittedAt).toLocaleString()}</p>
+              <p>
+                <span className="font-medium">Submission mode:</span>{" "}
+                <span
+                  className={`rounded-full px-2 py-1 text-xs ${
+                    detail.isAnonymous
+                      ? "bg-slate-200 text-slate-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {detail.submissionMode}
+                </span>
+              </p>
+            </div>
+          </section>
+
+          {/* Complaint Information */}
+          <section className="surface-card p-4">
+            <h2 className="mb-3 text-base font-semibold text-slate-900">Complaint Information</h2>
+            <div className="grid gap-2 text-sm md:grid-cols-2">
+              <p><span className="font-medium">Ticket ID:</span> {detail.ticketId}</p>
+              <p><span className="font-medium">Category:</span> {detail.category}</p>
+              <p><span className="font-medium">Severity:</span> {detail.severity}</p>
+              <p>
+                <span className="font-medium">Days pending:</span>{" "}
+                <span
+                  className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                    detail.ageBand === "RED"
+                      ? "bg-red-100 text-red-700"
+                      : detail.ageBand === "YELLOW"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {detail.daysPending.toFixed(1)} days
+                </span>
+              </p>
+
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-sm font-medium">Complaint category</label>
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  {detail.categoryOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {pretty(option)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                  onClick={saveCategory}
+                  disabled={isPending}
+                >
+                  Save Category
+                </button>
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-sm font-medium">Assigned to</label>
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
+                  value={assignedTo}
+                  onChange={(e) => setAssignedTo(e.target.value)}
+                >
+                  {detail.assigneeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                  onClick={saveAssignment}
+                  disabled={isPending}
+                >
+                  Save Assignment
+                </button>
+              </div>
+
+              <p><span className="font-medium">Last updated:</span> {new Date(detail.updatedAt).toLocaleString()}</p>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <label className="text-sm font-medium">Current status</label>
+              <select
+                className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                {["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((s) => (
+                  <option key={s} value={s}>{pretty(s)}</option>
+                ))}
+              </select>
+              <button
+                className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                disabled={isPending}
+                onClick={() => applyStatusChange(status)}
+              >
+                Update Current Status
+              </button>
+            </div>
+          </section>
+        </div>
+
+        {/* Complaint Description */}
         <section className="surface-card p-4">
-          <h2 className="mb-3 text-base font-semibold text-slate-900">Student Information</h2>
-          <div className="space-y-2 text-sm">
-            <p><span className="font-medium">Student name:</span> {detail.studentName}</p>
-            <p><span className="font-medium">Student ID:</span> {detail.studentIdentifier}</p>
-            <p><span className="font-medium">Hostel:</span> {detail.hostelName}</p>
-            <p><span className="font-medium">Contact:</span> {detail.contact}</p>
-            <p><span className="font-medium">Submission date:</span> {new Date(detail.submittedAt).toLocaleString()}</p>
-            <p>
-              <span className="font-medium">Submission mode:</span>{" "}
-              <span className={`rounded-full px-2 py-1 text-xs ${detail.isAnonymous ? "bg-slate-200 text-slate-700" : "bg-blue-100 text-blue-700"}`}>
-                {detail.submissionMode}
-              </span>
-            </p>
-          </div>
+          <h3 className="mb-2 text-base font-semibold text-slate-900">Complaint description</h3>
+          <p className="whitespace-pre-wrap text-sm text-slate-700">{detail.description}</p>
         </section>
 
+        {/* Evidence Files */}
         <section className="surface-card p-4">
-          <h2 className="mb-3 text-base font-semibold text-slate-900">Complaint Information</h2>
-          <div className="grid gap-2 text-sm md:grid-cols-2">
-            <p><span className="font-medium">Ticket ID:</span> {detail.ticketId}</p>
-            <p><span className="font-medium">Category:</span> {detail.category}</p>
-            <p><span className="font-medium">Severity:</span> {detail.severity}</p>
-            <p>
-              <span className="font-medium">Days pending:</span>{" "}
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                  detail.ageBand === "RED"
-                    ? "bg-red-100 text-red-700"
-                    : detail.ageBand === "YELLOW"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-emerald-100 text-emerald-700"
+          <h3 className="mb-3 text-base font-semibold text-slate-900">Evidence files</h3>
+          {detail.evidence.length === 0 ? (
+            <p className="text-sm text-slate-600">No evidence attached.</p>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {detail.evidence.map((file) => (
+                <div key={file.id} className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm">
+                  {file.fileType.startsWith("image/") ? (
+                    <img src={file.fileUrl} alt="Evidence" className="mb-2 h-32 w-full rounded object-cover" />
+                  ) : (
+                    <a href={file.fileUrl} className="mb-2 inline-block text-sky-700 hover:text-sky-800" target="_blank">
+                      Download video
+                    </a>
+                  )}
+                  <p className="text-xs text-slate-500">Upload date: {new Date(detail.submittedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-slate-500">File size: Unavailable</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Status Change */}
+        <section className="surface-card p-4">
+          <h3 className="mb-3 text-base font-semibold text-slate-900">Status change section</h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-sm"><span className="font-medium">Current status:</span> {pretty(detail.status)}</p>
+              <label className="text-sm font-medium">Proposed status</label>
+              <select
+                className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
+                value={proposedStatus}
+                onChange={(e) => setProposedStatus(e.target.value)}
+              >
+                {(NEXT_STATUS[detail.status] ?? []).map((s) => (
+                  <option key={s} value={s}>{pretty(s)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Required response (min 10 characters)</label>
+              <textarea
+                className="min-h-24 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
+                value={responseMessage}
+                onChange={(e) => setResponseMessage(e.target.value)}
+              />
+              <input type="file" className="text-sm" />
+            </div>
+          </div>
+          <button
+            className="mt-3 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200 disabled:opacity-50"
+            disabled={isPending || proposedStatus.length === 0 || responseMessage.trim().length < 10}
+            onClick={() => applyStatusChange(proposedStatus, responseMessage)}
+          >
+            Submit Status Change
+          </button>
+        </section>
+
+        {/* Messages */}
+        <section className="surface-card p-4">
+          <h3 className="mb-3 text-base font-semibold text-slate-900">Messages</h3>
+          <div className="space-y-2">
+            {detail.updates.map((u) => (
+              <div
+                key={u.id}
+                className={`rounded-lg px-3 py-2 text-sm ${
+                  normalizeRoleKey(u.role) === "STUDENT" ? "bg-slate-100" : "bg-slate-200"
                 }`}
               >
-                {detail.daysPending.toFixed(1)} days
-              </span>
-            </p>
-            <div className="md:col-span-2 space-y-1">
-              <label className="text-sm font-medium">Complaint category</label>
-              <select
-                className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {detail.categoryOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {pretty(option)}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
-                onClick={saveCategory}
-                disabled={isPending}
-              >
-                Save Category
-              </button>
-            </div>
-            <div className="md:col-span-2 space-y-1">
-              <label className="text-sm font-medium">Assigned to</label>
-              <select
-                className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-              >
-                {detail.assigneeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
-                onClick={saveAssignment}
-                disabled={isPending}
-              >
-                Save Assignment
-              </button>
-            </div>
-            <p><span className="font-medium">Last updated:</span> {new Date(detail.updatedAt).toLocaleString()}</p>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            <label className="text-sm font-medium">Current status</label>
-            <select
-              className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              {["SUBMITTED", "ACKNOWLEDGED", "UNDER_REVIEW", "IN_PROGRESS", "RESOLVED", "CLOSED"].map((s) => (
-                <option key={s} value={s}>{pretty(s)}</option>
-              ))}
-            </select>
-            <button
-              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
-              disabled={isPending}
-              onClick={() => applyStatusChange(status)}
-            >
-              Update Current Status
-            </button>
-          </div>
-        </section>
-      </div>
-
-      <section className="surface-card p-4">
-        <h3 className="mb-2 text-base font-semibold text-slate-900">Complaint description</h3>
-        <p className="whitespace-pre-wrap text-sm text-slate-700">{detail.description}</p>
-      </section>
-
-      <section className="surface-card p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Evidence files</h3>
-        {detail.evidence.length === 0 ? (
-          <p className="text-sm text-slate-600">No evidence attached.</p>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {detail.evidence.map((file) => (
-              <div key={file.id} className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm">
-                {file.fileType.startsWith("image/") ? (
-                  <img src={file.fileUrl} alt="Evidence" className="mb-2 h-32 w-full rounded object-cover" />
-                ) : (
-                  <a href={file.fileUrl} className="mb-2 inline-block text-sky-700 hover:text-sky-800" target="_blank">
-                    Download video
-                  </a>
-                )}
-                <p className="text-xs text-slate-500">Upload date: {new Date(detail.submittedAt).toLocaleDateString()}</p>
-                <p className="text-xs text-slate-500">File size: Unavailable</p>
+                <p className="text-xs font-semibold text-slate-600">
+                  {normalizeRoleKey(u.role) === "STUDENT" ? "Student" : u.name}
+                </p>
+                <p className="text-slate-700">{u.content}</p>
+                <p className="text-xs text-slate-500">{new Date(u.createdAt).toLocaleString()}</p>
               </div>
             ))}
           </div>
-        )}
-      </section>
 
-      <section className="surface-card p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Status change section</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <p className="text-sm"><span className="font-medium">Current status:</span> {pretty(detail.status)}</p>
-            <label className="text-sm font-medium">Proposed status</label>
-            <select
-              className="w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-              value={proposedStatus}
-              onChange={(e) => setProposedStatus(e.target.value)}
-            >
-              {(NEXT_STATUS[detail.status] ?? []).map((s) => (
-                <option key={s} value={s}>{pretty(s)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Required response (min 10 characters)</label>
+          <div className="mt-3 space-y-2">
             <textarea
               className="min-h-24 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-              value={responseMessage}
-              onChange={(e) => setResponseMessage(e.target.value)}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type message..."
             />
             <input type="file" className="text-sm" />
-          </div>
-        </div>
-        <button
-          className="mt-3 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200 disabled:opacity-50"
-          disabled={isPending || proposedStatus.length === 0 || responseMessage.trim().length < 10}
-          onClick={() => applyStatusChange(proposedStatus, responseMessage)}
-        >
-          Submit Status Change
-        </button>
-      </section>
-
-      <section className="surface-card p-4">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Messages</h3>
-        <div className="space-y-2">
-          {detail.updates.map((u) => (
-            <div
-              key={u.id}
-              className={`rounded-lg px-3 py-2 text-sm ${
-                normalizeRoleKey(u.role) === "STUDENT" ? "bg-slate-100" : "bg-slate-200"
-              }`}
+            <button
+              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+              onClick={sendMessage}
+              disabled={isPending}
             >
-              <p className="text-xs font-semibold text-slate-600">
-                {normalizeRoleKey(u.role) === "STUDENT" ? "Student" : u.name}
-              </p>
-              <p className="text-slate-700">{u.content}</p>
-              <p className="text-xs text-slate-500">{new Date(u.createdAt).toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
+              Send
+            </button>
+          </div>
+        </section>
 
-        <div className="mt-3 space-y-2">
-          <textarea
-            className="min-h-24 w-full rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type message..."
-          />
-          <input type="file" className="text-sm" />
-          <button
-            className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
-            onClick={sendMessage}
-            disabled={isPending}
-          >
-            Send
-          </button>
-        </div>
-      </section>
+        {/* Quick Actions */}
+        <section className="surface-card p-4">
+          <div className="flex flex-wrap gap-2">
+            <button className="nav-pill px-3 py-2 text-sm" onClick={sendMessage}>
+              Send Message
+            </button>
+            <button
+              className="nav-pill px-3 py-2 text-sm"
+              onClick={() => applyStatusChange("RESOLVED")}
+              disabled={isPending}
+            >
+              Mark as Resolved
+            </button>
+            <button className="nav-pill px-3 py-2 text-sm">Escalate to Management</button>
+            <button className="nav-pill px-3 py-2 text-sm">Add Note (internal)</button>
+            <button className="nav-pill px-3 py-2 text-sm" onClick={() => window.print()}>
+              Print/Export as PDF
+            </button>
+            <Link
+              href={`/warden/complaints/${detail.id}/resolve`}
+              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+            >
+              Open Resolution Form
+            </Link>
+          </div>
+        </section>
 
-      <section className="surface-card p-4">
-        <div className="flex flex-wrap gap-2">
-          <button className="nav-pill px-3 py-2 text-sm" onClick={sendMessage}>
-            Send Message
-          </button>
-          <button
-            className="nav-pill px-3 py-2 text-sm"
-            onClick={() => applyStatusChange("RESOLVED")}
-            disabled={isPending}
-          >
-            Mark as Resolved
-          </button>
-          <button className="nav-pill px-3 py-2 text-sm">Escalate to Management</button>
-          <button className="nav-pill px-3 py-2 text-sm">Add Note (internal)</button>
-          <button className="nav-pill px-3 py-2 text-sm" onClick={() => window.print()}>
-            Print/Export as PDF
-          </button>
-          <Link href={`/warden/complaints/${detail.id}/resolve`} className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200">
-            Open Resolution Form
-          </Link>
-        </div>
-      </section>
-
-      {feedback && (
-        <div className="surface-card rounded-md px-3 py-2 text-sm text-slate-700">
-          {feedback}
-        </div>
-      )}
-
-      </div>{/* end left column */}
-
-      {/* ── Right column: AI Insight Sidebar ── */}
-      <div className="xl:sticky xl:top-6">
-        <AiInsightSidebar complaintId={detail.id} />
+        {feedback && (
+          <div className="surface-card rounded-md px-3 py-2 text-sm text-slate-700">
+            {feedback}
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* ── AI Intelligence Drawer (fixed overlay, no layout shift) ── */}
+      <AiInsightSidebar
+        complaintId={detail.id}
+        isOpen={aiOpen}
+        onClose={() => setAiOpen(false)}
+        onApplySuggestedAction={(action) => {
+          setFeedback(`AI Action logged: ${action}`);
+        }}
+      />
+    </>
   );
 }

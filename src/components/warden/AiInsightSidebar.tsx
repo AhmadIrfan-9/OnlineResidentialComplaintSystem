@@ -3,20 +3,26 @@
 /**
  * src/components/warden/AiInsightSidebar.tsx
  *
- * Premium "AI Insight" panel that fetches RAG-generated analysis for a complaint
- * and displays it in a glassmorphism sidebar with animated loading states.
+ * Collapsible AI Intelligence Drawer — slides in from the right.
+ * Triggered externally via the `isOpen` prop; calls `onClose` to dismiss.
  *
  * Features:
- * - Animated brain icon with pulsing glow during fetch
- * - Priority badge (EMERGENCY/URGENT/ROUTINE) with semantic colours
- * - Confidence meter with animated fill
+ * - Slide-in / slide-out CSS transition (no layout shift)
+ * - Resizable width via drag handle (280 – 520 px)
+ * - Priority badge (EMERGENCY / URGENT / ROUTINE) with semantic colours
+ * - Arc-style "High Confidence" gauge replacing the flat bar
+ * - One-click "Apply Action" + "Save Category" CTA row
  * - Collapsible policy reference with exact citation
- * - Similar case count chip
- * - Graceful error + fallback states (never crashes)
- * - "Refresh Insight" button to re-run the pipeline
+ * - Shimmer skeleton while loading
+ * - Graceful error + fallback states
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +43,12 @@ type FetchState = "idle" | "loading" | "success" | "error";
 
 interface Props {
   complaintId: string;
+  /** Controls visibility — parent toggles this */
+  isOpen: boolean;
+  /** Called when the user clicks the close / backdrop */
+  onClose: () => void;
+  /** Optional: wired up to quickly save category from AI suggestion */
+  onApplySuggestedAction?: (action: string) => void;
 }
 
 // ─── Priority Config ──────────────────────────────────────────────────────────
@@ -48,7 +60,8 @@ const PRIORITY_CONFIG = {
     bg: "rgba(239,68,68,0.12)",
     border: "rgba(239,68,68,0.35)",
     glyph: "🔴",
-    pulse: "#ef4444",
+    trackColor: "rgba(239,68,68,0.15)",
+    arcColor: "#ef4444",
   },
   URGENT: {
     label: "URGENT",
@@ -56,7 +69,8 @@ const PRIORITY_CONFIG = {
     bg: "rgba(249,115,22,0.12)",
     border: "rgba(249,115,22,0.35)",
     glyph: "🟠",
-    pulse: "#f97316",
+    trackColor: "rgba(249,115,22,0.15)",
+    arcColor: "#f97316",
   },
   ROUTINE: {
     label: "ROUTINE",
@@ -64,56 +78,84 @@ const PRIORITY_CONFIG = {
     bg: "rgba(34,197,94,0.12)",
     border: "rgba(34,197,94,0.35)",
     glyph: "🟢",
-    pulse: "#22c55e",
+    trackColor: "rgba(34,197,94,0.15)",
+    arcColor: "#22c55e",
   },
 } as const;
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Arc Gauge ────────────────────────────────────────────────────────────────
 
-function ConfidenceMeter({ value }: { value: number }) {
+function ArcGauge({ value, color }: { value: number; color: string }) {
   const pct = Math.round(value * 100);
-  const color =
-    pct >= 80 ? "#22c55e" : pct >= 55 ? "#f97316" : "#ef4444";
+  const radius = 42;
+  const stroke = 8;
+  const cx = 56;
+  const cy = 56;
+  // half-circle arc from 180° to 0° (left to right)
+  const circumference = Math.PI * radius; // half circle
+  const filled = (pct / 100) * circumference;
+  const gap = circumference - filled;
+
+  const label =
+    pct >= 80 ? "High Confidence" : pct >= 55 ? "Moderate" : "Low Confidence";
+  const labelColor = pct >= 80 ? "#22c55e" : pct >= 55 ? "#f97316" : "#ef4444";
 
   return (
-    <div style={{ marginBottom: "12px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
-        <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          AI Confidence
-        </span>
-        <span style={{ fontSize: "13px", fontWeight: 700, color }}>
-          {pct}%
-        </span>
-      </div>
-      <div
-        style={{
-          height: "5px",
-          background: "rgba(148,163,184,0.15)",
-          borderRadius: "999px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            background: `linear-gradient(90deg, ${color}99, ${color})`,
-            borderRadius: "999px",
-            transition: "width 0.8s cubic-bezier(0.4,0,0.2,1)",
-            boxShadow: `0 0 8px ${color}80`,
-          }}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        marginBottom: "14px",
+      }}
+    >
+      <svg width="112" height="68" viewBox="0 0 112 68">
+        {/* track */}
+        <path
+          d={`M ${cx - radius},${cy} A ${radius},${radius} 0 0 1 ${cx + radius},${cy}`}
+          fill="none"
+          stroke="rgba(148,163,184,0.12)"
+          strokeWidth={stroke}
+          strokeLinecap="round"
         />
-      </div>
+        {/* filled arc */}
+        <path
+          d={`M ${cx - radius},${cy} A ${radius},${radius} 0 0 1 ${cx + radius},${cy}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${gap}`}
+          style={{ transition: "stroke-dasharray 1s cubic-bezier(0.4,0,0.2,1)", filter: `drop-shadow(0 0 6px ${color}88)` }}
+        />
+        {/* centre value */}
+        <text x={cx} y={cy - 4} textAnchor="middle" fill={color} fontSize="18" fontWeight="800">
+          {pct}%
+        </text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fill="#64748b" fontSize="9" letterSpacing="0.05em">
+          AI CONFIDENCE
+        </text>
+      </svg>
+      <span
+        style={{
+          fontSize: "11px",
+          fontWeight: 700,
+          color: labelColor,
+          letterSpacing: "0.04em",
+          background: `${labelColor}18`,
+          border: `1px solid ${labelColor}40`,
+          borderRadius: "999px",
+          padding: "2px 10px",
+          marginTop: "-2px",
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }
+
+// ─── Similar Cases Chip ───────────────────────────────────────────────────────
 
 function SimilarCasesChip({ count }: { count: number }) {
   if (count === 0) {
@@ -152,10 +194,12 @@ function SimilarCasesChip({ count }: { count: number }) {
         fontWeight: 700,
       }}
     >
-      ⚠ {count} similar report{count !== 1 ? "s" : ""} found
+      ⚠ {count} similar case{count !== 1 ? "s" : ""}
     </span>
   );
 }
+
+// ─── Shimmer Row ──────────────────────────────────────────────────────────────
 
 function ShimmerRow({ width = "100%", height = 14 }: { width?: string; height?: number }) {
   return (
@@ -164,9 +208,10 @@ function ShimmerRow({ width = "100%", height = 14 }: { width?: string; height?: 
         width,
         height,
         borderRadius: "6px",
-        background: "linear-gradient(90deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.12) 50%, rgba(99,102,241,0.06) 100%)",
+        background:
+          "linear-gradient(90deg, rgba(99,102,241,0.06) 0%, rgba(139,92,246,0.14) 50%, rgba(99,102,241,0.06) 100%)",
         backgroundSize: "200% 100%",
-        animation: "shimmer 1.5s infinite",
+        animation: "ai-shimmer 1.5s infinite",
         marginBottom: "8px",
       }}
     />
@@ -187,6 +232,7 @@ function LoadingSkeleton() {
             alignItems: "center",
             justifyContent: "center",
             animation: "brain-pulse 1.5s ease-in-out infinite",
+            fontSize: "18px",
           }}
         >
           🧠
@@ -196,14 +242,14 @@ function LoadingSkeleton() {
             Analysing complaint...
           </div>
           <div style={{ fontSize: "11px", color: "#64748b" }}>
-            Searching 
-            <span style={{ color: "#6366f1" }}> policy database</span> & 
-            <span style={{ color: "#8b5cf6" }}> past cases</span>
+            Searching{" "}
+            <span style={{ color: "#6366f1" }}>policy database</span> &{" "}
+            <span style={{ color: "#8b5cf6" }}>past cases</span>
           </div>
         </div>
       </div>
       <ShimmerRow width="60%" height={10} />
-      <ShimmerRow width="100%" height={40} />
+      <ShimmerRow width="100%" height={70} />
       <ShimmerRow width="80%" height={10} />
       <ShimmerRow width="100%" height={55} />
       <ShimmerRow width="70%" height={10} />
@@ -211,6 +257,8 @@ function LoadingSkeleton() {
     </div>
   );
 }
+
+// ─── Policy Block ─────────────────────────────────────────────────────────────
 
 function PolicyBlock({ reference }: { reference: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -220,7 +268,7 @@ function PolicyBlock({ reference }: { reference: string }) {
   return (
     <div
       style={{
-        marginTop: "12px",
+        marginTop: "10px",
         background: "rgba(99,102,241,0.06)",
         border: "1px solid rgba(99,102,241,0.2)",
         borderRadius: "10px",
@@ -270,20 +318,26 @@ function PolicyBlock({ reference }: { reference: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function AiInsightSidebar({ complaintId }: Props) {
-  const [state, setState]   = useState<FetchState>("idle");
-  const [data, setData]     = useState<AiInsightData | null>(null);
+export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggestedAction }: Props) {
+  const [state, setState]       = useState<FetchState>("idle");
+  const [data, setData]         = useState<AiInsightData | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [actionApplied, setActionApplied] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Draggable resize
+  const [drawerWidth, setDrawerWidth] = useState(380);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const startW = useRef(380);
+
   const fetchInsight = useCallback(async () => {
-    // Cancel in-flight request if any
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-
     setState("loading");
     setData(null);
     setErrorMsg("");
+    setActionApplied(false);
 
     try {
       const res = await fetch("/api/ai/insight", {
@@ -292,13 +346,8 @@ export function AiInsightSidebar({ complaintId }: Props) {
         body: JSON.stringify({ complaintId }),
         signal: abortRef.current.signal,
       });
-
       const json: AiInsightData = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error ?? "Unknown error");
-      }
-
+      if (!res.ok) throw new Error(json.error ?? "Unknown error");
       setData(json);
       setState("success");
     } catch (err) {
@@ -308,19 +357,54 @@ export function AiInsightSidebar({ complaintId }: Props) {
     }
   }, [complaintId]);
 
-  // Auto-fetch on mount
+  // Auto-fetch when drawer opens for the first time
   useEffect(() => {
-    fetchInsight();
+    if (isOpen && state === "idle") fetchInsight();
     return () => abortRef.current?.abort();
-  }, [fetchInsight]);
+  }, [isOpen, state, fetchInsight]);
+
+  // ── Resize drag handlers ──
+  const onMouseDown = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    startX.current = e.clientX;
+    startW.current = drawerWidth;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "ew-resize";
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      const delta = startX.current - e.clientX; // dragging left = wider
+      const next = Math.min(520, Math.max(280, startW.current + delta));
+      setDrawerWidth(next);
+    };
+    const onUp = () => {
+      isDragging.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   const priorityCfg = data?.priority ? PRIORITY_CONFIG[data.priority] : null;
+  const confidenceColor =
+    data && data.confidence >= 0.8
+      ? "#22c55e"
+      : data && data.confidence >= 0.55
+      ? "#f97316"
+      : "#ef4444";
 
   return (
     <>
-      {/* ── Injected global keyframe animations ── */}
+      {/* ── CSS Keyframes ── */}
       <style>{`
-        @keyframes shimmer {
+        @keyframes ai-shimmer {
           0%   { background-position: -200% 0; }
           100% { background-position:  200% 0; }
         }
@@ -328,43 +412,117 @@ export function AiInsightSidebar({ complaintId }: Props) {
           0%, 100% { transform: scale(1);    opacity: 0.8; }
           50%       { transform: scale(1.18); opacity: 1;   }
         }
-        @keyframes glow-pulse {
-          0%, 100% { box-shadow: 0 0 20px rgba(99,102,241,0.3), 0 0 40px rgba(139,92,246,0.15); }
-          50%       { box-shadow: 0 0 30px rgba(99,102,241,0.5), 0 0 60px rgba(139,92,246,0.25); }
+        @keyframes ai-glow-pulse {
+          0%, 100% { box-shadow: 0 0 24px rgba(99,102,241,0.3), inset 0 0 0 1px rgba(99,102,241,0.12); }
+          50%       { box-shadow: 0 0 40px rgba(99,102,241,0.5), inset 0 0 0 1px rgba(99,102,241,0.22); }
         }
-        @keyframes fade-up {
-          from { opacity: 0; transform: translateY(12px); }
+        @keyframes ai-fade-up {
+          from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0);    }
         }
-        @keyframes priority-pop {
+        @keyframes ai-priority-pop {
           0%   { transform: scale(0.88); opacity: 0; }
           60%  { transform: scale(1.06);             }
           100% { transform: scale(1);    opacity: 1; }
         }
+        @keyframes ai-slide-in {
+          from { transform: translateX(100%); opacity: 0.6; }
+          to   { transform: translateX(0);    opacity: 1;   }
+        }
+        @keyframes ai-slide-out {
+          from { transform: translateX(0);    opacity: 1;   }
+          to   { transform: translateX(100%); opacity: 0.6; }
+        }
+        .ai-cta-btn {
+          flex: 1;
+          padding: 9px 10px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
+          letter-spacing: 0.03em;
+        }
+        .ai-cta-btn:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.92; }
+        .ai-cta-btn:active:not(:disabled) { transform: translateY(0); }
+        .ai-cta-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .ai-resize-handle {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 5px;
+          height: 100%;
+          cursor: ew-resize;
+          z-index: 10;
+          background: transparent;
+          transition: background 0.2s;
+        }
+        .ai-resize-handle:hover {
+          background: rgba(99,102,241,0.25);
+        }
       `}</style>
 
+      {/* ── Backdrop (mobile / overlay feel) ── */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.25)",
+            backdropFilter: "blur(2px)",
+            zIndex: 39,
+            animation: "ai-fade-up 0.2s ease forwards",
+          }}
+        />
+      )}
+
+      {/* ── Drawer Panel ── */}
       <div
+        id="ai-insight-drawer"
         style={{
-          background: "linear-gradient(145deg, rgba(15,23,42,0.95) 0%, rgba(30,27,75,0.95) 100%)",
-          border: "1px solid rgba(99,102,241,0.25)",
-          borderRadius: "16px",
-          padding: "0",
-          overflow: "hidden",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.1) inset",
-          animation: "glow-pulse 4s ease-in-out infinite",
-          position: "relative",
+          position: "fixed",
+          top: 0,
+          right: 0,
+          height: "100vh",
+          width: `${drawerWidth}px`,
+          zIndex: 40,
+          display: "flex",
+          flexDirection: "column",
+          background: "linear-gradient(160deg, rgba(10,12,30,0.98) 0%, rgba(20,18,58,0.98) 100%)",
+          borderLeft: "1px solid rgba(99,102,241,0.3)",
+          boxShadow: "-8px 0 48px rgba(0,0,0,0.55), -2px 0 0 rgba(99,102,241,0.1)",
+          animation: isOpen
+            ? "ai-slide-in 0.3s cubic-bezier(0.22,1,0.36,1) forwards"
+            : "ai-slide-out 0.25s cubic-bezier(0.4,0,0.2,1) forwards",
+          // keep in DOM but off-screen when closed so animation works
+          pointerEvents: isOpen ? "auto" : "none",
+          transform: isOpen ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.3s",
+          opacity: isOpen ? 1 : 0,
+          willChange: "transform",
+          overflowY: "auto",
+          overflowX: "hidden",
         }}
+        aria-hidden={!isOpen}
       >
-        {/* ── Header ──────────────────────────────────────────────────────── */}
+        {/* Drag handle */}
+        <div className="ai-resize-handle" onMouseDown={onMouseDown} title="Drag to resize" />
+
+        {/* ── Header ── */}
         <div
           style={{
-            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #6d28d9 100%)",
+            background: "linear-gradient(135deg, #3730a3 0%, #6d28d9 50%, #5b21b6 100%)",
             padding: "14px 16px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexShrink: 0,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            position: "sticky",
+            top: 0,
+            zIndex: 2,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -389,42 +547,69 @@ export function AiInsightSidebar({ complaintId }: Props) {
               >
                 AI Complaint Intelligence
               </div>
-              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", letterSpacing: "0.06em" }}>
+              <div style={{ fontSize: "9px", color: "rgba(255,255,255,0.55)", letterSpacing: "0.07em" }}>
                 POWERED BY RAG + GPT-4O
               </div>
             </div>
           </div>
 
-          {/* Refresh button */}
-          <button
-            onClick={fetchInsight}
-            disabled={state === "loading"}
-            title="Refresh insight"
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              border: "1px solid rgba(255,255,255,0.25)",
-              borderRadius: "8px",
-              color: "#fff",
-              fontSize: "11px",
-              fontWeight: 600,
-              padding: "4px 10px",
-              cursor: state === "loading" ? "not-allowed" : "pointer",
-              opacity: state === "loading" ? 0.5 : 1,
-              transition: "all 0.2s",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {state === "loading" ? "⟳ Analysing..." : "↻ Refresh"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {/* Refresh */}
+            <button
+              onClick={fetchInsight}
+              disabled={state === "loading"}
+              title="Re-run AI analysis"
+              style={{
+                background: "rgba(255,255,255,0.14)",
+                border: "1px solid rgba(255,255,255,0.22)",
+                borderRadius: "8px",
+                color: "#fff",
+                fontSize: "11px",
+                fontWeight: 600,
+                padding: "4px 10px",
+                cursor: state === "loading" ? "not-allowed" : "pointer",
+                opacity: state === "loading" ? 0.5 : 1,
+                transition: "all 0.2s",
+              }}
+            >
+              {state === "loading" ? "⟳ Analysing..." : "↻ Refresh"}
+            </button>
+            {/* Close */}
+            <button
+              onClick={onClose}
+              title="Close AI panel"
+              aria-label="Close AI panel"
+              style={{
+                background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: "8px",
+                color: "#e2e8f0",
+                fontSize: "15px",
+                lineHeight: 1,
+                width: "28px",
+                height: "28px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "background 0.2s",
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239,68,68,0.3)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        {/* ── Body ────────────────────────────────────────────────────────── */}
-        <div style={{ padding: "16px" }}>
+        {/* ── Body ── */}
+        <div style={{ padding: "16px", flex: 1 }}>
 
-          {/* Loading state */}
+          {/* Loading */}
           {state === "loading" && <LoadingSkeleton />}
 
-          {/* Error state */}
+          {/* Error */}
           {state === "error" && (
             <div
               style={{
@@ -432,7 +617,7 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 border: "1px solid rgba(245,158,11,0.3)",
                 borderRadius: "10px",
                 padding: "14px",
-                animation: "fade-up 0.3s ease",
+                animation: "ai-fade-up 0.3s ease",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
@@ -463,9 +648,9 @@ export function AiInsightSidebar({ complaintId }: Props) {
             </div>
           )}
 
-          {/* Success state */}
+          {/* Success */}
           {state === "success" && data && (
-            <div style={{ animation: "fade-up 0.4s ease" }}>
+            <div style={{ animation: "ai-fade-up 0.4s ease" }}>
 
               {/* Fallback banner */}
               {data.fallback && (
@@ -496,7 +681,7 @@ export function AiInsightSidebar({ complaintId }: Props) {
                     borderRadius: "12px",
                     padding: "12px 14px",
                     marginBottom: "14px",
-                    animation: "priority-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)",
+                    animation: "ai-priority-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)",
                   }}
                 >
                   <div>
@@ -528,8 +713,8 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 </div>
               )}
 
-              {/* Confidence meter */}
-              <ConfidenceMeter value={data.confidence} />
+              {/* Arc Confidence Gauge */}
+              <ArcGauge value={data.confidence} color={confidenceColor} />
 
               {/* Reason */}
               <div style={{ marginBottom: "14px" }}>
@@ -547,9 +732,9 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 </div>
                 <p
                   style={{
-                    fontSize: "13px",
+                    fontSize: "12.5px",
                     color: "#cbd5e1",
-                    lineHeight: 1.6,
+                    lineHeight: 1.65,
                     margin: 0,
                     background: "rgba(99,102,241,0.05)",
                     border: "1px solid rgba(99,102,241,0.1)",
@@ -577,9 +762,9 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 </div>
                 <p
                   style={{
-                    fontSize: "13px",
+                    fontSize: "12.5px",
                     color: "#e2e8f0",
-                    lineHeight: 1.6,
+                    lineHeight: 1.65,
                     margin: 0,
                     fontWeight: 500,
                     background: "rgba(124,58,237,0.07)",
@@ -590,6 +775,45 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 >
                   {data.suggestedAction}
                 </p>
+              </div>
+
+              {/* ── One-click CTA Row ── */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  marginBottom: "16px",
+                }}
+              >
+                <button
+                  className="ai-cta-btn"
+                  disabled={actionApplied}
+                  onClick={() => {
+                    if (onApplySuggestedAction) onApplySuggestedAction(data.suggestedAction);
+                    setActionApplied(true);
+                  }}
+                  style={{
+                    background: actionApplied
+                      ? "rgba(34,197,94,0.15)"
+                      : "linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)",
+                    color: actionApplied ? "#22c55e" : "#fff",
+                    border: actionApplied ? "1px solid rgba(34,197,94,0.3)" : "none",
+                    boxShadow: actionApplied ? "none" : "0 4px 16px rgba(79,70,229,0.4)",
+                  }}
+                >
+                  {actionApplied ? "✓ Action Logged" : "⚡ Apply Action"}
+                </button>
+                <button
+                  className="ai-cta-btn"
+                  onClick={fetchInsight}
+                  style={{
+                    background: "rgba(99,102,241,0.1)",
+                    color: "#a5b4fc",
+                    border: "1px solid rgba(99,102,241,0.25)",
+                  }}
+                >
+                  ↻ Re-analyse
+                </button>
               </div>
 
               {/* Policy Reference */}
@@ -628,7 +852,7 @@ export function AiInsightSidebar({ complaintId }: Props) {
               {/* Footer */}
               <div
                 style={{
-                  marginTop: "14px",
+                  marginTop: "16px",
                   paddingTop: "10px",
                   borderTop: "1px solid rgba(99,102,241,0.1)",
                   display: "flex",
@@ -646,6 +870,26 @@ export function AiInsightSidebar({ complaintId }: Props) {
                 </span>
                 <span>{data.latencyMs > 0 ? `${(data.latencyMs / 1000).toFixed(1)}s` : "cached"}</span>
               </div>
+            </div>
+          )}
+
+          {/* Idle State (before first open) */}
+          {state === "idle" && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "120px",
+                color: "#64748b",
+                fontSize: "13px",
+                textAlign: "center",
+                gap: "8px",
+              }}
+            >
+              <span style={{ fontSize: "28px" }}>🧠</span>
+              <span>Click Refresh to start analysis</span>
             </div>
           )}
         </div>
