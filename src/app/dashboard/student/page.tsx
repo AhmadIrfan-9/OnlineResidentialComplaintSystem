@@ -1,23 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { type Status } from "@prisma/client";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Bell,
+  Plus,
+  ExternalLink,
+  FileText,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Card } from "@/components/ui/card";
-import { SignOutButton } from "@/components/shared/SignOutButton";
 import { ProfileMissingRecovery } from "@/components/shared/ProfileMissingRecovery";
+import { RecentComplaintsTableClient } from "@/components/student/RecentComplaintsTableClient";
 
 const OPEN_STATUSES: Status[] = ["PENDING", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
-
-const formatStatus = (status: string): string =>
-  status
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
-const ticketId = (id: string): string => `#${id.slice(0, 8).toUpperCase()}`;
 
 export default async function StudentDashboardPage() {
   const session = await auth();
@@ -40,121 +38,160 @@ export default async function StudentDashboardPage() {
     return <ProfileMissingRecovery userName={session.user.name ?? "Student"} />;
   }
 
-  const [activeCount, resolvedCount, unreadMessages, recentComplaints] = await Promise.all([
-    db.complaint.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: { in: OPEN_STATUSES },
-      },
-    }),
-    db.complaint.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: { in: RESOLVED_STATUSES },
-      },
-    }),
-    db.notification.count({
-      where: {
-        userId: session.user.id,
-        isRead: false,
-      },
-    }),
-    db.complaint.findMany({
-      where: { studentProfileId: studentProfile.id },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }),
-  ]);
+  const [activeCount, resolvedCount, unreadMessages, recentComplaints] =
+    await Promise.all([
+      db.complaint.count({
+        where: { studentProfileId: studentProfile.id, status: { in: OPEN_STATUSES } },
+      }),
+      db.complaint.count({
+        where: { studentProfileId: studentProfile.id, status: { in: RESOLVED_STATUSES } },
+      }),
+      db.notification.count({
+        where: { userId: session.user.id, isRead: false },
+      }),
+      db.complaint.findMany({
+        where: { studentProfileId: studentProfile.id },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          status: true,
+          priority: true,
+          createdAt: true,
+          updatedAt: true,
+          resolvedAt: true,
+          closedAt: true,
+          complaintUpdates: {
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              updatedBy: {
+                select: {
+                  name: true,
+                  role: true
+                }
+              }
+            },
+            orderBy: { createdAt: "asc" }
+          }
+        },
+      }),
+    ]);
 
   const studentName = session.user.name ?? "Student";
+  const firstName = studentName.split(" ")[0];
 
   return (
     <div className="space-y-6">
+      {/* ── Page Header ── */}
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900">Welcome, {studentName}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">
+          Good day, {firstName} 👋
+        </h1>
         <p className="text-sm text-slate-500">
-          Track your complaint progress and submit new issues quickly.
+          Here&apos;s an overview of your complaint activity.
         </p>
       </header>
 
-      <section className="surface-card p-4 md:p-6">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Link href="/complaints?status=PENDING">
-            <Card className="h-full border border-amber-200/80 bg-gradient-to-br from-amber-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+      {/* ── Summary Cards ── */}
+      <section className="grid gap-4 sm:grid-cols-3">
+
+        {/* Active Complaints — Amber (#D97706) */}
+        <Link href="/complaints?status=PENDING" className="group block">
+          <div className="flex h-full items-start gap-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-amber-300">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-700">
                 Active Complaints
               </p>
-              <p className="mt-1 text-2xl font-bold text-amber-900">{activeCount}</p>
-              <p className="mt-1 text-xs text-amber-800">View pending complaints</p>
-            </Card>
-          </Link>
+              <p className="mt-1 text-3xl font-extrabold text-amber-900 tabular-nums">
+                {activeCount}
+              </p>
+              <p className="mt-1 text-xs text-amber-600 group-hover:underline">
+                View pending →
+              </p>
+            </div>
+          </div>
+        </Link>
 
-          <Link href="/complaints?status=RESOLVED">
-            <Card className="h-full border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">Resolved</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-900">{resolvedCount}</p>
-              <p className="mt-1 text-xs text-emerald-800">View closed complaints</p>
-            </Card>
-          </Link>
+        {/* Resolved — Emerald (#15803D) */}
+        <Link href="/complaints?status=RESOLVED" className="group block">
+          <div className="flex h-full items-start gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
+                Resolved
+              </p>
+              <p className="mt-1 text-3xl font-extrabold text-emerald-900 tabular-nums">
+                {resolvedCount}
+              </p>
+              <p className="mt-1 text-xs text-emerald-600 group-hover:underline">
+                View closed →
+              </p>
+            </div>
+          </div>
+        </Link>
 
-          <Link href="/complaints">
-            <Card className="h-full border border-blue-200/80 bg-gradient-to-br from-blue-50 to-white p-4 transition hover:-translate-y-0.5 hover:shadow-md">
-              <p className="text-xs font-medium uppercase tracking-wide text-blue-800">New Messages</p>
-              <p className="mt-1 text-2xl font-bold text-blue-900">{unreadMessages}</p>
-              <p className="mt-1 text-xs text-blue-800">Notification count</p>
-            </Card>
-          </Link>
-        </div>
-
-        <div className="mt-5">
-          <Link
-            href="/complaints/new"
-            className="inline-flex h-11 items-center justify-center rounded-md bg-blue-600 px-6 text-sm font-medium text-white transition hover:bg-blue-700"
-          >
-            Submit New Complaint
-          </Link>
-        </div>
+        {/* New Messages — Blue (#1D4ED8) */}
+        <Link href="/complaints" className="group block">
+          <div className="flex h-full items-start gap-4 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-300">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100">
+              <Bell className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
+                Notifications
+              </p>
+              <p className="mt-1 text-3xl font-extrabold text-blue-900 tabular-nums">
+                {unreadMessages}
+              </p>
+              <p className="mt-1 text-xs text-blue-600 group-hover:underline">
+                View all →
+              </p>
+            </div>
+          </div>
+        </Link>
       </section>
 
-      <section className="surface-card p-4 md:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">Recent Complaints</h2>
+      {/* ── Submit CTA ── */}
+      <div className="flex items-center gap-3">
+        <Link
+          href="/complaints/new"
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md active:translate-y-0"
+          style={{ background: "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
+        >
+          <Plus className="h-4 w-4" />
+          Submit New Complaint
+        </Link>
+        <Link
+          href="/complaints"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+        >
+          <FileText className="h-4 w-4 text-slate-500" />
+          View All
+        </Link>
+      </div>
 
-        {recentComplaints.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No complaints submitted yet.</p>
-        ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="py-2 pr-3">Ticket ID</th>
-                  <th className="py-2 pr-3">Status</th>
-                  <th className="py-2 pr-3">Submitted Date</th>
-                  <th className="py-2 pr-3">Last Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentComplaints.map((item) => (
-                  <tr key={item.id} className="border-b border-slate-100">
-                    <td className="py-3 pr-3 font-medium text-slate-800">{ticketId(item.id)}</td>
-                    <td className="py-3 pr-3 text-slate-700">{formatStatus(item.status)}</td>
-                    <td className="py-3 pr-3 text-slate-600">
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 pr-3 text-slate-600">
-                      {new Date(item.updatedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* ── Recent Complaints Table ── */}
+      <section className="surface-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h2 className="text-base font-bold text-slate-900">Recent Complaints</h2>
+          <Link
+            href="/complaints"
+            className="flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline underline-offset-2"
+          >
+            View all <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
+
+        <RecentComplaintsTableClient complaints={recentComplaints as any} />
       </section>
     </div>
   );
