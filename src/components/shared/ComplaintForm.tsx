@@ -56,7 +56,6 @@ export function ComplaintSubmissionForm({
     mode: "onChange",
     defaultValues: {
       roomId,
-      priority: "ROUTINE",
       attachments: [],
     },
   });
@@ -204,37 +203,6 @@ export function ComplaintSubmissionForm({
             </div>
           )}
 
-          {/* Priority */}
-          <div className="space-y-2">
-            <Label htmlFor="priority" className="font-medium">
-              Priority Level
-            </Label>
-            <Select
-              defaultValue="ROUTINE"
-              onValueChange={(value) =>
-                setValue("priority", value as ComplaintSubmissionInput["priority"])
-              }
-              disabled={isSubmitting}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ROUTINE">
-                  <span className="text-green-700">Routine</span> - Minor issue
-                </SelectItem>
-                <SelectItem value="URGENT">
-                  <span className="text-yellow-700">Urgent</span> - Needs prompt attention
-                </SelectItem>
-                <SelectItem value="EMERGENCY">
-                  <span className="text-red-700">Emergency</span> - Immediate action required
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.priority && (
-              <p className="text-sm text-red-600">{errors.priority.message}</p>
-            )}
-          </div>
 
           {/* Image Attachments */}
           <div className="space-y-2">

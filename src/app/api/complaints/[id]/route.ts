@@ -3,14 +3,13 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeRoleKey } from "@/lib/roles";
-import { ComplaintCategoryEnum, PriorityEnum } from "@/lib/validations";
+import { ComplaintCategoryEnum } from "@/lib/validations";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 const studentUpdateSchema = z.object({
   title: z.string().min(5).max(100).optional(),
   description: z.string().min(10).max(2000).optional(),
   category: ComplaintCategoryEnum.optional(),
-  priority: PriorityEnum.optional(),
   isAnonymous: z.boolean().optional(),
 });
 
@@ -130,7 +129,6 @@ export async function PATCH(
         title: true,
         description: true,
         category: true,
-        priority: true,
         isAnonymous: true,
         status: true,
         updatedAt: true,

@@ -27,7 +27,6 @@ import React, {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AiInsightData {
-  priority: "ROUTINE" | "URGENT" | "EMERGENCY";
   confidence: number;
   reason: string;
   suggestedAction: string;
@@ -51,37 +50,7 @@ interface Props {
   onApplySuggestedAction?: (action: string) => void;
 }
 
-// ─── Priority Config ──────────────────────────────────────────────────────────
 
-const PRIORITY_CONFIG = {
-  EMERGENCY: {
-    label: "EMERGENCY",
-    colour: "#ef4444",
-    bg: "rgba(239,68,68,0.12)",
-    border: "rgba(239,68,68,0.35)",
-    glyph: "🔴",
-    trackColor: "rgba(239,68,68,0.15)",
-    arcColor: "#ef4444",
-  },
-  URGENT: {
-    label: "URGENT",
-    colour: "#f97316",
-    bg: "rgba(249,115,22,0.12)",
-    border: "rgba(249,115,22,0.35)",
-    glyph: "🟠",
-    trackColor: "rgba(249,115,22,0.15)",
-    arcColor: "#f97316",
-  },
-  ROUTINE: {
-    label: "ROUTINE",
-    colour: "#22c55e",
-    bg: "rgba(34,197,94,0.12)",
-    border: "rgba(34,197,94,0.35)",
-    glyph: "🟢",
-    trackColor: "rgba(34,197,94,0.15)",
-    arcColor: "#22c55e",
-  },
-} as const;
 
 // ─── Arc Gauge ────────────────────────────────────────────────────────────────
 
@@ -392,7 +361,6 @@ export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggeste
     };
   }, []);
 
-  const priorityCfg = data?.priority ? PRIORITY_CONFIG[data.priority] : null;
   const confidenceColor =
     data && data.confidence >= 0.8
       ? "#22c55e"
@@ -669,49 +637,9 @@ export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggeste
                 </div>
               )}
 
-              {/* Priority Badge */}
-              {priorityCfg && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: priorityCfg.bg,
-                    border: `1px solid ${priorityCfg.border}`,
-                    borderRadius: "12px",
-                    padding: "12px 14px",
-                    marginBottom: "14px",
-                    animation: "ai-priority-pop 0.5s cubic-bezier(0.34,1.56,0.64,1)",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "10px",
-                        color: priorityCfg.colour,
-                        fontWeight: 700,
-                        letterSpacing: "0.1em",
-                        textTransform: "uppercase",
-                        marginBottom: "2px",
-                      }}
-                    >
-                      Recommended Priority
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "22px",
-                        fontWeight: 900,
-                        color: priorityCfg.colour,
-                        letterSpacing: "0.06em",
-                        textShadow: `0 0 20px ${priorityCfg.colour}60`,
-                      }}
-                    >
-                      {priorityCfg.glyph} {priorityCfg.label}
-                    </div>
-                  </div>
-                  <SimilarCasesChip count={data.similarCaseCount} />
-                </div>
-              )}
+              <div style={{ marginBottom: "14px" }}>
+                <SimilarCasesChip count={data.similarCaseCount} />
+              </div>
 
               {/* Arc Confidence Gauge */}
               <ArcGauge value={data.confidence} color={confidenceColor} />

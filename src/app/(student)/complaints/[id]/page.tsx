@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ComplaintUpdates } from "@/components/shared/ComplaintUpdates";
 import { StudentComplaintDetailClient } from "@/components/student/StudentComplaintDetailClient";
-import { categoryLabels, priorityLabels, statusLabels } from "@/lib/validations";
+import { categoryLabels, statusLabels } from "@/lib/validations";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 export default async function StudentComplaintDetailPage({
@@ -68,9 +68,7 @@ export default async function StudentComplaintDetailPage({
             <p>
               <span className="font-medium">Status:</span> {statusLabels[complaint.status]}
             </p>
-            <p>
-              <span className="font-medium">Priority:</span> {priorityLabels[complaint.priority]}
-            </p>
+
             <p>
               <span className="font-medium">Category:</span> {categoryLabels[complaint.category]}
             </p>
@@ -116,7 +114,7 @@ export default async function StudentComplaintDetailPage({
           initialTitle={complaint.title}
           initialDescription={complaint.description}
           initialCategory={complaint.category}
-          initialPriority={complaint.priority}
+
           initialAnonymous={complaint.isAnonymous}
         />
         <ComplaintUpdates complaintId={complaint.id} />

@@ -12,7 +12,6 @@ export interface QueueItem {
   ticketId: string;
   statusCode: "PENDING" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
   status: string;
-  severity: string;
   submitted: string;
   daysPending: number;
   student: string;
@@ -42,7 +41,7 @@ const rowColor = (ageBand: QueueItem["ageBand"]): string => {
 
 type SortKey = keyof Pick<
   QueueItem,
-  "ticketId" | "status" | "severity" | "submitted" | "daysPending" | "student" | "category" | "assignedTo"
+  "ticketId" | "status" | "submitted" | "daysPending" | "student" | "category" | "assignedTo"
 >;
 
 const STATUS_LABEL_MAP: Record<QueueItem["statusCode"], string> = {
@@ -59,7 +58,6 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
   );
   const [updatingComplaintId, setUpdatingComplaintId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("All");
-  const [severityFilter, setSeverityFilter] = useState("All");
   const [assignedFilter, setAssignedFilter] = useState("All");
   const [sortKey, setSortKey] = useState<SortKey>("submitted");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -86,9 +84,6 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
       .filter((item) =>
         statusFilter === "All" ? true : lowered(item.status) === lowered(statusFilter)
       )
-      .filter((item) =>
-        severityFilter === "All" ? true : lowered(item.severity) === lowered(severityFilter)
-      )
       .filter((item) => {
         if (assignedFilter === "All") return true;
         if (assignedFilter === "Unassigned") return item.assignedTo === "Unassigned";
@@ -103,7 +98,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
             : String(left).localeCompare(String(right));
         return sortOrder === "asc" ? base : -base;
       });
-  }, [assignedFilter, itemsWithLiveStatus, severityFilter, sortKey, sortOrder, statusFilter]);
+  }, [assignedFilter, itemsWithLiveStatus, sortKey, sortOrder, statusFilter]);
 
   const handleStatusChange = async (complaintId: string, nextStatus: QueueItem["statusCode"]) => {
     const previousStatus = statusByComplaint[complaintId];
@@ -147,16 +142,6 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
           <option>Closed</option>
         </select>
 
-        <select
-          className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
-          value={severityFilter}
-          onChange={(e) => setSeverityFilter(e.target.value)}
-        >
-          <option>All</option>
-          <option>Routine</option>
-          <option>Urgent</option>
-          <option>Emergency</option>
-        </select>
 
         <select
           className="rounded-md border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700"
@@ -186,9 +171,8 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
               {[
                 ["ticketId", "Ticket ID"],
                 ["status", "Status"],
-                ["severity", "Severity"],
                 ["submitted", "Submitted"],
-                ["daysPending", "Days Pending"],
+                ["daysPending", "Time Since Submission"],
                 ["student", "Student"],
                 ["category", "Category"],
                 ["assignedTo", "Assigned To"],
@@ -254,20 +238,23 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                       <option value="CLOSED">Closed</option>
                     </select>
                   </td>
-                  <td className="px-3 py-3">{item.severity}</td>
                   <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
                   <td className="px-3 py-3">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs ${
-                        item.ageBand === "RED"
-                          ? "bg-red-100 text-red-700"
-                          : item.ageBand === "YELLOW"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
-                      }`}
-                    >
-                      {item.daysPending}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-3 w-3 rounded-full ${
+                          item.ageBand === "RED"
+                            ? "bg-[#EF4444]"
+                            : item.ageBand === "YELLOW"
+                            ? "bg-[#EAB308]"
+                            : "bg-[#22C55E]"
+                        }`}
+                      />
+                      <span className="font-semibold text-slate-800">
+                        {item.daysPending} Days -{" "}
+                        {item.ageBand === "RED" ? "Delayed" : item.ageBand === "YELLOW" ? "Warning" : "Safe"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-3 py-3">{item.student}</td>
                   <td className="px-3 py-3">{item.category}</td>

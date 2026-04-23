@@ -61,7 +61,6 @@ export async function embedAndStoreResolvedComplaint(
     id: randomUUID(),
     complaintId: complaint.id,
     category: complaint.category,
-    priority: complaint.priority,
     hostelName: complaint.hostel.name,
     hostelBlock: complaint.locationBlock,
     descriptionSnap: complaint.description.slice(0, 500),
@@ -70,6 +69,6 @@ export async function embedAndStoreResolvedComplaint(
   });
 
   console.log(
-    `[AutoEmbed] ✅ Embedded complaint ${complaintId} (${complaint.category} / ${complaint.priority})`
+    `[AutoEmbed] ✅ Embedded complaint ${complaintId} (${complaint.category})`
   );
 }

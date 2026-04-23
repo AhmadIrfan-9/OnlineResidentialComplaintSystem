@@ -75,7 +75,6 @@ async function main() {
             id: randomUUID(),
             complaintId: c.id,
             category: c.category,
-            priority: c.priority,
             hostelName: c.hostel.name,
             hostelBlock: c.locationBlock,
             descriptionSnap: c.description.slice(0, 500),

@@ -17,16 +17,12 @@ interface DepartmentRow {
   id: string;
   name: string;
   email: string;
-  slaRoutineHours: number;
-  slaUrgentHours: number;
-  slaEmergencyHours: number;
 }
 
 interface SlaSetting {
-  routineDays: number;
-  urgentHours: number;
-  emergencyHours: number;
-  autoEscalationHours: number;
+  safeThresholdDays: number;
+  warningThresholdDays: number;
+  reminderFrequencyDays: number;
 }
 
 interface TemplateRow {
@@ -52,10 +48,9 @@ export function ConfigurationManagementClient() {
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [departments, setDepartments] = useState<DepartmentRow[]>([]);
   const [sla, setSla] = useState<SlaSetting>({
-    routineDays: 7,
-    urgentHours: 24,
-    emergencyHours: 4,
-    autoEscalationHours: 12,
+    safeThresholdDays: 14,
+    warningThresholdDays: 30,
+    reminderFrequencyDays: 14,
   });
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
@@ -63,9 +58,6 @@ export function ConfigurationManagementClient() {
   const [newDepartment, setNewDepartment] = useState({
     name: "",
     email: "",
-    slaRoutineHours: 168,
-    slaUrgentHours: 24,
-    slaEmergencyHours: 4,
   });
 
   const [showDelete, setShowDelete] = useState(false);
@@ -100,10 +92,9 @@ export function ConfigurationManagementClient() {
       );
       setDepartments(dData.departments ?? []);
       setSla({
-        routineDays: sData.setting?.routineDays ?? 7,
-        urgentHours: sData.setting?.urgentHours ?? 24,
-        emergencyHours: sData.setting?.emergencyHours ?? 4,
-        autoEscalationHours: sData.setting?.autoEscalationHours ?? 12,
+        safeThresholdDays: sData.setting?.safeThresholdDays ?? 14,
+        warningThresholdDays: sData.setting?.warningThresholdDays ?? 30,
+        reminderFrequencyDays: sData.setting?.reminderFrequencyDays ?? 14,
       });
       setTemplates(tData.templates ?? []);
     } finally {
@@ -178,9 +169,6 @@ export function ConfigurationManagementClient() {
     setNewDepartment({
       name: "",
       email: "",
-      slaRoutineHours: 168,
-      slaUrgentHours: 24,
-      slaEmergencyHours: 4,
     });
     setNotice("Department created.");
     await loadAll();
@@ -350,7 +338,6 @@ export function ConfigurationManagementClient() {
                 <tr>
                   <th className="py-2">Department Name</th>
                   <th className="py-2">Email</th>
-                  <th className="py-2">SLA Hours (Routine/Urgent/Emergency)</th>
                   <th className="py-2">Actions</th>
                 </tr>
               </thead>
@@ -359,9 +346,6 @@ export function ConfigurationManagementClient() {
                   <tr key={d.id} className="border-t border-slate-100">
                     <td className="py-2 font-medium text-slate-800">{d.name}</td>
                     <td className="py-2 text-slate-600">{d.email}</td>
-                    <td className="py-2 text-slate-600">
-                      {d.slaRoutineHours}/{d.slaUrgentHours}/{d.slaEmergencyHours}
-                    </td>
                     <td className="py-2">
                       <button className="rounded border border-slate-300 px-2 py-1 text-xs">Edit</button>
                     </td>
@@ -378,10 +362,9 @@ export function ConfigurationManagementClient() {
           <h2 className="mb-3 text-base font-semibold text-slate-900">SLA Settings</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {[
-              ["Routine complaints (days)", "routineDays"],
-              ["Urgent complaints (hours)", "urgentHours"],
-              ["Emergency complaints (hours)", "emergencyHours"],
-              ["Auto-escalation trigger (hours)", "autoEscalationHours"],
+              ["Safe Threshold (days)", "safeThresholdDays"],
+              ["Warning Threshold (days)", "warningThresholdDays"],
+              ["Reminder Frequency (days)", "reminderFrequencyDays"],
             ].map(([label, key]) => (
               <label key={key} className="space-y-1 text-sm">
                 <span>{label}</span>

@@ -58,7 +58,6 @@ export default async function StudentDashboardPage() {
           title: true,
           category: true,
           status: true,
-          priority: true,
           createdAt: true,
           updatedAt: true,
           resolvedAt: true,

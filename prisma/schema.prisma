@@ -30,11 +30,6 @@ enum Status {
   CLOSED       // Finalized / archived
 }
 
-enum Priority {
-  ROUTINE
-  URGENT
-  EMERGENCY
-}
 
 enum UserRole {
   STUDENT
@@ -166,7 +161,6 @@ model Complaint {
   locationBlock String?
   category    ComplaintCategory
   status      Status   @default(PENDING)
-  priority    Priority @default(ROUTINE)
   isAnonymous Boolean  @default(false)
   resolvedAt  DateTime?
   closedAt    DateTime?
@@ -251,9 +245,6 @@ model AdminDepartment {
   id                String   @id @default(cuid())
   name              String   @unique
   email             String
-  slaRoutineHours   Int      @default(168)
-  slaUrgentHours    Int      @default(24)
-  slaEmergencyHours Int      @default(4)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -261,11 +252,10 @@ model AdminDepartment {
 }
 
 model AdminSlaSetting {
-  id                  String   @id @default("default")
-  routineDays         Int      @default(7)
-  urgentHours         Int      @default(24)
-  emergencyHours      Int      @default(4)
-  autoEscalationHours Int      @default(12)
+  id                    String   @id @default("default")
+  safeThresholdDays     Int      @default(14)
+  warningThresholdDays  Int      @default(30)
+  reminderFrequencyDays Int      @default(14)
   updatedAt           DateTime @updatedAt
 
   @@map("admin_sla_settings")
@@ -307,7 +297,6 @@ model ComplaintEmbedding {
   id               String            @id @default(cuid())
   complaintId      String            @unique @map("complaint_id")
   category         ComplaintCategory
-  priority         Priority
   hostelBlock      String?           @map("hostel_block")
   hostelName       String            @map("hostel_name")
   // Plain-text snapshot used for display in AI context window

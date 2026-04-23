@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
         title: validatedData.title,
         description: validatedData.description,
         category: validatedData.category,
-        priority: "ROUTINE",
         locationBlock: validatedData.locationBlock ?? null,
         status: "PENDING",
         studentProfileId: studentProfile.id,

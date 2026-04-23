@@ -64,10 +64,6 @@ export default async function ManagementReportsPage() {
     acc[item.category] = (acc[item.category] ?? 0) + 1;
     return acc;
   }, {});
-  const byPriority = complaints.reduce<Record<string, number>>((acc, item) => {
-    acc[item.priority] = (acc[item.priority] ?? 0) + 1;
-    return acc;
-  }, {});
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 md:p-6">
@@ -103,17 +99,6 @@ export default async function ManagementReportsPage() {
                     <span className="font-medium">{value}</span>
                   </li>
                 ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900">By Priority</h2>
-            <ul className="mt-2 space-y-1 text-sm text-slate-700">
-              {Object.entries(byPriority).map(([key, value]) => (
-                <li key={key} className="flex justify-between">
-                  <span>{key}</span>
-                  <span className="font-medium">{value}</span>
-                </li>
-              ))}
             </ul>
           </div>
         </section>

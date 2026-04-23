@@ -24,7 +24,6 @@ interface DetailData {
   categoryCode: string;
   categoryOptions: string[];
   category: string;
-  severity: string;
   status: string;
   daysPending: number;
   ageBand: "GREEN" | "YELLOW" | "RED";
@@ -249,7 +248,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
             <div className="grid gap-2 text-sm md:grid-cols-2">
               <p><span className="font-medium">Ticket ID:</span> {detail.ticketId}</p>
               <p><span className="font-medium">Category:</span> {detail.category}</p>
-              <p><span className="font-medium">Severity:</span> {detail.severity}</p>
+
               <p>
                 <span className="font-medium">Days pending:</span>{" "}
                 <span

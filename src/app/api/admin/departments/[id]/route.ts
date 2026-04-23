@@ -6,9 +6,6 @@ import { logAudit, requireAdminUser } from "@/lib/admin";
 const updateSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  slaRoutineHours: z.number().int().positive().optional(),
-  slaUrgentHours: z.number().int().positive().optional(),
-  slaEmergencyHours: z.number().int().positive().optional(),
 });
 
 export async function PATCH(

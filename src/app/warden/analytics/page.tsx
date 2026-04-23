@@ -43,6 +43,9 @@ export default async function ManagementAnalyticsPage(props: {
   const now = new Date();
   const semester = getUnitenSemester(now);
 
+  const slaSettings = await db.adminSlaSetting.findFirst();
+  const safeDays = slaSettings?.safeThresholdDays ?? 14;
+
   // Determine Time Range
   let startDate = new Date(now);
   if (rangeFilter === "7D") {
@@ -80,7 +83,6 @@ export default async function ManagementAnalyticsPage(props: {
     select: {
       id: true,
       category: true,
-      priority: true,
       status: true,
       createdAt: true,
       resolvedAt: true,
@@ -105,17 +107,10 @@ export default async function ManagementAnalyticsPage(props: {
           return sum + (end.getTime() - item.createdAt.getTime()) / (1000 * 60 * 60);
         }, 0) / resolvedRange.length;
 
-  // SLA Calculation for Range
-  const getSlaDays = (priority: string) => {
-    if (priority === "EMERGENCY") return 4 / 24;
-    if (priority === "URGENT") return 1;
-    return 7;
-  };
-
   const slaCompliantCount = rangeComplaints.filter((c) => {
     const end = (c.status === "PENDING" || c.status === "IN_PROGRESS") ? now : (c.resolvedAt ?? c.closedAt ?? c.updatedAt);
     const elapsed = asDays(end.getTime() - c.createdAt.getTime());
-    return elapsed <= getSlaDays(c.priority);
+    return elapsed <= safeDays;
   }).length;
   
   const slaCompliance = totalComplaints ? (slaCompliantCount / totalComplaints) * 100 : 100;

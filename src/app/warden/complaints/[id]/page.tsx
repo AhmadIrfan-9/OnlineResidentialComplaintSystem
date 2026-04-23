@@ -113,7 +113,7 @@ export default async function ManagementComplaintDetailPage({
       "OTHER",
     ],
     category: pretty(complaint.category),
-    severity: pretty(complaint.priority),
+
     status: complaint.status,
     daysPending,
     ageBand,

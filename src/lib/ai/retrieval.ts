@@ -37,7 +37,6 @@ export interface SimilarComplaint {
   id: string;
   complaintId: string;
   category: string;
-  priority: string;
   hostelBlock: string | null;
   hostelName: string;
   descriptionSnap: string;
@@ -75,7 +74,6 @@ export async function retrieveSimilarComplaints(
       id: string;
       complaint_id: string;
       category: string;
-      priority: string;
       hostel_block: string | null;
       hostel_name: string;
       description_snap: string;
@@ -90,7 +88,6 @@ export async function retrieveSimilarComplaints(
       id: r.id,
       complaintId: r.complaint_id,
       category: r.category,
-      priority: r.priority,
       hostelBlock: r.hostel_block,
       hostelName: r.hostel_name,
       descriptionSnap: r.description_snap,
@@ -105,7 +102,6 @@ export async function retrieveSimilarComplaints(
       id: string;
       complaint_id: string;
       category: string;
-      priority: string;
       hostel_block: string | null;
       hostel_name: string;
       description_snap: string;
@@ -113,7 +109,7 @@ export async function retrieveSimilarComplaints(
       similarity: number;
     }>(
       `SELECT
-         id, complaint_id, category, priority, hostel_block,
+         id, complaint_id, category, hostel_block,
          hostel_name, description_snap, resolution_snap,
          1 - (embedding <=> $1::vector) AS similarity
        FROM complaint_embeddings
@@ -128,7 +124,6 @@ export async function retrieveSimilarComplaints(
       id: r.id,
       complaintId: r.complaint_id,
       category: r.category,
-      priority: r.priority,
       hostelBlock: r.hostel_block,
       hostelName: r.hostel_name,
       descriptionSnap: r.description_snap,
@@ -214,7 +209,6 @@ export async function upsertComplaintEmbedding(params: {
   id: string;
   complaintId: string;
   category: string;
-  priority: string;
   hostelName: string;
   hostelBlock?: string | null;
   descriptionSnap: string;
@@ -226,20 +220,18 @@ export async function upsertComplaintEmbedding(params: {
 
   await pool.query(
     `INSERT INTO complaint_embeddings
-       (id, complaint_id, category, priority, hostel_name, hostel_block,
+       (id, complaint_id, category, hostel_name, hostel_block,
         description_snap, resolution_snap, embedded_at, embedding)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9::vector)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8::vector)
      ON CONFLICT (complaint_id)
      DO UPDATE SET
        embedding       = EXCLUDED.embedding,
        resolution_snap = EXCLUDED.resolution_snap,
-       priority        = EXCLUDED.priority,
        embedded_at     = NOW()`,
     [
       params.id,
       params.complaintId,
       params.category,
-      params.priority,
       params.hostelName,
       params.hostelBlock ?? null,
       params.descriptionSnap,

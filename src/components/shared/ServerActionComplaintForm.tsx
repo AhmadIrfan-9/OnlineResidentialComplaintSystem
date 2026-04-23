@@ -57,7 +57,6 @@ export function ServerActionComplaintForm({
     mode: "onChange",
     defaultValues: {
       roomId,
-      priority: "ROUTINE",
       attachments: [],
     },
   });
@@ -198,32 +197,6 @@ export function ServerActionComplaintForm({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="priority" className="font-medium">
-              Priority Level
-            </Label>
-            <Select
-              defaultValue="ROUTINE"
-              onValueChange={(value) =>
-                setValue("priority", value as ComplaintSubmissionInput["priority"])
-              }
-              disabled={isPending}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ROUTINE">Routine - Minor issue</SelectItem>
-                <SelectItem value="URGENT">
-                  Urgent - Needs prompt attention
-                </SelectItem>
-                <SelectItem value="EMERGENCY">Emergency - Immediate action required</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.priority && (
-              <p className="text-sm text-red-600">{errors.priority.message}</p>
-            )}
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor="attachments" className="font-medium">

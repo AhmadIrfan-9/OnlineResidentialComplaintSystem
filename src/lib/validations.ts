@@ -15,10 +15,6 @@ export const ComplaintCategoryEnum = z.enum([
 
 export type ComplaintCategory = z.infer<typeof ComplaintCategoryEnum>;
 
-// Priority enum
-export const PriorityEnum = z.enum(["ROUTINE", "URGENT", "EMERGENCY"]);
-
-export type Priority = z.infer<typeof PriorityEnum>;
 
 // ─── Complaint Status enum ── 4 logical workflow states (matches Prisma) ──────
 //
@@ -50,7 +46,6 @@ export const complaintSubmissionSchema = z.object({
     (val) => val !== undefined,
     "Please select a category"
   ),
-  priority: PriorityEnum.default("ROUTINE"),
   locationBlock: z
     .string()
     .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
@@ -70,7 +65,6 @@ export type ComplaintSubmissionInput = z.input<
 // Complaint update schema (for staff/warden)
 export const complaintUpdateSchema = z.object({
   status: ComplaintStatusEnum.optional(),
-  priority: PriorityEnum.optional(),
   resolution: z
     .string()
     .min(10, "Resolution must be at least 10 characters")
@@ -93,18 +87,6 @@ export const categoryLabels: Record<ComplaintCategory, string> = {
   OTHER: "Other",
 };
 
-// Priority display with colors
-export const priorityLabels: Record<Priority, string> = {
-  ROUTINE: "Routine",
-  URGENT: "Urgent",
-  EMERGENCY: "Emergency",
-};
-
-export const priorityColors: Record<Priority, string> = {
-  ROUTINE: "bg-green-100 text-green-800",
-  URGENT: "bg-yellow-100 text-yellow-800",
-  EMERGENCY: "bg-red-100 text-red-800",
-};
 
 // ─── Status display ────────────────────────────────────────────────────────────
 // Human-friendly labels

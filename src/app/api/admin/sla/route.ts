@@ -4,10 +4,9 @@ import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
 
 const schema = z.object({
-  routineDays: z.number().int().positive(),
-  urgentHours: z.number().int().positive(),
-  emergencyHours: z.number().int().positive(),
-  autoEscalationHours: z.number().int().positive(),
+  safeThresholdDays: z.number().int().positive(),
+  warningThresholdDays: z.number().int().positive(),
+  reminderFrequencyDays: z.number().int().positive(),
 });
 
 export async function GET() {

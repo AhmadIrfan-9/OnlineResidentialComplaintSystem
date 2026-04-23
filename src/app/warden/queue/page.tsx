@@ -152,7 +152,6 @@ export default async function ComplaintQueuePage() {
         ticketId: ticketId(c.id, c.createdAt),
         statusCode: c.status,
         status: statusLabel(c.status),
-        severity: categoryLabel(c.priority),
         submitted: c.createdAt.toISOString(),
         daysPending: Number(pendingDays.toFixed(1)),
         student: c.isAnonymous ? "Anonymous" : c.studentProfile?.user.name ?? "Unknown",

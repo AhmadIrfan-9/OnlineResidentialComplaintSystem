@@ -6,9 +6,6 @@ import { logAudit, requireAdminUser } from "@/lib/admin";
 const createSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  slaRoutineHours: z.number().int().positive(),
-  slaUrgentHours: z.number().int().positive(),
-  slaEmergencyHours: z.number().int().positive(),
 });
 
 export async function GET() {

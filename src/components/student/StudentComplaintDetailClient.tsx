@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addComplaintComment } from "@/actions/complaints";
-import { type ComplaintCategory, type Priority } from "@/lib/validations";
+import { type ComplaintCategory } from "@/lib/validations";
 
 interface Props {
   complaintId: string;
@@ -11,7 +11,7 @@ interface Props {
   initialTitle: string;
   initialDescription: string;
   initialCategory: ComplaintCategory;
-  initialPriority: Priority;
+
   initialAnonymous: boolean;
 }
 
@@ -23,7 +23,7 @@ export function StudentComplaintDetailClient({
   initialTitle,
   initialDescription,
   initialCategory,
-  initialPriority,
+
   initialAnonymous,
 }: Props) {
   const router = useRouter();
@@ -31,7 +31,7 @@ export function StudentComplaintDetailClient({
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [category, setCategory] = useState<ComplaintCategory>(initialCategory);
-  const [priority, setPriority] = useState<Priority>(initialPriority);
+
   const [isAnonymous, setIsAnonymous] = useState(initialAnonymous);
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -65,7 +65,7 @@ export function StudentComplaintDetailClient({
           title,
           description,
           category,
-          priority,
+
           isAnonymous,
         }),
       });
@@ -154,17 +154,7 @@ export function StudentComplaintDetailClient({
                   </option>
                 ))}
               </select>
-              <select
-                className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Priority)}
-              >
-                {["ROUTINE", "URGENT", "EMERGENCY"].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+
               <label className="flex items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm">
                 <input
                   type="checkbox"

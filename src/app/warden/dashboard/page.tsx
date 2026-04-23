@@ -17,11 +17,6 @@ import { getUnitenSemester } from "@/lib/semester";
 
 const STATUS_OPEN: Status[] = ["PENDING", "IN_PROGRESS"];
 
-const slaDaysByPriority = (priority: Complaint["priority"]): number => {
-  if (priority === "EMERGENCY") return 4 / 24;
-  if (priority === "URGENT") return 1;
-  return 7;
-};
 
 const asDays = (ms: number): number => ms / (1000 * 60 * 60 * 24);
 
@@ -108,6 +103,10 @@ export default async function ManagementDashboardPage() {
 
   const semester = getUnitenSemester(now);
 
+  const slaSettings = await db.adminSlaSetting.findFirst();
+  const warningDays = slaSettings?.warningThresholdDays ?? 30;
+  const safeDays = slaSettings?.safeThresholdDays ?? 14;
+
   const monthComplaints = await db.complaint.findMany({
     where: {
       hostelId: { in: scopedHostels.map((item) => item.id) },
@@ -116,7 +115,6 @@ export default async function ManagementDashboardPage() {
     select: {
       id: true,
       category: true,
-      priority: true,
       status: true,
       createdAt: true,
       updatedAt: true,
@@ -131,7 +129,7 @@ export default async function ManagementDashboardPage() {
   const overdueComplaints = monthComplaints.filter((c) => {
     if (!STATUS_OPEN.includes(c.status)) return false;
     const elapsed = asDays(now.getTime() - c.createdAt.getTime());
-    return elapsed > slaDaysByPriority(c.priority);
+    return elapsed > warningDays;
   }).length;
 
   const resolvedMonth = monthComplaints.filter((c) => c.status === "RESOLVED" || c.status === "CLOSED");
@@ -143,7 +141,7 @@ export default async function ManagementDashboardPage() {
   const slaCompliantCount = monthComplaints.filter((c) => {
     const end = STATUS_OPEN.includes(c.status) ? now : c.resolvedAt ?? c.closedAt ?? c.updatedAt;
     const elapsed = asDays(end.getTime() - c.createdAt.getTime());
-    return elapsed <= slaDaysByPriority(c.priority);
+    return elapsed <= safeDays;
   }).length;
   
   const slaCompliance = monthComplaints.length ? (slaCompliantCount / monthComplaints.length) * 100 : 0;
@@ -165,14 +163,15 @@ export default async function ManagementDashboardPage() {
     if (dayC.length === 0) return slaCompliance; // Static line if no tickets
     const compliant = dayC.filter(c => {
       const end = STATUS_OPEN.includes(c.status) ? now : c.resolvedAt ?? c.closedAt ?? c.updatedAt;
-      return asDays(end.getTime() - c.createdAt.getTime()) <= slaDaysByPriority(c.priority);
+      return asDays(end.getTime() - c.createdAt.getTime()) <= safeDays;
     }).length;
     return (compliant / dayC.length) * 100;
   });
 
-  // Calculate High Priority Queue (Latest 5 items)
+  // Calculate High Priority Queue (Latest 5 items by age)
   const highPriorityLatest = monthComplaints
-    .filter(c => STATUS_OPEN.includes(c.status) && (c.priority === 'EMERGENCY' || c.priority === 'URGENT'))
+    .filter(c => STATUS_OPEN.includes(c.status))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     .slice(0, 5);
 
   // AI Insight Logic
@@ -268,7 +267,7 @@ export default async function ManagementDashboardPage() {
                 {highPriorityLatest.map(ticket => (
                   <li key={ticket.id} className="group flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className={`h-2.5 w-2.5 rounded-full ${ticket.priority === 'EMERGENCY' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'bg-orange-500'}`} />
+                      <div className={`h-2.5 w-2.5 rounded-full ${asDays(now.getTime() - ticket.createdAt.getTime()) > safeDays ? 'bg-orange-500' : 'bg-green-500'}`} />
                       <div>
                         <p className="text-sm font-medium text-slate-900">
                           {ticket.studentProfile?.user?.name || "Student"} &middot; {ticket.category}

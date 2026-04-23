@@ -13,15 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   categoryLabels,
-  priorityColors,
-  priorityLabels,
   statusColors,
   statusLabels,
 } from "@/lib/validations";
 import {
   ComplaintCategory,
   ComplaintStatus,
-  Priority,
 } from "@/lib/validations";
 import { Loader2 } from "lucide-react";
 import { updateComplaintStatus } from "@/actions/complaints";
@@ -43,7 +40,6 @@ export interface ComplaintDataRow {
     roomNumber: string;
   };
   category: ComplaintCategory;
-  priority: Priority | null;
   status: ComplaintStatus;
   createdAt: string;
 }
@@ -150,7 +146,6 @@ export function ComplaintsDataTable() {
             <TableHead className="font-semibold text-slate-700">Student Name</TableHead>
             <TableHead className="font-semibold text-slate-700">Room</TableHead>
             <TableHead className="font-semibold text-slate-700">Category</TableHead>
-            <TableHead className="font-semibold text-slate-700">Priority</TableHead>
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="text-right font-semibold text-slate-700">Date</TableHead>
           </TableRow>
@@ -167,15 +162,6 @@ export function ComplaintsDataTable() {
               <TableCell className="text-slate-700">{complaint.room.roomNumber}</TableCell>
               <TableCell>
                 {categoryLabels[complaint.category] || complaint.category}
-              </TableCell>
-              <TableCell>
-                {complaint.priority ? (
-                  <Badge className={priorityColors[complaint.priority]}>
-                    {priorityLabels[complaint.priority]}
-                  </Badge>
-                ) : (
-                  <span className="text-sm text-slate-400">Not Set</span>
-                )}
               </TableCell>
               <TableCell>
                 <Select

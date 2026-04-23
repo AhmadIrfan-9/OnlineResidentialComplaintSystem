@@ -9,11 +9,8 @@ import {
   statusLabels,
   statusColors,
   categoryLabels,
-  priorityLabels,
-  priorityColors,
   type ComplaintCategory,
   type ComplaintStatus,
-  type Priority,
 } from "@/lib/validations";
 import { Loader2, Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
@@ -24,7 +21,6 @@ interface Complaint {
   description: string;
   category: ComplaintCategory;
   status: ComplaintStatus;
-  priority: Priority;
   createdAt: string;
   room: {
     roomNumber: string;
@@ -154,12 +150,7 @@ export default function StudentComplaintsPage() {
                               {complaint.room.roomNumber}
                             </span>
                           </div>
-                          <Badge
-                            className={priorityColors[complaint.priority]}
-                            variant="secondary"
-                          >
-                            {priorityLabels[complaint.priority]}
-                          </Badge>
+
                         </div>
 
                         <p className="mt-3 text-xs text-gray-500">
