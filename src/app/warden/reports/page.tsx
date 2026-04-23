@@ -17,18 +17,16 @@ export default async function ManagementReportsPage() {
   });
 
   const hostelIds = hostels.map((item) => item.id);
-  if (hostelIds.length === 0 && role === "MANAGEMENT") {
-    return (
-      <main className="min-h-screen bg-slate-50 p-4 md:p-6">
-        <div className="mx-auto max-w-6xl rounded-xl border border-amber-200 bg-amber-50 p-6">
-          <h1 className="text-xl font-semibold text-amber-900">Reports</h1>
-          <p className="mt-2 text-sm text-amber-800">No hostel assignment found for this account.</p>
-        </div>
-      </main>
-    );
+  const isFallbackScope = hostelIds.length === 0;
+
+  // Fallback to all hostels if no explicit assignment found
+  let activeHostelIds = hostelIds;
+  if (isFallbackScope) {
+    const allHostels = await db.hostel.findMany({ select: { id: true } });
+    activeHostelIds = allHostels.map(h => h.id);
   }
 
-  const whereScope = role === "MANAGEMENT" ? { hostelId: { in: hostelIds } } : {};
+  const whereScope = role === "MANAGEMENT" && activeHostelIds.length > 0 ? { hostelId: { in: activeHostelIds } } : {};
   const now = new Date();
   const overdueCutoff = new Date(now);
   overdueCutoff.setDate(overdueCutoff.getDate() - 30);

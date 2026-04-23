@@ -89,7 +89,6 @@ export default async function ManagementDashboardPage() {
     );
   }
 
-  const isFallbackScope = assignedHostels.length === 0;
   const scopeLabel = scopedHostels.length === 1 ? scopedHostels[0].name : `${scopedHostels.length} hostels`;
 
   const now = new Date();
@@ -190,11 +189,6 @@ export default async function ManagementDashboardPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-sm text-slate-500">Scope: {scopeLabel}</p>
-        {isFallbackScope && (
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            No hostel assignment found. Showing full scope data.
-          </div>
-        )}
       </header>
 
       {/* --- Section 1: Summary Metric Cards --- */}

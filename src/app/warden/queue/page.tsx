@@ -59,7 +59,6 @@ export default async function ComplaintQueuePage() {
     );
   }
 
-  const isFallbackScope = assignedHostels.length === 0;
   const scopeLabel =
     scopedHostels.length === 1 ? scopedHostels[0].name : `${scopedHostels.length} hostels`;
 
@@ -176,11 +175,6 @@ export default async function ComplaintQueuePage() {
         <p className="text-xs text-slate-400">
           Color code: Green (0-14 days), Yellow (15-30 days), Red (over 30 days)
         </p>
-        {isFallbackScope && (
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            No hostel assignment found for this management account. Showing data from all hostels.
-          </div>
-        )}
       </header>
 
       <QueueViewSwitcher items={items} />

@@ -34,16 +34,22 @@ export default async function ManagementAnalyticsPage(props: {
   
   // Apply UI Filters
   let activeHostelIds = assignedHostelIds;
-  if (hostelFilter !== "ALL" && assignedHostelIds.includes(hostelFilter)) {
+  if (assignedHostelIds.length === 0) {
+    const allHostels = await db.hostel.findMany({ select: { id: true } });
+    activeHostelIds = allHostels.map(h => h.id);
+  }
+
+  if (hostelFilter !== "ALL" && (assignedHostelIds.includes(hostelFilter) || assignedHostelIds.length === 0)) {
     activeHostelIds = [hostelFilter];
   }
 
-  const whereScope = { hostelId: { in: activeHostelIds } };
+  const whereScope = activeHostelIds.length > 0 ? { hostelId: { in: activeHostelIds } } : {};
 
   const now = new Date();
   const semester = getUnitenSemester(now);
 
   const slaSettings = await db.adminSlaSetting.findFirst();
+  // Fetch safe days from updated prisma client
   const safeDays = slaSettings?.safeThresholdDays ?? 14;
 
   // Determine Time Range
