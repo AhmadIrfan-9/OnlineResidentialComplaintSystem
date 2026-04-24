@@ -36,11 +36,15 @@ export function NotificationBell() {
 
     let active = true;
     const fetchNotifications = async () => {
-      const response = await fetch("/api/notifications", { cache: "no-store" });
-      if (!response.ok) return;
-      const payload = (await response.json()) as { notifications?: NotificationItem[] };
-      if (!active) return;
-      setItems(payload.notifications ?? []);
+      try {
+        const response = await fetch("/api/notifications", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { notifications?: NotificationItem[] };
+        if (!active) return;
+        setItems(payload.notifications ?? []);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
     };
 
     fetchNotifications();

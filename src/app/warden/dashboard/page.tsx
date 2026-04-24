@@ -115,6 +115,7 @@ export default async function ManagementDashboardPage() {
       id: true,
       category: true,
       status: true,
+      priority: true,
       createdAt: true,
       updatedAt: true,
       resolvedAt: true,
@@ -167,10 +168,16 @@ export default async function ManagementDashboardPage() {
     return (compliant / dayC.length) * 100;
   });
 
-  // Calculate High Priority Queue (Latest 5 items by age)
+  // Calculate High Priority Queue (Latest 5 items by priority and age)
   const highPriorityLatest = monthComplaints
-    .filter(c => STATUS_OPEN.includes(c.status))
-    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .filter(c => STATUS_OPEN.includes(c.status) && (c.priority === "EMERGENCY" || c.priority === "URGENT"))
+    .sort((a, b) => {
+      // Sort by priority first (EMERGENCY > URGENT)
+      if (a.priority === "EMERGENCY" && b.priority !== "EMERGENCY") return -1;
+      if (a.priority !== "EMERGENCY" && b.priority === "EMERGENCY") return 1;
+      // Then by age
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    })
     .slice(0, 5);
 
   // AI Insight Logic

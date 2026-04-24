@@ -64,7 +64,11 @@ export function ComplaintCompressedTable({ items }: { items: QueueItem[] }) {
         </thead>
         <tbody>
           {rows.map((item) => (
-            <tr key={item.complaintId} className="border-t border-slate-100">
+            <tr
+              key={item.complaintId}
+              className="border-t border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors"
+              onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
+            >
               <td className="px-3 py-2 font-medium text-slate-800">{item.ticketId}</td>
               <td className="px-3 py-2 text-slate-700">{item.title}</td>
               <td className="px-3 py-2">
@@ -75,6 +79,7 @@ export function ComplaintCompressedTable({ items }: { items: QueueItem[] }) {
                   onChange={(event) =>
                     onStatusChange(item.complaintId, event.target.value as QueueItem["statusCode"])
                   }
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {Object.entries(STATUS_LABEL_MAP).map(([value, label]) => (
                     <option key={value} value={value}>
@@ -90,6 +95,7 @@ export function ComplaintCompressedTable({ items }: { items: QueueItem[] }) {
                 <Link
                   href={`/warden/complaints/${item.complaintId}`}
                   className="rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   Open
                 </Link>

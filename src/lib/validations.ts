@@ -32,6 +32,10 @@ export const ComplaintStatusEnum = z.enum([
 
 export type ComplaintStatus = z.infer<typeof ComplaintStatusEnum>;
 
+// Priority enum
+export const PriorityEnum = z.enum(["ROUTINE", "URGENT", "EMERGENCY"]);
+export type Priority = z.infer<typeof PriorityEnum>;
+
 // Complaint submission schema
 export const complaintSubmissionSchema = z.object({
   title: z
@@ -51,6 +55,7 @@ export const complaintSubmissionSchema = z.object({
     .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
     .optional(),
   roomId: z.string().min(1, "Room is required"),
+  priority: PriorityEnum.optional().default("ROUTINE"),
   attachments: z
     .array(z.string().url("Invalid image URL"))
     .optional()
@@ -70,6 +75,7 @@ export const complaintUpdateSchema = z.object({
     .min(10, "Resolution must be at least 10 characters")
     .max(2000, "Resolution must not exceed 2000 characters")
     .optional(),
+  priority: PriorityEnum.optional(),
 });
 
 export type ComplaintUpdateInput = z.infer<typeof complaintUpdateSchema>;

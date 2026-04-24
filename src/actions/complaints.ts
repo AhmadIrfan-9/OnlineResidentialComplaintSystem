@@ -37,6 +37,7 @@ const createComplaintSubmissionSchema = z
       .optional(),
     roomId: z.string().min(1),
     studentId: z.string().min(1).optional().nullable(),
+    priority: z.enum(["ROUTINE", "URGENT", "EMERGENCY"]).default("ROUTINE"),
     isAnonymous: z.boolean().default(false),
   })
   .superRefine((value, ctx) => {
@@ -117,6 +118,7 @@ export async function createComplaintSubmission(
         category: validatedInput.category,
         locationBlock: validatedInput.locationBlock ?? null,
         status: "PENDING",
+        priority: validatedInput.priority,
         roomId: room.id,
         hostelId: room.hostelId,
         isAnonymous: validatedInput.isAnonymous,
@@ -208,6 +210,7 @@ export async function createComplaint(
         category: validatedData.category,
         locationBlock: validatedData.locationBlock ?? null,
         status: "PENDING",
+        priority: validatedData.priority ?? "ROUTINE",
         studentProfileId: studentProfile.id,
         isAnonymous: false,
         hostelId: room.hostelId,
@@ -325,9 +328,17 @@ export async function updateComplaintStatus(
       return { success: false, error: "Complaint not found" };
     }
 
+    // Check if user is a direct warden or has global management access (no specific hostel assignment)
+    const isDirectWarden = complaint.hostel.wardenId === session.user.id;
+    const assignedHostelCount = await db.hostel.count({
+      where: { wardenId: session.user.id }
+    });
+    const isGlobalManagement = assignedHostelCount === 0;
+
     if (
       normalizeRoleKey(session.user.role) === "MANAGEMENT" &&
-      complaint.hostel.wardenId !== session.user.id
+      !isDirectWarden &&
+      !isGlobalManagement
     ) {
       return {
         success: false,
@@ -459,7 +470,13 @@ export async function updateComplaintCategory(
       return { success: false, error: "Complaint not found" };
     }
 
-    if (complaint.hostel.wardenId !== session.user.id) {
+    const isDirectWarden = complaint.hostel.wardenId === session.user.id;
+    const assignedHostelCount = await db.hostel.count({
+      where: { wardenId: session.user.id }
+    });
+    const isGlobalManagement = assignedHostelCount === 0;
+
+    if (!isDirectWarden && !isGlobalManagement) {
       return {
         success: false,
         error: "You can only update complaints from your assigned hostel",
@@ -760,7 +777,13 @@ export async function assignComplaint(
       return { success: false, error: "Complaint not found" };
     }
 
-    if (complaint.hostel.wardenId !== session.user.id) {
+    const isDirectWarden = complaint.hostel.wardenId === session.user.id;
+    const assignedHostelCount = await db.hostel.count({
+      where: { wardenId: session.user.id }
+    });
+    const isGlobalManagement = assignedHostelCount === 0;
+
+    if (!isDirectWarden && !isGlobalManagement) {
       return { success: false, error: "You can only assign complaints from your assigned hostel" };
     }
 

@@ -84,7 +84,7 @@ export async function middleware(request: NextRequest) {
 
   const dashboardByRole = (): string => dashboardPathByRole(userRole);
 
-  if (wantsStudentArea && !isStudentRole(userRole)) {
+  if (wantsStudentArea && !isStudentRole(userRole) && !isAdminRole(userRole)) {
     return withNoStore(
       NextResponse.redirect(new URL(dashboardByRole(), request.url))
     );

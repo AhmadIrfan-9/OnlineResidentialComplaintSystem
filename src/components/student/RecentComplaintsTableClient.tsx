@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ExternalLink, Clock, CheckCircle2, CircleDot, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { StatusBadge, statusBorderColor } from "@/components/shared/StatusBadge";
 
@@ -44,6 +45,7 @@ const relativeDate = (date: Date): string => {
 };
 
 export function RecentComplaintsTableClient({ complaints }: Props) {
+  const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleRow = (id: string, e: React.MouseEvent) => {
@@ -134,8 +136,9 @@ export function RecentComplaintsTableClient({ complaints }: Props) {
             return (
               <Fragment key={item.id}>
                 <tr
-                  className={`group relative transition-colors duration-150 ${isExpanded ? 'bg-slate-50/80' : 'hover:bg-slate-50'}`}
+                  className={`group relative transition-colors duration-150 cursor-pointer ${isExpanded ? 'bg-slate-50/80' : 'hover:bg-slate-50'}`}
                   style={{ borderLeft: `3px solid ${statusBorderColor(item.status)}` }}
+                  onClick={() => router.push(`/complaints/${item.id}`)}
                 >
                   <td className="px-5 py-4">
                     <button
@@ -220,6 +223,7 @@ export function RecentComplaintsTableClient({ complaints }: Props) {
                             <Link 
                               href={`/complaints/${item.id}`}
                               className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <ExternalLink className="h-3 w-3" />
                               Open Full Details

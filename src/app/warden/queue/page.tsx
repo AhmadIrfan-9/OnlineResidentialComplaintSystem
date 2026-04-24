@@ -157,6 +157,7 @@ export default async function ComplaintQueuePage() {
         management: assignedUpdate ?? c.hostel.warden.name ?? "Management",
         category: categoryLabel(c.category),
         assignedTo: assignedUpdate ?? "Unassigned",
+        priority: c.priority,
         ageBand,
         evidences: evidencesWithMetadata,
         messageHistory: c.complaintUpdates.map((update) => ({

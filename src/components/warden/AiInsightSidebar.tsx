@@ -34,6 +34,7 @@ interface AiInsightData {
   similarCaseCount: number;
   generatedAt: string;
   latencyMs: number;
+  priority: "ROUTINE" | "URGENT" | "EMERGENCY";
   error?: string;
   fallback?: boolean;
 }

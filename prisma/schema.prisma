@@ -37,6 +37,12 @@ enum UserRole {
   IT_STAFF_ADMIN @map("IT STAFF/ADMIN")
 }
 
+enum Priority {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
 enum ChatSenderRole {
   STUDENT
   MANAGEMENT
@@ -161,6 +167,7 @@ model Complaint {
   locationBlock String?
   category    ComplaintCategory
   status      Status   @default(PENDING)
+  priority    Priority @default(ROUTINE)
   isAnonymous Boolean  @default(false)
   resolvedAt  DateTime?
   closedAt    DateTime?

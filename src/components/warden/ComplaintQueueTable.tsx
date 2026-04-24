@@ -18,6 +18,7 @@ export interface QueueItem {
   management: string;
   category: string;
   assignedTo: string;
+  priority: "ROUTINE" | "URGENT" | "EMERGENCY";
   ageBand: "GREEN" | "YELLOW" | "RED";
   evidences: Array<{
     id: string;
