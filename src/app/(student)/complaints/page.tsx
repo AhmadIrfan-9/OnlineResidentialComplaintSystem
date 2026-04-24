@@ -37,6 +37,7 @@ export default function StudentComplaintsPage() {
     if (!isAuthenticated) return;
 
     const fetchComplaints = async () => {
+      setError(null);
       try {
         const response = await fetch("/api/complaints?limit=50");
         if (!response.ok) throw new Error("Failed to fetch complaints");

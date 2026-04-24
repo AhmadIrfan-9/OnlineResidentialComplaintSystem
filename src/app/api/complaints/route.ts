@@ -158,8 +158,10 @@ export async function GET(request: NextRequest) {
     const hostelId = searchParams.get("hostelId");
     const studentId = searchParams.get("studentId");
     const query = searchParams.get("q")?.trim();
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const skip = parseInt(searchParams.get("skip") || "0");
+    const limitParam = searchParams.get("limit");
+    const skipParam = searchParams.get("skip");
+    const limit = Math.min(Math.max(parseInt(limitParam || "10"), 1), 100) || 10;
+    const skip = Math.max(parseInt(skipParam || "0"), 0) || 0;
 
     const where: Record<string, unknown> = {};
 
