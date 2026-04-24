@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { prisma } from "@/lib/prisma";
+const prisma = db; // Keep the 'prisma' alias to avoid changing all usages below
 import {
   ComplaintCategoryEnum,
   complaintSubmissionSchema,
