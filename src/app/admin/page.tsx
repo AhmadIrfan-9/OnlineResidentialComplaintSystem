@@ -5,11 +5,10 @@ import { db } from "@/lib/db";
 const nowLabel = () => new Date().toLocaleString();
 
 export default async function AdminDashboardPage() {
-  const [users, complaints, managementUsers] = await Promise.all([
-    db.user.count(),
-    db.complaint.count(),
-    db.user.count({ where: { role: "MANAGEMENT" } }),
-  ]);
+  // Fetch counts sequentially to avoid pool timeout with connection_limit=1
+  const users = await db.user.count();
+  const complaints = await db.complaint.count();
+  const managementUsers = await db.user.count({ where: { role: "MANAGEMENT" } });
 
   const successLogins = Math.max(1, Math.floor(users * 1.4));
   const failedLogins = Math.max(0, Math.floor(users * 0.15));

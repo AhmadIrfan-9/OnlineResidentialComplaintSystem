@@ -9,21 +9,21 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  // Fetch full user and profile + all hostels
-  const [user, hostels] = await Promise.all([
-    db.user.findUnique({
-      where: { id: session.user.id },
-      include: {
-        studentProfile: {
-          include: { room: true }
-        }
+  // Fetch full user and profile + all hostels sequentially to avoid pool timeout
+  // when connection limit is set to 1.
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    include: {
+      studentProfile: {
+        include: { room: true }
       }
-    }),
-    db.hostel.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+    }
+  });
+
+  const hostels = await db.hostel.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   if (!user) {
     redirect("/login");

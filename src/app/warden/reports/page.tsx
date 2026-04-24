@@ -31,27 +31,27 @@ export default async function ManagementReportsPage() {
   const overdueCutoff = new Date(now);
   overdueCutoff.setDate(overdueCutoff.getDate() - 30);
 
-  const [complaints, overdueComplaints] = await Promise.all([
-    db.complaint.findMany({
-      where: whereScope,
-      include: {
-        hostel: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.complaint.findMany({
-      where: {
-        ...whereScope,
-        createdAt: { lte: overdueCutoff },
-        status: { in: ["PENDING", "IN_PROGRESS"] },
-      },
-      include: {
-        hostel: { select: { name: true } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 30,
-    }),
-  ]);
+  // Fetch data sequentially to avoid pool timeout with connection_limit=1
+  const complaints = await db.complaint.findMany({
+    where: whereScope,
+    include: {
+      hostel: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const overdueComplaints = await db.complaint.findMany({
+    where: {
+      ...whereScope,
+      createdAt: { lte: overdueCutoff },
+      status: { in: ["PENDING", "IN_PROGRESS"] },
+    },
+    include: {
+      hostel: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 30,
+  });
 
   const total = complaints.length;
   const byStatus = complaints.reduce<Record<string, number>>((acc, item) => {

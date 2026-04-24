@@ -2,21 +2,21 @@ import { db } from "@/lib/db";
 import { UserManagementClient } from "@/components/admin/UserManagementClient";
 
 export default async function AdminUsersPage() {
-  const [hostels, rooms] = await Promise.all([
-    db.hostel.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    db.room.findMany({
-      orderBy: [{ hostel: { name: "asc" } }, { roomNumber: "asc" }],
-      select: {
-        id: true,
-        roomNumber: true,
-        floor: true,
-        hostel: { select: { id: true, name: true } },
-      },
-    }),
-  ]);
+  // Fetch data sequentially to avoid pool timeout with connection_limit=1
+  const hostels = await db.hostel.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
+  const rooms = await db.room.findMany({
+    orderBy: [{ hostel: { name: "asc" } }, { roomNumber: "asc" }],
+    select: {
+      id: true,
+      roomNumber: true,
+      floor: true,
+      hostel: { select: { id: true, name: true } },
+    },
+  });
 
   return (
     <div className="space-y-4">

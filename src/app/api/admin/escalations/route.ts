@@ -58,31 +58,32 @@ export async function POST() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
 
-  const [staleComplaints, managementUsers, escalationTemplate] = await Promise.all([
-    db.complaint.findMany({
-      where: {
-        status: { in: [...OPEN_STATUSES] },
-        createdAt: { lte: cutoff },
-      },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        createdAt: true,
-        hostel: { select: { name: true } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 200,
-    }),
-    db.user.findMany({
-      where: { role: "MANAGEMENT", isActive: true },
-      select: { id: true, email: true, name: true },
-    }),
-    db.adminEmailTemplate.findUnique({
-      where: { key: "escalation_alert" },
-      select: { subject: true, html: true },
-    }),
-  ]);
+  // Fetch data sequentially to avoid pool timeout with connection_limit=1
+  const staleComplaints = await db.complaint.findMany({
+    where: {
+      status: { in: [...OPEN_STATUSES] },
+      createdAt: { lte: cutoff },
+    },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      createdAt: true,
+      hostel: { select: { name: true } },
+    },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+  });
+
+  const managementUsers = await db.user.findMany({
+    where: { role: "MANAGEMENT", isActive: true },
+    select: { id: true, email: true, name: true },
+  });
+
+  const escalationTemplate = await db.adminEmailTemplate.findUnique({
+    where: { key: "escalation_alert" },
+    select: { subject: true, html: true },
+  });
 
   if (staleComplaints.length === 0) {
     return NextResponse.json({

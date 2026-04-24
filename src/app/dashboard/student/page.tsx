@@ -38,47 +38,45 @@ export default async function StudentDashboardPage() {
     return <ProfileMissingRecovery userName={session.user.name ?? "Student"} />;
   }
 
-  const [activeCount, resolvedCount, unreadMessages, recentComplaints] =
-    await Promise.all([
-      db.complaint.count({
-        where: { studentProfileId: studentProfile.id, status: { in: OPEN_STATUSES } },
-      }),
-      db.complaint.count({
-        where: { studentProfileId: studentProfile.id, status: { in: RESOLVED_STATUSES } },
-      }),
-      db.notification.count({
-        where: { userId: session.user.id, isRead: false },
-      }),
-      db.complaint.findMany({
-        where: { studentProfileId: studentProfile.id },
-        orderBy: { createdAt: "desc" },
-        take: 8,
+  // Fetch dashboard data sequentially to respect the connection_limit=1 restriction
+  const activeCount = await db.complaint.count({
+    where: { studentProfileId: studentProfile.id, status: { in: OPEN_STATUSES } },
+  });
+  const resolvedCount = await db.complaint.count({
+    where: { studentProfileId: studentProfile.id, status: { in: RESOLVED_STATUSES } },
+  });
+  const unreadMessages = await db.notification.count({
+    where: { userId: session.user.id, isRead: false },
+  });
+  const recentComplaints = await db.complaint.findMany({
+    where: { studentProfileId: studentProfile.id },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      title: true,
+      category: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      resolvedAt: true,
+      closedAt: true,
+      complaintUpdates: {
         select: {
           id: true,
-          title: true,
-          category: true,
-          status: true,
+          content: true,
           createdAt: true,
-          updatedAt: true,
-          resolvedAt: true,
-          closedAt: true,
-          complaintUpdates: {
+          updatedBy: {
             select: {
-              id: true,
-              content: true,
-              createdAt: true,
-              updatedBy: {
-                select: {
-                  name: true,
-                  role: true
-                }
-              }
-            },
-            orderBy: { createdAt: "asc" }
+              name: true,
+              role: true
+            }
           }
         },
-      }),
-    ]);
+        orderBy: { createdAt: "asc" }
+      }
+    },
+  });
 
   const studentName = session.user.name ?? "Student";
   const firstName = studentName.split(" ")[0];
