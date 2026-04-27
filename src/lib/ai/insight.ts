@@ -37,6 +37,8 @@ const AiInsightSchema = z.object({
   suggestedAction: z.string().min(1).max(600),
   policyReference: z.string().nullable(),
   similarCaseCount: z.number().int().min(0),
+  suggestedFine: z.string().nullable(), // Added for Handbook Logic integration
+  evictionRisk: z.boolean().default(false), // Added for Handbook Logic integration
 });
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
@@ -155,6 +157,8 @@ export async function generateComplaintInsight(
       suggestedAction: "Manual review required.",
       policyReference: null,
       similarCaseCount: similarCases.length,
+      suggestedFine: null,
+      evictionRisk: false,
       generatedAt: new Date().toISOString(),
       latencyMs: Date.now() - t0,
     };

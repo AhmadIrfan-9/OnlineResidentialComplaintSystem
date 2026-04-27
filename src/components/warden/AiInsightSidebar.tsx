@@ -32,6 +32,8 @@ interface AiInsightData {
   suggestedAction: string;
   policyReference: string | null;
   similarCaseCount: number;
+  suggestedFine: string | null; // Added for Handbook Logic integration
+  evictionRisk: boolean; // Added for Handbook Logic integration
   generatedAt: string;
   latencyMs: number;
   priority: "ROUTINE" | "URGENT" | "EMERGENCY";
@@ -705,6 +707,53 @@ export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggeste
                   {data.suggestedAction}
                 </p>
               </div>
+
+              {/* Handbook Logic Integration: Fine & Eviction */}
+              {(data.suggestedFine || data.evictionRisk) && (
+                <div 
+                  style={{ 
+                    marginBottom: "14px",
+                    display: "flex",
+                    gap: "8px"
+                  }}
+                >
+                  {data.suggestedFine && (
+                    <div
+                      style={{
+                        flex: 1,
+                        background: "rgba(234,179,8,0.1)",
+                        border: "1px solid rgba(234,179,8,0.3)",
+                        borderRadius: "10px",
+                        padding: "8px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center"
+                      }}
+                    >
+                      <span style={{ fontSize: "10px", color: "#eab308", fontWeight: 700, letterSpacing: "0.05em" }}>SUGGESTED FINE</span>
+                      <span style={{ fontSize: "18px", color: "#fef08a", fontWeight: 800 }}>{data.suggestedFine}</span>
+                    </div>
+                  )}
+                  {data.evictionRisk && (
+                    <div
+                      style={{
+                        flex: 1,
+                        background: "rgba(239,68,68,0.15)",
+                        border: "1px solid rgba(239,68,68,0.4)",
+                        borderRadius: "10px",
+                        padding: "8px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        animation: "ai-priority-pop 0.4s cubic-bezier(0.17,0.67,0.83,0.67)"
+                      }}
+                    >
+                      <span style={{ fontSize: "10px", color: "#ef4444", fontWeight: 700, letterSpacing: "0.05em" }}>DISCIPLINARY</span>
+                      <span style={{ fontSize: "14px", color: "#fca5a5", fontWeight: 800 }}>EVICTION RISK</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* ── One-click CTA Row ── */}
               <div

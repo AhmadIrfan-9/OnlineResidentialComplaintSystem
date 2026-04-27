@@ -118,6 +118,8 @@ export async function POST(req: NextRequest) {
         suggestedAction: "Follow standard hostel SOP for this category.",
         policyReference: null,
         similarCaseCount: 0,
+        suggestedFine: null,
+        evictionRisk: false,
         generatedAt: new Date().toISOString(),
         latencyMs: 0,
       },

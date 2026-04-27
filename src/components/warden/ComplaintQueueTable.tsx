@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpDown, MessageSquare, TriangleAlert, UserPlus2 } from "lucide-react";
 import { updateComplaintStatus } from "@/actions/complaints";
+import { AgingBadge } from "@/components/shared/AgingBadge";
+import { getAgingInfo } from "@/lib/aging";
 
 export interface QueueItem {
   complaintId: string;
@@ -34,10 +36,11 @@ export interface QueueItem {
   }>;
 }
 
-const rowColor = (ageBand: QueueItem["ageBand"]): string => {
-  if (ageBand === "RED") return "bg-red-50/80 hover:bg-red-100";
-  if (ageBand === "YELLOW") return "bg-amber-50/80 hover:bg-amber-100";
-  return "bg-emerald-50/80 hover:bg-emerald-100";
+const rowColor = (submitted: string): string => {
+  const aging = getAgingInfo(submitted);
+  if (aging.category === "RED") return "bg-red-50/80 hover:bg-red-100 transition-colors";
+  if (aging.category === "YELLOW") return "bg-amber-50/80 hover:bg-amber-100 transition-colors";
+  return "bg-emerald-50/80 hover:bg-emerald-100 transition-colors";
 };
 
 type SortKey = keyof Pick<
@@ -202,7 +205,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
               paged.map((item) => (
                 <tr
                   key={item.complaintId}
-                  className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.ageBand)}`}
+                  className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.submitted)}`}
                   onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
                 >
                   <td className="px-3 py-3">
@@ -241,21 +244,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
                   </td>
                   <td className="px-3 py-3">{new Date(item.submitted).toLocaleDateString()}</td>
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`h-3 w-3 rounded-full ${
-                          item.ageBand === "RED"
-                            ? "bg-[#EF4444]"
-                            : item.ageBand === "YELLOW"
-                            ? "bg-[#EAB308]"
-                            : "bg-[#22C55E]"
-                        }`}
-                      />
-                      <span className="font-semibold text-slate-800">
-                        {item.daysPending} Days -{" "}
-                        {item.ageBand === "RED" ? "Delayed" : item.ageBand === "YELLOW" ? "Warning" : "Safe"}
-                      </span>
-                    </div>
+                    <AgingBadge createdAt={item.submitted} />
                   </td>
                   <td className="px-3 py-3">{item.student}</td>
                   <td className="px-3 py-3">{item.category}</td>
