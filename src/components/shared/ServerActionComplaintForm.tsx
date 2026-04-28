@@ -62,13 +62,47 @@ export function ServerActionComplaintForm({
   });
 
   const selectedCategory = watch("category");
+  const [attachmentUrls, setAttachmentUrls] = useState("");
 
   const onSubmit = async (data: ComplaintSubmissionInput) => {
     setError("");
 
     startTransition(async () => {
       try {
-        const result = await createComplaint(data);
+        const urls = attachmentUrls
+          .split(",")
+          .map((url) => url.trim())
+          .filter(Boolean);
+
+        // Pre-Validation: Evidence Integrity Guard
+        if (urls.length > 0) {
+          for (const url of urls) {
+            const validationRes = await fetch("/api/ai/vision-validate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imageUrl: url,
+                title: data.title,
+                description: data.description,
+                location: hostelName ? `${hostelName} - ${roomId}` : roomId,
+              }),
+            });
+
+            if (!validationRes.ok) {
+              const errData = await validationRes.json();
+              throw new Error(errData.error || "Image validation service failed.");
+            }
+
+            const aiResult = await validationRes.json();
+            if (aiResult.decision === "REJECTED") {
+              throw new Error(`Evidence Rejected: ${aiResult.rejection_reason} (AI Confidence: ${aiResult.confidence_score}%)`);
+            }
+          }
+        }
+
+        // Proceed to create complaint
+        const payload = { ...data, attachments: urls };
+        const result = await createComplaint(payload);
 
         if (!result.success) {
           setError(result.error || "Failed to submit complaint");
@@ -77,6 +111,7 @@ export function ServerActionComplaintForm({
 
         setShowSuccess(true);
         reset();
+        setAttachmentUrls("");
 
         setTimeout(() => {
           router.push(`/complaints/${result.data?.id}`);
@@ -207,6 +242,8 @@ export function ServerActionComplaintForm({
               type="text"
               placeholder="https://example.com/image.jpg (comma-separated for multiple)"
               disabled={isPending}
+              value={attachmentUrls}
+              onChange={(e) => setAttachmentUrls(e.target.value)}
             />
             <p className="text-xs text-gray-600">
               Enter valid image URLs separated by commas to help illustrate the
