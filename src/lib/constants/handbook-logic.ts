@@ -145,6 +145,37 @@ export const HANDBOOK_LOGIC = {
         final_decision: "Director of Student Affairs",
         rent_liability: "Resident remains liable for full semester's rent even if evicted."
       }
+    },
+    DUTY_ROSTER_APRIL_2026: {
+      location: "CENDEKIAWAN RESIDENCY",
+      principals: [
+        { name: "Mr. Shahanif Izham", phone: "012-215 5785" },
+        { name: "Dr. Lim Kok Cheng", phone: "016-218 8321" }
+      ],
+      fellows: [
+        { name: "Mr. Mohd", apartment: "C1-00-01", phone: "012-267 7003" },
+        { name: "Mr. Hisyam", apartment: "C1-00-03", phone: "013-933 1817" },
+        { name: "Mr. Azman", apartment: "C1-00-05", phone: "018-661 6068" },
+        { name: "Mr. Asmad", apartment: "C2-00-03", phone: "013-436 6510" },
+        { name: "Mr. Asyrof", apartment: "C2-00-01", phone: "019-409 6766" },
+        { name: "Mr. Taqiuddin", apartment: "C3-00-01", phone: "013-299 8373" },
+        { name: "Mr. Saufi", apartment: "C3-00-03", phone: "016-274 6624" },
+        { name: "Mr. Rizal", apartment: "C3-00-04", phone: "018-207 2050" }
+      ],
+      schedule: {
+        1: "Mr. Rizal", 2: "Mr. Mohd", 3: "Mr. Hisyam", 4: "Mr. Taqiuddin", 5: "Mr. Asyrof",
+        6: "Mr. Azman", 7: "Mr. Asmad", 8: "Mr. Saufi", 9: "Mr. Hisyam", 10: "Mr. Rizal",
+        11: "Mr. Taqiuddin", 12: "Mr. Rizal", 13: "Mr. Asmad", 14: "Mr. Rizal", 15: "Mr. Asyrof",
+        16: "Mr. Taqiuddin", 17: "Mr. Azman", 18: "Mr. Mohd", 19: "Mr. Hisyam", 20: "Mr. Taqiuddin",
+        21: "Mr. Asmad", 22: "Mr. Azman", 23: "Mr. Saufi", 24: "Mr. Mohd", 25: "Mr. Azman",
+        26: "Mr. Saufi", 27: "Mr. Mohd", 28: "Mr. Hisyam", 30: "Mr. Asyrof"
+      },
+      duty_hours: {
+        weekdays: "5.30pm until 6.00am next day",
+        weekends_holidays: "7.00am until 6.00am next day",
+        office_hours: "Cendekiawan office at block C2 ground floor"
+      },
+      contact_methods: ["Call", "SMS", "WhatsApp"]
     }
   }
 };
