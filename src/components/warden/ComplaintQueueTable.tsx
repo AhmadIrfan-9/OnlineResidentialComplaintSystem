@@ -43,6 +43,12 @@ const rowColor = (submitted: string): string => {
   return "bg-emerald-50/80 hover:bg-emerald-100 transition-colors";
 };
 
+const priorityBorder = (priority: QueueItem["priority"]): string => {
+  if (priority === "EMERGENCY") return "border-l-[6px] border-l-red-500 shadow-[inset_4px_0_12px_rgba(239,68,68,0.2)] animate-pulse";
+  if (priority === "URGENT") return "border-l-[6px] border-l-yellow-400";
+  return "border-l-[6px] border-l-emerald-400/60";
+};
+
 type SortKey = keyof Pick<
   QueueItem,
   "ticketId" | "status" | "submitted" | "daysPending" | "student" | "category" | "assignedTo"
@@ -205,7 +211,7 @@ export function ComplaintQueueTable({ items }: { items: QueueItem[] }) {
               paged.map((item) => (
                 <tr
                   key={item.complaintId}
-                  className={`group cursor-pointer border-t border-slate-100 ${rowColor(item.submitted)}`}
+                  className={`group cursor-pointer border-t border-r border-b border-slate-100 ${rowColor(item.submitted)} ${priorityBorder(item.priority)}`}
                   onClick={() => router.push(`/warden/complaints/${item.complaintId}`)}
                 >
                   <td className="px-3 py-3">

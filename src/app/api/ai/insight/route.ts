@@ -96,6 +96,14 @@ export async function POST(req: NextRequest) {
       daysPending: toPendingDays(complaint.createdAt),
     });
 
+    // Automatically update the complaint priority in DB based on AI triage
+    if (insight.suggestedPriority && insight.suggestedPriority !== complaint.priority) {
+      await db.complaint.update({
+        where: { id: complaintId },
+        data: { priority: insight.suggestedPriority },
+      });
+    }
+
     return NextResponse.json(insight, {
       status: 200,
       headers: {

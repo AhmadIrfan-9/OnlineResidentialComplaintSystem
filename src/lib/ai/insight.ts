@@ -32,13 +32,15 @@ function getClient(): OpenAI {
 // ─── Zod Schema — validates LLM output ───────────────────────────────────────
 
 const AiInsightSchema = z.object({
+  severityScore: z.number().int().min(1).max(10),
+  suggestedPriority: z.enum(["ROUTINE", "URGENT", "EMERGENCY"]),
   confidence: z.number().min(0).max(1),
   reason: z.string().min(1).max(500),
   suggestedAction: z.string().min(1).max(600),
   policyReference: z.string().nullable(),
   similarCaseCount: z.number().int().min(0),
-  suggestedFine: z.string().nullable(), // Added for Handbook Logic integration
-  evictionRisk: z.boolean().default(false), // Added for Handbook Logic integration
+  suggestedFine: z.string().nullable(),
+  evictionRisk: z.boolean().default(false),
 });
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
@@ -152,6 +154,8 @@ export async function generateComplaintInsight(
     console.error("[AI] Zod validation failed:", validated.error.flatten());
     // Return a graceful fallback rather than crashing
     const fallback: AiInsight = {
+      severityScore: 1,
+      suggestedPriority: "ROUTINE",
       confidence: 0,
       reason: "AI analysis could not be validated. Please review manually.",
       suggestedAction: "Manual review required.",
