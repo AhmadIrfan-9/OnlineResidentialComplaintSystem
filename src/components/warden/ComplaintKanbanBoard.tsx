@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { memo, useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, FileText, ImageIcon, ShieldCheck, UserCircle2 } from "lucide-react";
@@ -9,6 +8,7 @@ import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -315,6 +315,9 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                   <span>{selectedCard.title}</span>
                   <span className="text-sm font-normal text-slate-500">{selectedCard.ticketId}</span>
                 </DialogTitle>
+                <DialogDescription className="text-sm text-slate-500">
+                  Complaint details and evidence for {selectedCard.ticketId}
+                </DialogDescription>
               </DialogHeader>
 
               <section className="mt-4 space-y-3">
@@ -363,6 +366,7 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                             target="_blank"
                             rel="noreferrer"
                             className="rounded border border-slate-200 bg-slate-50 p-2"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {image ? (
                               // eslint-disable-next-line @next/next/no-img-element
@@ -394,12 +398,18 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                 </div>
 
                 <div className="pt-2">
-                  <Link
-                    href={`/warden/complaints/${selectedCard.complaintId}`}
-                    className="inline-flex rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const targetPath = `/warden/complaints/${selectedCard.complaintId}`;
+                      setSelectedCard(null);
+                      router.push(targetPath);
+                    }}
+                    className="inline-flex rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:from-sky-700 hover:to-blue-800 hover:shadow-md active:scale-[0.98]"
                   >
                     Open Full Complaint
-                  </Link>
+                  </button>
                 </div>
               </section>
             </>
