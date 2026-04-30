@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { validateEvidenceImage } from "@/lib/ai/vision";
+import { validateEvidenceBilingual } from "@/lib/ai/vision";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,20 +10,24 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { imageUrl, title, description, location } = body;
+    const { imageUrl, title, description, location, category } = body;
 
     if (!imageUrl || !title || !description || !location) {
       return NextResponse.json(
-        { error: "Missing required fields (imageUrl, title, description, location)" },
+        {
+          error:
+            "Missing required fields (imageUrl, title, description, location)",
+        },
         { status: 400 }
       );
     }
 
-    const validationResult = await validateEvidenceImage({
+    const validationResult = await validateEvidenceBilingual({
       imageUrl,
       title,
       description,
       location,
+      category: category ?? undefined,
     });
 
     return NextResponse.json(validationResult, { status: 200 });
