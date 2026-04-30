@@ -16,6 +16,8 @@ import {
   Mail,
   Lock,
   ShieldCheck,
+  ArrowLeft,
+  CheckCircle2,
 } from "lucide-react";
 
 const loginSchema = z.object({
@@ -27,14 +29,40 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .email("Please enter a valid email address.")
+    .refine(
+      (val) =>
+        val.endsWith("@uniten.edu.my") ||
+        val.endsWith("@student.uniten.edu.my"),
+      {
+        message:
+          "Please use a valid UNITEN email (@uniten.edu.my or @student.uniten.edu.my).",
+      }
+    ),
+});
+
+type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
+
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Forgot Password State
+  const [view, setView] = useState<"login" | "forgot-password" | "forgot-password-success">("login");
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+  });
+
+  const resetForm = useForm<ForgotPasswordData>({
+    resolver: zodResolver(forgotPasswordSchema),
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -62,6 +90,24 @@ export function LoginForm() {
     } catch {
       setError("An unexpected error occurred. Please try again.");
       setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (data: ForgotPasswordData) => {
+    setIsResetting(true);
+    setResetError(null);
+
+    try {
+      // Mock connecting to Supabase/Firebase/Database to trigger reset email
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      
+      console.log(`[Mock Backend] Reset link sent to: ${data.email}`);
+      
+      setView("forgot-password-success");
+    } catch {
+      setResetError("Failed to send reset link. Please try again later.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -141,23 +187,27 @@ export function LoginForm() {
           </p>
 
           {/* Security badge */}
-          <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Secure institutional login
-          </div>
+          {view === "login" && (
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Secure institutional login
+            </div>
+          )}
         </div>
 
         {/* Form Body */}
         <div className="px-8 py-7">
-          {/* Error Banner */}
-          {error && (
-            <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-              <p className="text-sm font-medium leading-snug text-red-700">
-                {error}
-              </p>
-            </div>
-          )}
+          {view === "login" && (
+            <>
+              {/* Error Banner */}
+              {error && (
+                <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+                  <p className="text-sm font-medium leading-snug text-red-700">
+                    {error}
+                  </p>
+                </div>
+              )}
 
           <form
             onSubmit={form.handleSubmit(handleLogin)}
@@ -168,13 +218,13 @@ export function LoginForm() {
             <div className="space-y-1.5">
               <label
                 htmlFor="identifier"
-                className="block text-sm font-semibold text-slate-700"
+                className="block text-base sm:text-lg font-semibold text-slate-700"
               >
                 Institutional Email or Student ID
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
-                  <Mail className="input-icon h-4 w-4 text-slate-400 transition-colors" />
+                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
+                  <Mail className="input-icon h-5 w-5 text-slate-400 transition-colors" />
                 </div>
                 <input
                   id="identifier"
@@ -182,7 +232,7 @@ export function LoginForm() {
                   autoComplete="username"
                   placeholder="e.g. name@uniten.edu.my or MM12345"
                   disabled={isLoading}
-                  className={`orcs-input block h-12 w-full rounded-xl border pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-5 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
                     form.formState.errors.identifier
                       ? "border-red-300 bg-red-50"
                       : "border-slate-200 bg-slate-50"
@@ -191,8 +241,8 @@ export function LoginForm() {
                 />
               </div>
               {form.formState.errors.identifier && (
-                <p className="field-error flex items-center gap-1 text-xs text-red-600">
-                  <AlertCircle className="h-3 w-3" />
+                <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4" />
                   {form.formState.errors.identifier.message}
                 </p>
               )}
@@ -203,21 +253,26 @@ export function LoginForm() {
               <div className="flex items-center justify-between">
                 <label
                   htmlFor="password"
-                  className="block text-sm font-semibold text-slate-700"
+                  className="block text-base sm:text-lg font-semibold text-slate-700"
                 >
                   Password
                 </label>
-                <Link
-                  href="/login"
-                  className="text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline underline-offset-2 transition-colors"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView("forgot-password");
+                    setError(null);
+                    setResetError(null);
+                  }}
+                  className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline underline-offset-2 transition-colors"
                   tabIndex={-1}
                 >
                   Forgot password?
-                </Link>
+                </button>
               </div>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center">
-                  <Lock className="input-icon h-4 w-4 text-slate-400 transition-colors" />
+                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
+                  <Lock className="input-icon h-5 w-5 text-slate-400 transition-colors" />
                 </div>
                 <input
                   id="password"
@@ -225,7 +280,7 @@ export function LoginForm() {
                   autoComplete="current-password"
                   placeholder="Enter your password"
                   disabled={isLoading}
-                  className={`orcs-input block h-12 w-full rounded-xl border pl-10 pr-11 text-sm text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-12 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
                     form.formState.errors.password
                       ? "border-red-300 bg-red-50"
                       : "border-slate-200 bg-slate-50"
@@ -236,19 +291,19 @@ export function LoginForm() {
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-5 w-5" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-5 w-5" />
                   )}
                 </button>
               </div>
               {form.formState.errors.password && (
-                <p className="field-error flex items-center gap-1 text-xs text-red-600">
-                  <AlertCircle className="h-3 w-3" />
+                <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
+                  <AlertCircle className="h-4 w-4" />
                   {form.formState.errors.password.message}
                 </p>
               )}
@@ -259,12 +314,12 @@ export function LoginForm() {
               id="login-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="orcs-btn mt-1 flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-800 to-blue-700 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="orcs-btn mt-2 flex h-14 sm:h-16 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-800 to-blue-700 text-lg sm:text-xl font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
               style={{ background: isLoading ? undefined : "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Authenticating...
                 </>
               ) : (
@@ -272,6 +327,120 @@ export function LoginForm() {
               )}
             </button>
           </form>
+            </>
+          )}
+
+          {view === "forgot-password" && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="mb-5">
+                <h3 className="text-xl font-bold text-slate-900">Reset Password</h3>
+                <p className="text-base text-slate-500 mt-1">
+                  Enter your university email to receive a reset link.
+                </p>
+              </div>
+
+              {resetError && (
+                <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+                  <p className="text-sm font-medium leading-snug text-red-700">
+                    {resetError}
+                  </p>
+                </div>
+              )}
+
+              <form
+                onSubmit={resetForm.handleSubmit(handleResetPassword)}
+                className="space-y-6"
+                noValidate
+              >
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="email"
+                    className="block text-base sm:text-lg font-semibold text-slate-700"
+                  >
+                    University Email
+                  </label>
+                  <div className="relative">
+                    <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
+                      <Mail className="input-icon h-5 w-5 text-slate-400 transition-colors" />
+                    </div>
+                    <input
+                      id="email"
+                      type="email"
+                      placeholder="e.g. name@uniten.edu.my"
+                      disabled={isResetting}
+                      className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-5 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                        resetForm.formState.errors.email
+                          ? "border-red-300 bg-red-50"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
+                      {...resetForm.register("email")}
+                    />
+                  </div>
+                  {resetForm.formState.errors.email && (
+                    <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
+                      <AlertCircle className="h-4 w-4" />
+                      {resetForm.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isResetting}
+                  className="orcs-btn mt-2 flex h-14 sm:h-16 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-800 to-blue-700 text-lg sm:text-xl font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
+                  style={{ background: isResetting ? undefined : "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
+                >
+                  {isResetting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Sending Link...
+                    </>
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setView("login")}
+                  className="mt-5 flex w-full items-center justify-center gap-2 text-base font-medium text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back to Login
+                </button>
+              </form>
+            </div>
+          )}
+
+          {view === "forgot-password-success" && (
+            <div className="animate-in zoom-in-95 duration-300 flex flex-col items-center text-center py-6">
+              <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">Check Your Email</h3>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
+                <p className="text-base text-slate-700 leading-relaxed mb-3">
+                  A password reset link has been sent to your registered email. Please check your inbox.
+                </p>
+                <p className="text-sm text-slate-500 italic">
+                  Sila semak peti masuk emel anda. Pautan set semula kata laluan telah dihantar.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setView("login");
+                  resetForm.reset();
+                }}
+                className="text-base font-bold text-blue-700 hover:text-blue-900 transition-colors"
+              >
+                Return to Login
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Card Footer */}

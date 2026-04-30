@@ -179,7 +179,7 @@ export default async function LoginPage() {
         </div>
 
         {/* Form card */}
-        <div className="relative z-10 w-full max-w-[420px]">
+        <div className="relative z-10 w-full max-w-xl">
           <LoginForm />
         </div>
       </div>
