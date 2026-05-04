@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -94,6 +95,35 @@ function SidebarLinks({ pathname, role }: { pathname: string; role: string | und
   );
 }
 
+function LogoutButton() {
+  const [confirming, setConfirming] = useState(false);
+
+  const handleLogout = () => {
+    if (confirming) {
+      logoutAndRedirect("manual");
+    } else {
+      setConfirming(true);
+      setTimeout(() => setConfirming(false), 3000); // Reset after 3 seconds
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleLogout}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm",
+        confirming
+          ? "bg-red-700 text-white ring-2 ring-red-500 ring-offset-2 ring-offset-white"
+          : "bg-red-600 text-white hover:bg-red-700 hover:shadow-md"
+      )}
+    >
+      <LogOut className="h-4 w-4 text-white" />
+      <span>{confirming ? "Are you sure?" : "Sign Out"}</span>
+    </button>
+  );
+}
+
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -124,20 +154,13 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <aside className="hidden flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="hidden flex-col border-r border-slate-200 bg-white md:flex sticky top-0 h-[100dvh]">
         {brand}
-        <div className="flex flex-1 flex-col justify-between px-4 pb-6">
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           <SidebarLinks pathname={pathname} role={role} />
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={() => void logoutAndRedirect("manual")}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
-            >
-              <LogOut className="h-4 w-4 text-slate-400" />
-              <span>Sign Out</span>
-            </button>
-          </div>
+        </div>
+        <div className="border-t border-slate-100 bg-slate-50/50 p-4">
+          <LogoutButton />
         </div>
       </aside>
 
@@ -158,21 +181,14 @@ export function DashboardSidebar() {
                   <Menu className="h-5 w-5 text-slate-600" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="!top-0 !left-0 flex h-screen w-[280px] max-w-[280px] !translate-x-0 !translate-y-0 flex-col rounded-none border-none bg-white p-0 shadow-2xl">
+              <DialogContent className="!top-0 !left-0 flex h-[100dvh] w-[280px] max-w-[280px] !translate-x-0 !translate-y-0 flex-col rounded-none border-none bg-white p-0 shadow-2xl">
                 <DialogTitle className="sr-only">Navigation Menu</DialogTitle>
                 {brand}
-                <div className="flex flex-1 flex-col justify-between px-4 pb-8">
+                <div className="flex-1 overflow-y-auto px-4 pb-4">
                   <SidebarLinks pathname={pathname} role={role} />
-                  <div className="mt-4 border-t border-slate-100 pt-6">
-                    <button
-                      type="button"
-                      onClick={() => void logoutAndRedirect("manual")}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <LogOut className="h-4 w-4 text-slate-400" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
+                </div>
+                <div className="border-t border-slate-100 bg-slate-50/50 p-4">
+                  <LogoutButton />
                 </div>
               </DialogContent>
             </Dialog>
