@@ -352,7 +352,7 @@ export function UserManagementClient({
                   <option value="">Select room</option>
                   {availableCreateRooms.map((room) => (
                     <option key={room.id} value={room.id}>
-                      {room.hostel.name} - {room.roomNumber} (Floor {room.floor})
+                      {room.hostel.name} - {room.roomNumber}
                     </option>
                   ))}
                 </select>

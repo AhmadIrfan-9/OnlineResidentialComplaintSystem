@@ -38,7 +38,7 @@ RULE 3 — EVICTION RISK: If the violation matches an item in the logic table wi
 
 RULE 4 — POLICY NOT FOUND: If no relevant policy section is in the context, set "policyReference" to null. You may still suggest a fine based on the Handbook Logic if applicable.
 
-RULE 5 — DUTY ROSTER ESCALATION: If the complaint requires immediate escalation (e.g., emergencies, critical security violations), check the "HANDBOOK FINES LOGIC" for the "DUTY_ROSTER_APRIL_2026". Look up the fellow on duty for the current day (assume April 2026 dates if missing), and include their name and phone number in the "suggestedAction".
+RULE 5 — DUTY ROSTER ESCALATION: If the complaint requires immediate escalation (e.g., emergencies, critical security violations), check the "HANDBOOK FINES LOGIC" for the "DUTY_ROSTER_APRIL_2026". Match the complaint's Block (e.g., "C1") to the fellow's apartment prefix (e.g., "C1-00-01") to find the fellow residing in the SAME BLOCK. Include their name and phone number in the "suggestedAction". If no specific block match is clear, assign the fellow on duty for the current day.
 
 RULE 6 — OUTPUT FORMAT: Respond ONLY with a single valid JSON object. No markdown, no prose, no explanation outside the JSON.
 

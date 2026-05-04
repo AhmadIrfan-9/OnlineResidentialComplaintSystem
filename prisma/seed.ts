@@ -48,23 +48,35 @@ async function main() {
     },
   });
 
-  const room = await prisma.room.upsert({
-    where: {
-      roomNumber_hostelId: {
-        roomNumber: "A-101",
-        hostelId: hostel.id,
-      },
-    },
-    update: {
-      floor: 1,
-      hostelId: hostel.id,
-    },
-    create: {
-      roomNumber: "A-101",
-      floor: 1,
-      hostelId: hostel.id,
-    },
+  const blocks = ["C1", "C2", "C3"];
+  const floors = Array.from({ length: 10 }, (_, i) => i + 1);
+  const units = Array.from({ length: 8 }, (_, i) => i + 1);
+
+  const roomsToCreate = [];
+  for (const block of blocks) {
+    for (const floor of floors) {
+      for (const unit of units) {
+        const floorStr = floor.toString().padStart(2, "0");
+        const unitStr = unit.toString().padStart(2, "0");
+        roomsToCreate.push({
+          roomNumber: `${block}-${floorStr}-${unitStr}`,
+          floor: floor,
+          hostelId: hostel.id,
+        });
+      }
+    }
+  }
+
+  await prisma.room.createMany({
+    data: roomsToCreate,
+    skipDuplicates: true,
   });
+
+  const studentRoom = await prisma.room.findFirst({
+    where: { roomNumber: "C1-01-01", hostelId: hostel.id },
+  });
+
+  if (!studentRoom) throw new Error("Failed to seed room C1-01-01");
 
   const student = await prisma.user.upsert({
     where: { email: "user@orcs.local" },
@@ -84,10 +96,10 @@ async function main() {
 
   await prisma.studentProfile.upsert({
     where: { userId: student.id },
-    update: { roomId: room.id },
+    update: { roomId: studentRoom.id },
     create: {
       userId: student.id,
-      roomId: room.id,
+      roomId: studentRoom.id,
       studentId: "SW012345",
     },
   });

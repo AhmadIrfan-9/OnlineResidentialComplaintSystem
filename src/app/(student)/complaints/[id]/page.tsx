@@ -74,7 +74,7 @@ export default async function StudentComplaintDetailPage({
             </p>
             <p>
               <span className="font-medium">Hostel / Room:</span> {complaint.hostel.name} -{" "}
-              {complaint.room.roomNumber} (Floor {complaint.room.floor})
+              {complaint.room.roomNumber}
             </p>
             <p>
               <span className="font-medium">Anonymous:</span> {complaint.isAnonymous ? "Yes" : "No"}
