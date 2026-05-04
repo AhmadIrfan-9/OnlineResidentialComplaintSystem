@@ -819,3 +819,203 @@ export async function assignComplaint(
     return { success: false, error: "Failed to assign complaint" };
   }
 }
+
+export interface UpdateComplaintInput {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  isAnonymous: boolean;
+  attachments: string[];
+}
+
+export async function updateComplaint(
+  input: UpdateComplaintInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    if (session.user.role !== "STUDENT") {
+      return { success: false, error: "Only students can edit complaints" };
+    }
+
+    const studentProfile = await db.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (!studentProfile) {
+      return { success: false, error: "Student profile not found" };
+    }
+
+    const complaint = await db.complaint.findUnique({
+      where: { id: input.id },
+      select: { id: true, studentProfileId: true, status: true },
+    });
+
+    if (!complaint) {
+      return { success: false, error: "Complaint not found" };
+    }
+
+    if (complaint.studentProfileId !== studentProfile.id) {
+      return { success: false, error: "You can only edit your own complaints" };
+    }
+
+    if (complaint.status !== "PENDING") {
+      return { success: false, error: "Only pending complaints can be edited" };
+    }
+
+    const validatedCategory = ComplaintCategoryEnum.parse(input.category);
+
+    await db.$transaction(async (tx) => {
+      await tx.complaint.update({
+        where: { id: complaint.id },
+        data: {
+          title: input.title,
+          description: input.description,
+          category: validatedCategory,
+          isAnonymous: input.isAnonymous,
+        },
+      });
+
+      // Handle attachments
+      await tx.evidence.deleteMany({
+        where: { complaintId: complaint.id },
+      });
+
+      if (input.attachments && input.attachments.length > 0) {
+        await tx.evidence.createMany({
+          data: input.attachments.map((url) => ({
+            complaintId: complaint.id,
+            fileUrl: url,
+            fileType: inferFileTypeFromUrl(url),
+          })),
+        });
+      }
+
+      await tx.complaintUpdate.create({
+        data: {
+          complaintId: complaint.id,
+          updatedById: session.user.id,
+          content: "Complaint details updated by student.",
+        },
+      });
+    });
+
+    revalidatePath(`/complaints/${complaint.id}`);
+    revalidatePath("/student/complaints");
+    return { success: true };
+  } catch (error) {
+    console.error("[Update Complaint Error]", error);
+    return { success: false, error: "Failed to update complaint" };
+  }
+}
+
+export async function deleteComplaint(
+  id: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    if (session.user.role !== "STUDENT") {
+      return { success: false, error: "Only students can delete their complaints" };
+    }
+
+    const studentProfile = await db.studentProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+
+    if (!studentProfile) {
+      return { success: false, error: "Student profile not found" };
+    }
+
+    const complaint = await db.complaint.findUnique({
+      where: { id },
+      include: {
+        hostel: { select: { name: true } },
+        room: { select: { roomNumber: true } },
+      },
+    });
+
+    if (!complaint) {
+      return { success: false, error: "Complaint not found" };
+    }
+
+    if (complaint.studentProfileId !== studentProfile.id) {
+      return { success: false, error: "You can only delete your own complaints" };
+    }
+
+    if (complaint.status !== "PENDING") {
+      return { success: false, error: "Complaint cannot be deleted because it is already being processed" };
+    }
+
+    // Run AI Insight generation
+    let isSeriousOffense = false;
+    try {
+      const { generateComplaintInsight } = await import("@/lib/ai/insight");
+      const insight = await generateComplaintInsight({
+        id: complaint.id,
+        title: complaint.title,
+        description: complaint.description,
+        category: complaint.category,
+        hostelName: complaint.hostel.name,
+        roomNumber: complaint.room.roomNumber,
+        hostelBlock: complaint.locationBlock,
+        daysPending: 0,
+      });
+
+      if (insight.severityScore >= 8 || insight.evictionRisk) {
+        isSeriousOffense = true;
+      }
+    } catch (aiError) {
+      console.warn("[AI] Failed to generate insight during deletion", aiError);
+    }
+
+    const studentName = session.user.name || "Student";
+    
+    await db.$transaction(async (tx) => {
+      // Soft delete: hide from student, close ticket, but keep evidence
+      await tx.complaint.update({
+        where: { id: complaint.id },
+        data: {
+          studentProfileId: null,
+          status: "CLOSED",
+          closedAt: new Date(),
+        },
+      });
+
+      // Preserve liability record
+      await tx.complaintUpdate.create({
+        data: {
+          complaintId: complaint.id,
+          updatedById: session.user.id,
+          content: `Complaint deleted by Student ${studentName}. Liability record preserved.`,
+        },
+      });
+
+      if (isSeriousOffense) {
+        await tx.complaintUpdate.create({
+          data: {
+            complaintId: complaint.id,
+            updatedById: session.user.id,
+            content: "AI Security Alert: Deletion of this serious offense may be an attempt to cover up disciplinary behavior.",
+          },
+        });
+      }
+    });
+
+    revalidatePath("/student/complaints");
+    revalidatePath("/warden/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("[Delete Complaint Error]", error);
+    return { success: false, error: "Failed to delete complaint" };
+  }
+}

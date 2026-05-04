@@ -114,8 +114,9 @@ export default async function StudentComplaintDetailPage({
           initialTitle={complaint.title}
           initialDescription={complaint.description}
           initialCategory={complaint.category}
-
           initialAnonymous={complaint.isAnonymous}
+          initialAttachments={evidenceWithAccess.map((e) => e.fileUrl)}
+          location={`${complaint.hostel.name} - ${complaint.room.roomNumber}`}
         />
         <ComplaintUpdates complaintId={complaint.id} />
       </div>

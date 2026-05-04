@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addComplaintComment } from "@/actions/complaints";
+import { addComplaintComment, updateComplaint, deleteComplaint } from "@/actions/complaints";
 import { type ComplaintCategory } from "@/lib/validations";
+import { Loader2 } from "lucide-react";
 
 interface Props {
   complaintId: string;
@@ -11,11 +12,12 @@ interface Props {
   initialTitle: string;
   initialDescription: string;
   initialCategory: ComplaintCategory;
-
   initialAnonymous: boolean;
+  initialAttachments: string[];
+  location: string;
 }
 
-const EDITABLE_STATUSES = new Set(["SUBMITTED", "ACKNOWLEDGED"]);
+const EDITABLE_STATUSES = new Set(["PENDING"]);
 
 export function StudentComplaintDetailClient({
   complaintId,
@@ -23,16 +25,17 @@ export function StudentComplaintDetailClient({
   initialTitle,
   initialDescription,
   initialCategory,
-
   initialAnonymous,
+  initialAttachments,
+  location,
 }: Props) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
   const [category, setCategory] = useState<ComplaintCategory>(initialCategory);
-
   const [isAnonymous, setIsAnonymous] = useState(initialAnonymous);
+  const [attachmentUrls, setAttachmentUrls] = useState(initialAttachments.join(", "));
   const [editing, setEditing] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -57,43 +60,79 @@ export function StudentComplaintDetailClient({
   };
 
   const saveChanges = () => {
+    setFeedback("");
     startTransition(async () => {
-      const response = await fetch(`/api/complaints/${complaintId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const urls = attachmentUrls
+          .split(",")
+          .map((url) => url.trim())
+          .filter(Boolean);
+
+        // Pre-Validation: Evidence Integrity Guard
+        if (urls.length > 0) {
+          for (const url of urls) {
+            // Check if it's a new URL or existing
+            if (!initialAttachments.includes(url)) {
+              const validationRes = await fetch("/api/ai/vision-validate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  imageUrl: url,
+                  title: title,
+                  description: description,
+                  location: location,
+                }),
+              });
+
+              if (!validationRes.ok) {
+                const errData = await validationRes.json();
+                throw new Error(errData.error || "Image validation service failed.");
+              }
+
+              const aiResult = await validationRes.json();
+              if (aiResult.decision === "REJECTED") {
+                throw new Error(`Evidence Rejected: ${aiResult.rejection_reason} (AI Confidence: ${aiResult.confidence_score}%)`);
+              }
+            }
+          }
+        }
+
+        const result = await updateComplaint({
+          id: complaintId,
           title,
           description,
           category,
-
           isAnonymous,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setFeedback(data.message ?? "Failed to update complaint.");
-        return;
+          attachments: urls,
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || "Failed to update complaint.");
+        }
+
+        setEditing(false);
+        setFeedback("Complaint updated successfully.");
+        router.refresh();
+      } catch (err) {
+        setFeedback(err instanceof Error ? err.message : "An unexpected error occurred.");
       }
-      setEditing(false);
-      setFeedback("Complaint updated.");
-      router.refresh();
     });
   };
 
-  const deleteComplaint = () => {
-    if (!window.confirm("Delete this complaint permanently?")) return;
+  const handleDelete = () => {
+    if (!window.confirm("Are you sure you want to delete ticket #" + complaintId.slice(0, 8).toUpperCase() + "? This action cannot be undone. / Adakah anda pasti? Tindakan ini tidak boleh diundur.")) return;
 
     startTransition(async () => {
-      const response = await fetch(`/api/complaints/${complaintId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setFeedback(data.message ?? "Failed to delete complaint.");
-        return;
+      try {
+        const result = await deleteComplaint(complaintId);
+        if (!result.success) {
+          throw new Error(result.error || "Failed to delete complaint.");
+        }
+        router.push("/dashboard/student");
+        router.refresh();
+      } catch (err) {
+        setFeedback(err instanceof Error ? err.message : "An unexpected error occurred.");
       }
-      router.push("/complaints");
-      router.refresh();
     });
   };
 
@@ -102,7 +141,7 @@ export function StudentComplaintDetailClient({
       <div className="surface-card p-4">
         <h2 className="text-base font-semibold text-slate-900">Complaint actions</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Editable only while status is Submitted or Acknowledged.
+          Editable only while status is Pending.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -114,23 +153,36 @@ export function StudentComplaintDetailClient({
           </button>
           <button
             className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100 disabled:opacity-50"
-            onClick={deleteComplaint}
+            onClick={handleDelete}
             disabled={!canEdit || isPending}
           >
             Delete Complaint
           </button>
         </div>
         {editing ? (
-          <div className="mt-3 grid gap-2">
+          <div className="mt-4 grid gap-3 border-t border-slate-100 pt-3">
+            {feedback && (
+              <div className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                {feedback}
+              </div>
+            )}
             <input
               className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              placeholder="Complaint Title"
             />
             <textarea
               className="min-h-28 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Detailed Description"
+            />
+            <input
+              className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
+              value={attachmentUrls}
+              onChange={(e) => setAttachmentUrls(e.target.value)}
+              placeholder="https://example.com/image.jpg (comma-separated for multiple)"
             />
             <div className="grid gap-2 md:grid-cols-3">
               <select
@@ -165,10 +217,11 @@ export function StudentComplaintDetailClient({
               </label>
             </div>
             <button
-              className="w-fit rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="w-fit flex items-center gap-2 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               onClick={saveChanges}
               disabled={isPending}
             >
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Changes
             </button>
           </div>

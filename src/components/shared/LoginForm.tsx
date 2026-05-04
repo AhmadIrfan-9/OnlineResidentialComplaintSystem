@@ -77,18 +77,26 @@ export function LoginForm() {
       });
 
       if (!result?.ok) {
-        setError(
-          result?.error ||
-            "Authentication failed. Please verify your credentials and try again."
-        );
+        if (result?.error === "CredentialsSignin") {
+          setError("Invalid email or password. Please verify your credentials and try again.");
+        } else {
+          setError(
+            result?.error ||
+              "Authentication failed. Please verify your credentials and try again."
+          );
+        }
         setIsLoading(false);
         return;
       }
 
       router.push("/");
       router.refresh();
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (err: any) {
+      if (err?.type === "CredentialsSignin" || err?.message?.includes("CredentialsSignin")) {
+        setError("Invalid email or password. Please verify your credentials and try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
       setIsLoading(false);
     }
   };
@@ -454,7 +462,7 @@ export function LoginForm() {
               itsupport@uniten.edu.my
             </a>
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-400" suppressHydrationWarning>
             &copy; {new Date().getFullYear()} Universiti Tenaga Nasional. All
             rights reserved.
           </p>
