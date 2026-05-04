@@ -96,31 +96,56 @@ function SidebarLinks({ pathname, role }: { pathname: string; role: string | und
 }
 
 function LogoutButton() {
-  const [confirming, setConfirming] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    if (confirming) {
-      logoutAndRedirect("manual");
-    } else {
-      setConfirming(true);
-      setTimeout(() => setConfirming(false), 3000); // Reset after 3 seconds
-    }
+  const handleConfirm = () => {
+    setIsLoggingOut(true);
+    logoutAndRedirect("manual");
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleLogout}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm",
-        confirming
-          ? "bg-red-700 text-white ring-2 ring-red-500 ring-offset-2 ring-offset-white"
-          : "bg-red-600 text-white hover:bg-red-700 hover:shadow-md"
+    <>
+      <button
+        type="button"
+        onClick={() => setShowModal(true)}
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm bg-red-600 text-white hover:bg-red-700 hover:shadow-md"
+      >
+        <LogOut className="h-4 w-4 text-white" />
+        <span>Sign Out</span>
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="mb-2 text-lg font-bold text-slate-900">
+              Confirm Sign Out / Sahkan Log Keluar
+            </h3>
+            <p className="mb-6 text-sm text-slate-500">
+              Are you sure you want to end your session? / Adakah anda pasti ingin menamatkan sesi ini?
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                disabled={isLoggingOut}
+                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+              >
+                No, Stay
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={isLoggingOut}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 hover:shadow-md disabled:opacity-50"
+              >
+                {isLoggingOut ? "Signing Out..." : "Yes, Sign Out"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    >
-      <LogOut className="h-4 w-4 text-white" />
-      <span>{confirming ? "Are you sure?" : "Sign Out"}</span>
-    </button>
+    </>
   );
 }
 
@@ -136,15 +161,15 @@ export function DashboardSidebar() {
 
   const brand = (
     <div className="px-6 py-8">
-      <div className="flex items-center gap-2">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1 ring-1 ring-slate-200 shadow-sm">
-          <Image src="/assets/logo-light.png" alt="ORCS" width={40} height={40} className="object-contain" />
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1.5 ring-1 ring-slate-200 shadow-sm">
+          <Image src="/assets/logo-light.png" alt="ORCS" width={52} height={52} className="object-contain" />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="text-xl font-bold uppercase tracking-widest text-slate-400">
             UNITEN CCI
           </p>
-          <h1 className="text-sm font-bold text-slate-900">
+          <h1 className="text-lg font-bold text-slate-900">
             Residential Portal
           </h1>
         </div>
@@ -181,7 +206,7 @@ export function DashboardSidebar() {
                   <Menu className="h-5 w-5 text-slate-600" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="!top-0 !left-0 flex h-[100dvh] w-[280px] max-w-[280px] !translate-x-0 !translate-y-0 flex-col rounded-none border-none bg-white p-0 shadow-2xl">
+              <DialogContent className="!top-0 !left-0 flex h-[100dvh] w-[320px] max-w-[320px] !translate-x-0 !translate-y-0 flex-col rounded-none border-none bg-white p-0 shadow-2xl">
                 <DialogTitle className="sr-only">Navigation Menu</DialogTitle>
                 {brand}
                 <div className="flex-1 overflow-y-auto px-4 pb-4">

@@ -158,20 +158,19 @@ export default async function StudentDashboardPage() {
       </section>
 
       {/* ── Submit CTA ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <Link
           href="/complaints/new"
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-blue-800 hover:shadow-md active:translate-y-0"
-          style={{ background: "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
+          className="group relative inline-flex origin-center items-center gap-2 rounded-xl bg-gradient-to-br from-[#003087] to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:from-blue-600 hover:to-blue-800 hover:shadow-[0_0_20px_rgba(29,78,216,0.6)] active:scale-95"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
           Submit New Complaint
         </Link>
         <Link
           href="/complaints"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+          className="group inline-flex origin-center items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:border-slate-300 hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100 hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] active:scale-95"
         >
-          <FileText className="h-4 w-4 text-slate-500" />
+          <FileText className="h-4 w-4 text-slate-500 transition-colors duration-300 group-hover:text-slate-700" />
           View All
         </Link>
       </div>
