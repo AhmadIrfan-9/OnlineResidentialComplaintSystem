@@ -1,263 +1,211 @@
 /**
  * src/scripts/seed-ai.ts
  *
- * Seeds the complaint_embeddings table with 50 synthetic 'Past Complaints'
- * to serve as Reference Anchors for the Cosine Similarity RAG pipeline.
+ * Seeds the complaint_embeddings table with 20 ground-truth Anchor Cases
+ * to serve as reference points for the Cosine Similarity RAG pipeline.
  */
 
 import { getComplaintEmbedding } from "../lib/ai/embeddings";
 import { upsertComplaintEmbedding } from "../lib/ai/retrieval";
-import { randomUUID } from "crypto";
 
-// Helper to generate a complaint ID
-const genId = (idx: number) => `seed-complaint-${idx}`;
-
-const HISTORICAL_COMPLAINTS = [
-  // High Severity / Emergency
+const ANCHOR_CASES = [
   {
-    title: "Digital lock battery dead, cannot enter room",
-    category: "Maintenance",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 9,
-    outcome: "Resolved in 1 hour. Dispatched emergency technician.",
+    id: "001",
+    title: "Exposed Wiring",
+    description: "There are sparks coming from the wall socket near the bed in C1-04-02.",
+    category: "Security/Safety",
+    priority: 10,
+    reasoning: "Life Safety: Immediate fire hazard."
   },
   {
-    title: "Water pipe burst in bathroom",
-    category: "Plumbing",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 10,
-    outcome: "Resolved in 2 hours. Main valve shut off immediately.",
+    id: "002",
+    title: "Theft of Laptop",
+    description: "My laptop was stolen from my room while I was at class today.",
+    category: "Security/Safety",
+    priority: 9,
+    reasoning: "Criminal Offense: Requires immediate security and police report."
   },
   {
-    title: "Smoke smell in the corridor",
-    category: "Security",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 10,
-    outcome: "Escalated to Fire Department. Resolved. Warning issued.",
-  },
-  {
-    title: "Sparking electrical outlet",
-    category: "Electrical",
-    hostelName: "Cendekiawan",
-    hostelBlock: "D",
-    severityScore: 9,
-    outcome: "Resolved in 3 hours. Replaced faulty socket. Room power isolated.",
-  },
-  {
-    title: "Student collapsed in lobby",
-    category: "Health & Safety",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 10,
-    outcome: "Escalated to emergency services. Ambulance called immediately.",
-  },
-  {
-    title: "Main entrance glass door shattered",
-    category: "Maintenance",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 8,
-    outcome: "Resolved in 4 hours. Temporary barricade placed, glass replaced.",
-  },
-  {
-    title: "Stranger sleeping in common room",
-    category: "Security",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 9,
-    outcome: "Escalated to campus security. Intruder removed.",
-  },
-
-  // Medium Severity / Urgent
-  {
-    title: "Aircon leaking water onto desk",
-    category: "Maintenance",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 6,
-    outcome: "Resolved in 1 day. Aircon serviced and pipe cleared.",
-  },
-  {
-    title: "No hot water in shower",
-    category: "Plumbing",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 5,
-    outcome: "Resolved in 2 days. Heater unit replaced.",
-  },
-  {
-    title: "Wifi router blinking red, no internet",
-    category: "IT Support",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 7,
-    outcome: "Resolved in 4 hours. Router reset and firmware updated.",
-  },
-  {
-    title: "Loud party next door after midnight",
+    id: "003",
+    title: "Unauthorized Guest",
+    description: "An outsider has been staying in room C2-05-01 for the past three nights.",
     category: "Discipline",
-    hostelName: "Cendekiawan",
-    hostelBlock: "D",
-    severityScore: 6,
-    outcome: "Resolved. Warden intervened. RM50 fine issued to residents.",
+    priority: 8,
+    reasoning: "Section 7(b): Violation of guest policy; RM50 fine."
   },
   {
-    title: "Washing machine swallowed coins but didn't start",
-    category: "Facilities",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 5,
-    outcome: "Resolved in 2 days. Vendor refunded money and repaired machine.",
-  },
-  {
-    title: "Foul smell from rubbish chute",
-    category: "Cleanliness",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 6,
-    outcome: "Resolved in 1 day. Cleaners cleared blockage and sanitized.",
-  },
-  {
-    title: "Room window latch broken",
-    category: "Maintenance",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 5,
-    outcome: "Resolved in 3 days. Latch replaced.",
-  },
-  {
-    title: "Smoking in corridor",
+    id: "004",
+    title: "Smoking in Room",
+    description: "Strong smell of cigarette smoke coming from unit C3-02-04.",
     category: "Discipline",
-    hostelName: "Cendekiawan",
-    hostelBlock: "D",
-    severityScore: 7,
-    outcome: "Escalated to Management. RM100 fine issued.",
+    priority: 8,
+    reasoning: "Serious Offense: Prohibited behavior; RM250 fine."
   },
   {
-    title: "Pantry sink clogged",
+    id: "005",
+    title: "Broken Digital Lock",
+    description: "The digital keypad at the main door is totally dead; we are locked out.",
+    category: "Security/Safety",
+    priority: 7,
+    reasoning: "Major Asset: High-value equipment (RM1500); limits access."
+  },
+  {
+    id: "006",
+    title: "AC Not Cooling",
+    description: "The air conditioner in the common area is blowing hot air and making noise.",
+    category: "Utilities/Asset",
+    priority: 7,
+    reasoning: "Major Asset: High-value equipment; affects living conditions."
+  },
+  {
+    id: "007",
+    title: "Total Water Cut",
+    description: "No water at all in the bathroom or kitchen sinks since this morning.",
     category: "Plumbing",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 5,
-    outcome: "Resolved in 1 day. Plumber cleared food waste.",
+    priority: 6,
+    reasoning: "Essential Utility: Affects basic hygiene and student welfare."
   },
-
-  // Low Severity / Routine
   {
-    title: "Lightbulb fused in hallway",
+    id: "008",
+    title: "Power Trip (Unit)",
+    description: "The electricity went out only in our unit after using the kettle.",
     category: "Electrical",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 3,
-    outcome: "Resolved in 2 days. Bulb replaced by maintenance.",
+    priority: 6,
+    reasoning: "Essential Utility: Disrupts study and daily activities."
   },
   {
-    title: "Chair wheel broken",
+    id: "009",
+    title: "Clogged Toilet",
+    description: "The master bathroom toilet is overflowing and cannot be used.",
+    category: "Plumbing",
+    priority: 5,
+    reasoning: "Basic Hygiene: Health risk and inconvenience."
+  },
+  {
+    id: "010",
+    title: "Ants/Pest Issue",
+    description: "There is a massive ant infestation in the kitchen cupboards in C1-08-01.",
+    category: "Maintenance",
+    priority: 5,
+    reasoning: "Basic Hygiene: Affects food safety and comfort."
+  },
+  {
+    id: "011",
+    title: "Damaged Mattress",
+    description: "I noticed a large tear and spring poking out of the provided mattress.",
     category: "Furniture",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 2,
-    outcome: "Resolved in 4 days. New chair issued from store.",
+    priority: 4,
+    reasoning: "Furniture Damage: Replaceable item; potential RM300 fine."
   },
   {
-    title: "Ants in the pantry",
-    category: "Pest Control",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 4,
-    outcome: "Resolved in 1 week. Pest control sprayed area.",
+    id: "012",
+    title: "Prohibited Item",
+    description: "Room check found a high-wattage air fryer being used in the bedroom.",
+    category: "Discipline",
+    priority: 4,
+    reasoning: "Section 7(h): Prohibited electrical appliance; fire risk."
   },
   {
-    title: "Dusty fan in room",
-    category: "Cleanliness",
-    hostelName: "Cendekiawan",
-    hostelBlock: "D",
-    severityScore: 1,
-    outcome: "Resolved. Student advised to clean it themselves.",
+    id: "013",
+    title: "Broken Study Chair",
+    description: "One of the wheels on my study chair has snapped off.",
+    category: "Furniture",
+    priority: 3,
+    reasoning: "General Repair: Minor furniture replacement."
   },
   {
-    title: "Study lamp not working",
+    id: "014",
+    title: "Burnt Lightbulb",
+    description: "The ceiling light in the hallway has burnt out and needs a new bulb.",
     category: "Electrical",
-    hostelName: "Cendekiawan",
-    hostelBlock: "A",
-    severityScore: 2,
-    outcome: "Resolved in 3 days. Lamp replaced.",
+    priority: 3,
+    reasoning: "General Repair: Simple maintenance task."
   },
   {
-    title: "Mattress feels uncomfortable",
+    id: "015",
+    title: "Squeaky Door",
+    description: "The bedroom door makes a very loud noise every time it opens.",
+    category: "Maintenance",
+    priority: 2,
+    reasoning: "General Repair: Minor annoyance; non-urgent."
+  },
+  {
+    id: "016",
+    title: "Wall Paint Peeling",
+    description: "The paint on the ceiling is starting to peel and flake off.",
+    category: "Maintenance",
+    priority: 2,
+    reasoning: "Cosmetic: Minor aesthetic issue."
+  },
+  {
+    id: "017",
+    title: "Loose Cabinet Handle",
+    description: "The handle on the kitchen cabinet is loose and about to fall off.",
     category: "Furniture",
-    hostelName: "Cendekiawan",
-    hostelBlock: "B",
-    severityScore: 1,
-    outcome: "Rejected. Mattress is within standard age limit.",
+    priority: 2,
+    reasoning: "General Repair: Minor fix."
   },
   {
-    title: "Slow internet connection during peak hours",
-    category: "IT Support",
-    hostelName: "Cendekiawan",
-    hostelBlock: "C",
-    severityScore: 3,
-    outcome: "Resolved. IT notified and bandwidth allocated.",
+    id: "018",
+    title: "Stained Curtains",
+    description: "The curtains provided in the room have old coffee stains on them.",
+    category: "Maintenance",
+    priority: 1,
+    reasoning: "Cosmetic: Non-functional issue; very low priority."
   },
   {
-    title: "Vending machine out of stock",
-    category: "Facilities",
-    hostelName: "Cendekiawan",
-    hostelBlock: "D",
-    severityScore: 1,
-    outcome: "Resolved. Vendor notified to restock.",
+    id: "019",
+    title: "Vandalized Signage",
+    description: "Someone has scratched graffiti onto the 'Exit' sign in the corridor.",
+    category: "Discipline",
+    priority: 8,
+    reasoning: "Vandalism: Intentional damage to university property."
   },
+  {
+    id: "020",
+    title: "Broken Window Latch",
+    description: "The window in the living room cannot be locked properly.",
+    category: "Security/Safety",
+    priority: 7,
+    reasoning: "Security: High risk of unauthorized entry to the unit."
+  }
 ];
 
-// Add more procedural low/medium severity cases to reach 50
-const categories = ["Maintenance", "Plumbing", "Electrical", "IT Support", "Discipline", "Cleanliness"];
-const blocks = ["A", "B", "C", "D"];
-for (let i = HISTORICAL_COMPLAINTS.length; i < 50; i++) {
-  const cat = categories[i % categories.length];
-  const block = blocks[i % blocks.length];
-  HISTORICAL_COMPLAINTS.push({
-    title: `Minor ${cat.toLowerCase()} issue in block ${block}`,
-    category: cat,
-    hostelName: "Cendekiawan",
-    hostelBlock: block,
-    severityScore: Math.floor(Math.random() * 4) + 1, // 1-4
-    outcome: `Resolved in ${Math.floor(Math.random() * 5) + 1} days. Standard procedure followed.`,
-  });
-}
-
 async function runSeed() {
-  console.log(`[SEED] Starting embedding generation for ${HISTORICAL_COMPLAINTS.length} historical complaints...`);
+  console.log(`[SEED] Starting embedding generation for ${ANCHOR_CASES.length} Anchor Cases...`);
 
   let count = 0;
-  for (const item of HISTORICAL_COMPLAINTS) {
+  for (const item of ANCHOR_CASES) {
     count++;
-    console.log(`[SEED] Processing ${count}/${HISTORICAL_COMPLAINTS.length}: ${item.title}`);
+    console.log(`[SEED] Processing ${count}/${ANCHOR_CASES.length}: ${item.title}`);
     
+    // We mock the block based on description or just set it to null if not explicit.
+    // The embedding function uses these to structure the embedded text.
+    const blockMatch = item.description.match(/C[1-3]/);
+    const block = blockMatch ? blockMatch[0] : null;
+
     const embedding = await getComplaintEmbedding({
       title: item.title,
-      description: `Historical case: ${item.title}. Severity: ${item.severityScore}/10`,
+      description: item.description,
       category: item.category,
-      hostelName: item.hostelName,
-      hostelBlock: item.hostelBlock,
+      hostelName: "Cendekiawan",
+      hostelBlock: block,
       roomNumber: null,
     });
 
     await upsertComplaintEmbedding({
-      id: randomUUID(),
-      complaintId: genId(count),
+      id: `anchor-${item.id}`,
+      complaintId: `anchor-${item.id}`,
       category: item.category,
-      hostelName: item.hostelName,
-      hostelBlock: item.hostelBlock,
-      descriptionSnap: `Historical case: ${item.title}. Severity: ${item.severityScore}/10`,
-      resolutionSnap: `[Severity: ${item.severityScore}/10] ${item.outcome}`,
+      hostelName: "Cendekiawan",
+      hostelBlock: block,
+      descriptionSnap: `Title: ${item.title}\nDescription: ${item.description}`,
+      resolutionSnap: `[Priority: ${item.priority}/10] Reasoning: ${item.reasoning}`,
       embedding,
     });
   }
 
-  console.log(`[SEED] Successfully seeded ${HISTORICAL_COMPLAINTS.length} cases.`);
+  console.log(`[SEED] Successfully seeded ${ANCHOR_CASES.length} anchor cases.`);
 }
 
 runSeed().catch(console.error);

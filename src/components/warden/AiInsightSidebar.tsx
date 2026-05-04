@@ -34,10 +34,11 @@ interface AiInsightData {
   similarCaseCount: number;
   suggestedFine: string | null;
   evictionRisk: boolean;
+  estimatedResolutionTime: string | null;
   generatedAt: string;
   latencyMs: number;
   severityScore: number;
-  suggestedPriority: "ROUTINE" | "URGENT" | "EMERGENCY";
+  suggestedPriority: "LOW" | "MEDIUM" | "HIGH";
   error?: string;
   fallback?: boolean;
 }
@@ -684,19 +685,27 @@ export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggeste
               </div>
 
               {/* Triage Info */}
-              <div style={{ marginBottom: "14px", display: "flex", gap: "8px" }}>
+              <div style={{ marginBottom: "14px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <div style={{
-                  flex: 1, background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)", borderRadius: "10px", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "center"
+                  flex: "1 1 0", minWidth: "100px", background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)", borderRadius: "10px", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "center"
                 }}>
-                  <span style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 700, letterSpacing: "0.05em" }}>SEVERITY SCORE</span>
+                  <span style={{ fontSize: "10px", color: "#38bdf8", fontWeight: 700, letterSpacing: "0.05em", textAlign: "center" }}>SEVERITY</span>
                   <span style={{ fontSize: "18px", color: "#bae6fd", fontWeight: 800 }}>{data.severityScore}/10</span>
                 </div>
                 <div style={{
-                  flex: 1, background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.3)", borderRadius: "10px", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "center"
+                  flex: "1 1 0", minWidth: "100px", background: "rgba(167,139,250,0.1)", border: "1px solid rgba(167,139,250,0.3)", borderRadius: "10px", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "center"
                 }}>
-                  <span style={{ fontSize: "10px", color: "#a78bfa", fontWeight: 700, letterSpacing: "0.05em" }}>AI PRIORITY</span>
+                  <span style={{ fontSize: "10px", color: "#a78bfa", fontWeight: 700, letterSpacing: "0.05em", textAlign: "center" }}>PRIORITY</span>
                   <span style={{ fontSize: "14px", color: "#ddd6fe", fontWeight: 800, marginTop: "2px" }}>{data.suggestedPriority}</span>
                 </div>
+                {data.estimatedResolutionTime && (
+                  <div style={{
+                    flex: "1 1 0", minWidth: "100px", background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "8px 12px", display: "flex", flexDirection: "column", alignItems: "center"
+                  }}>
+                    <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 700, letterSpacing: "0.05em", textAlign: "center" }}>SLA ESTIMATE</span>
+                    <span style={{ fontSize: "12px", color: "#a7f3d0", fontWeight: 800, marginTop: "4px", textAlign: "center" }}>{data.estimatedResolutionTime}</span>
+                  </div>
+                )}
               </div>
 
               {/* Suggested Action */}

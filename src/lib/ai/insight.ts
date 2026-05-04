@@ -33,7 +33,7 @@ function getClient(): OpenAI {
 
 const AiInsightSchema = z.object({
   severityScore: z.number().int().min(1).max(10),
-  suggestedPriority: z.enum(["ROUTINE", "URGENT", "EMERGENCY"]),
+  suggestedPriority: z.enum(["LOW", "MEDIUM", "HIGH"]),
   confidence: z.number().min(0).max(1),
   reason: z.string().min(1).max(500),
   suggestedAction: z.string().min(1).max(600),
@@ -41,6 +41,7 @@ const AiInsightSchema = z.object({
   similarCaseCount: z.number().int().min(0),
   suggestedFine: z.string().nullable(),
   evictionRisk: z.boolean().default(false),
+  estimatedResolutionTime: z.string().nullable(),
 });
 
 // ─── Public Types ─────────────────────────────────────────────────────────────
@@ -155,7 +156,7 @@ export async function generateComplaintInsight(
     // Return a graceful fallback rather than crashing
     const fallback: AiInsight = {
       severityScore: 1,
-      suggestedPriority: "ROUTINE",
+      suggestedPriority: "LOW",
       confidence: 0,
       reason: "AI analysis could not be validated. Please review manually.",
       suggestedAction: "Manual review required.",
@@ -163,6 +164,7 @@ export async function generateComplaintInsight(
       similarCaseCount: similarCases.length,
       suggestedFine: null,
       evictionRisk: false,
+      estimatedResolutionTime: null,
       generatedAt: new Date().toISOString(),
       latencyMs: Date.now() - t0,
     };

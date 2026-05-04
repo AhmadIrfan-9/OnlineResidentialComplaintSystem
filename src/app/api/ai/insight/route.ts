@@ -97,10 +97,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Automatically update the complaint priority in DB based on AI triage
-    if (insight.suggestedPriority && insight.suggestedPriority !== complaint.priority) {
+    const priorityMap: Record<string, "ROUTINE" | "URGENT" | "EMERGENCY"> = {
+      LOW: "ROUTINE",
+      MEDIUM: "URGENT",
+      HIGH: "EMERGENCY",
+    };
+    const mappedPriority = insight.suggestedPriority ? priorityMap[insight.suggestedPriority] : null;
+
+    if (mappedPriority && mappedPriority !== complaint.priority) {
       await db.complaint.update({
         where: { id: complaintId },
-        data: { priority: insight.suggestedPriority },
+        data: { priority: mappedPriority },
       });
     }
 
@@ -120,7 +127,7 @@ export async function POST(req: NextRequest) {
       {
         error: message,
         fallback: true,
-        priority: "ROUTINE",
+        suggestedPriority: "LOW",
         confidence: 0,
         reason: "AI analysis unavailable. Please review this complaint manually.",
         suggestedAction: "Follow standard hostel SOP for this category.",
