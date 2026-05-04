@@ -60,10 +60,7 @@ const getNavItems = (role: string | undefined) => {
 };
 
 const isActivePath = (pathname: string, href: string): boolean => {
-  if (href === "/dashboard/student" || href === "/warden/dashboard" || href === "/admin") {
-    return pathname === href;
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return pathname === href;
 };
 
 function SidebarLinks({ pathname, role }: { pathname: string; role: string | undefined }) {

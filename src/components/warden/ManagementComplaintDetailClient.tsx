@@ -73,6 +73,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
 
   // ── AI Drawer state ──
   const [aiOpen, setAiOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const applyStatusChange = (targetStatus: string, message?: string) => {
     startTransition(async () => {
@@ -437,30 +438,71 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           </div>
         </section>
 
-        {/* Quick Actions */}
+        {/* Actions Menu */}
         <section className="surface-card p-4">
-          <div className="flex flex-wrap gap-2">
-            <button className="nav-pill px-3 py-2 text-sm" onClick={sendMessage}>
-              Send Message
-            </button>
-            <button
-              className="nav-pill px-3 py-2 text-sm"
-              onClick={() => applyStatusChange("RESOLVED")}
-              disabled={isPending}
-            >
-              Mark as Resolved
-            </button>
-            <button className="nav-pill px-3 py-2 text-sm">Escalate to Management</button>
-            <button className="nav-pill px-3 py-2 text-sm">Add Note (internal)</button>
-            <button className="nav-pill px-3 py-2 text-sm" onClick={() => window.print()}>
-              Print/Export as PDF
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <Link
               href={`/warden/complaints/${detail.id}/resolve`}
-              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-sky-200 transition-transform hover:-translate-y-0.5 active:translate-y-0"
             >
               Open Resolution Form
             </Link>
+
+            <div className="relative">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
+                onClick={() => setActionsOpen((v) => !v)}
+              >
+                More Actions
+                <span className="text-slate-400">▼</span>
+              </button>
+
+              {actionsOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setActionsOpen(false)}
+                  />
+                  <div className="absolute bottom-full right-0 z-50 mb-2 w-56 origin-bottom-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1" role="menu">
+                      <button
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          // Handle escalate logic here
+                          setFeedback("Escalated to management (placeholder)");
+                        }}
+                      >
+                        Escalate to Management
+                      </button>
+                      <button
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          // Handle note logic here
+                          setFeedback("Note added (placeholder)");
+                        }}
+                      >
+                        Add Internal Note
+                      </button>
+                      <button
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionsOpen(false);
+                          window.print();
+                        }}
+                      >
+                        Print/Export as PDF
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </section>
 

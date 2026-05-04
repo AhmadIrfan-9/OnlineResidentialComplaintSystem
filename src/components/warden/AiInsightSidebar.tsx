@@ -647,6 +647,11 @@ export function AiInsightSidebar({ complaintId, isOpen, onClose, onApplySuggeste
 
               {/* Arc Confidence Gauge */}
               <ArcGauge value={data.confidence} color={confidenceColor} />
+              <div style={{ textAlign: "center", marginBottom: "14px", marginTop: "-4px" }}>
+                <span style={{ fontSize: "10px", color: "#64748b" }}>
+                  Confidence Score: Based on similarity to historical cases
+                </span>
+              </div>
 
               {/* Reason */}
               <div style={{ marginBottom: "14px" }}>
