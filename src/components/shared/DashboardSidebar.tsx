@@ -44,8 +44,7 @@ const getNavItems = (role: string | undefined) => {
     return [
       { label: "Dashboard", href: "/warden/dashboard", icon: LayoutDashboard },
       { label: "Complaint Queue", href: "/warden/queue", icon: ClipboardList },
-      { label: "Reports", href: "/warden/reports", icon: BarChart3 },
-      { label: "Analytics", href: "/warden/analytics", icon: Activity },
+      { label: "Command Center", href: "/warden/analytics", icon: Activity },
     ];
   }
   if (isStudentRole(role)) {
