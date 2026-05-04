@@ -10,6 +10,8 @@ export const runtime = "nodejs";
 const createEvidenceSchema = z.object({
   key: z.string().min(1, "Evidence key is required"),
   fileType: z.string().min(1, "File type is required"),
+  aiVerified: z.boolean().optional().default(true),
+  manualReviewRequired: z.boolean().optional().default(false),
 });
 
 const complaintScopeWhere = async (userId: string, role: string) => {
@@ -75,6 +77,8 @@ export async function POST(
         complaintId: complaint.id,
         fileUrl: parsedKey.key,
         fileType: payload.fileType,
+        aiVerified: payload.aiVerified,
+        manualReviewRequired: payload.manualReviewRequired,
       },
       select: {
         id: true,

@@ -78,7 +78,7 @@ const LOCATION_SECOND_OPTIONS = [
   "10",
 ] as const;
 const LOCATION_THIRD_OPTIONS = ["01", "02", "03", "04", "05", "06", "07", "08"] as const;
-type UploadedEvidence = { key: string; fileType: string };
+type UploadedEvidence = { key: string; fileType: string; fileName: string };
 const parseEvidenceKey = (key: string): { complaintId: string; fileUuid: string; ext: string } | null => {
   const match = key.match(
     /^([A-Za-z0-9][A-Za-z0-9_-]{0,127})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9]{1,16})$/i
@@ -350,19 +350,26 @@ export function StudentComplaintForm({
           uploadedEvidence.push({
             key: String(uploadPayload.data.key),
             fileType: file.type || "application/octet-stream",
+            fileName: file.name,
           });
           uploadedKeys.push(String(uploadPayload.data.key));
         }
 
         for (const evidence of uploadedEvidence) {
-          const linkResponse = await fetch(`/api/complaints/${complaintId}/evidence`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              key: evidence.key,
-              fileType: evidence.fileType,
-            }),
-          });
+            const validation = validations.find((v) => v.fileName === evidence.fileName);
+            const aiVerified = validation?.status === "error" ? false : true;
+            const manualReviewRequired = validation?.status === "error" ? true : false;
+
+            const linkResponse = await fetch(`/api/complaints/${complaintId}/evidence`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key: evidence.key,
+                fileType: evidence.fileType,
+                aiVerified,
+                manualReviewRequired,
+              }),
+            });
 
           if (!linkResponse.ok) {
             const linkPayload = await linkResponse.json();
@@ -683,7 +690,16 @@ export function StudentComplaintForm({
                     validation={validation}
                     onRetry={() => {
                       const file = files.find((f) => f.name === validation.fileName);
-                      if (file) validateFile(file);
+                      if (file) {
+                        setValidations((prev) =>
+                          prev.map((v) =>
+                            v.fileName === file.name
+                              ? { ...v, status: "idle" as const, result: null }
+                              : v
+                          )
+                        );
+                        validateFile(file);
+                      }
                     }}
                   />
                 ))}

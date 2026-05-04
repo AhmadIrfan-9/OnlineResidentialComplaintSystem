@@ -215,6 +215,9 @@ model Evidence {
   fileUrl  String
   fileType String
 
+  aiVerified           Boolean @default(true)  @map("ai_verified")
+  manualReviewRequired Boolean @default(false) @map("manual_review_required")
+
   // Relations
   complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
   complaintId String

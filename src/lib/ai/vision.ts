@@ -60,7 +60,7 @@ Step 3: Analyze the image. Does it contain the Visual Keyword?
 Step 4: Apply REJECTION criteria:
   - REJECT if the image is a meme, cartoon, or humorous content.
   - REJECT if the image is a selfie or portrait photo unrelated to facilities.
-  - REJECT if the image is a screenshot of a chat, social media, or web page.
+  - REJECT if the image is a screenshot of a chat, social media, or web page UNLESS the screenshot contains text explicitly related to a UNITEN hostel issue or complaint.
   - REJECT if the image is a generic internet/stock photo not taken in a hostel.
   - REJECT if the image is too blurry or dark to identify ANY facility issue.
   - REJECT if the image shows a COMPLETELY different issue than described (e.g., Title says "Broken chair" but image shows a clean bathroom).
@@ -69,7 +69,7 @@ Step 4: Apply REJECTION criteria:
 The Residential Handbook requires a "respectable manner." If the complaint title or description uses rude, vulgar, or offensive language in either language, note this in the explanation but do NOT reject the evidence based on language alone — focus on the IMAGE match.
 
 [Final Decision]
-Output a single valid JSON object — NO markdown, NO explanation outside the JSON:
+Output a single valid JSON object — NO markdown, NO explanation outside the JSON. DO NOT wrap the response in \`\`\`json ... \`\`\` markdown blocks:
 {
   "match": true | false,
   "detected_language": "English" | "Malay" | "Mixed",
