@@ -175,7 +175,7 @@ export function CommandCenterClient({
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         {[
-          { label: "Semester Total", value: totalComplaints, trend: trends.total, icon: ClipboardList, color: "text-slate-600" },
+          { label: "Total Semester Tickets", value: totalComplaints, trend: trends.total, icon: ClipboardList, color: "text-slate-600" },
           { label: "SLA Compliance", value: `${slaCompliance.toFixed(1)}%`, trend: trends.sla, icon: CheckCircle2, color: "text-tealPrimary" },
           { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, trend: trends.resolution, icon: Clock, color: "text-navyPrimary" },
           { label: "Semester Context", value: semesterName, subtext: "Active Period", icon: Calendar, color: "text-slate-900" },
@@ -331,45 +331,45 @@ export function CommandCenterClient({
 
       {/* Hidden Infographic Template for PDF Export */}
       <div className="sr-only">
-        <div ref={infographicRef} className="w-[800px] bg-white p-12 text-slate-900 font-sans">
-          <div className="flex items-center justify-between border-b-4 border-navyPrimary pb-8 mb-12">
+        <div ref={infographicRef} className="w-[800px] p-12 font-sans" style={{ backgroundColor: "#ffffff", color: "#0f172a" }}>
+          <div className="flex items-center justify-between border-b-4 pb-8 mb-12" style={{ borderColor: "#1e3a8a" }}>
              <div className="flex items-center gap-6">
-                <div className="h-20 w-20 bg-slate-50 flex items-center justify-center rounded-xl ring-2 ring-slate-200">
+                <div className="h-20 w-20 flex items-center justify-center rounded-xl ring-2" style={{ backgroundColor: "#f8fafc", boxShadow: "0 0 0 2px #e2e8f0" }}>
                    <img src="/assets/logo-light.png" alt="UNITEN" className="h-16 w-16 object-contain" />
                 </div>
                 <div>
-                   <h1 className="text-4xl font-black uppercase tracking-tighter text-navyPrimary">Management Report</h1>
-                   <p className="text-xl font-bold text-slate-400">UNITEN Residential Portal | {semesterName}</p>
+                   <h1 className="text-4xl font-black uppercase tracking-tighter" style={{ color: "#1e3a8a" }}>Management Report</h1>
+                   <p className="text-xl font-bold" style={{ color: "#94a3b8" }}>UNITEN Residential Portal | {semesterName}</p>
                 </div>
              </div>
              <div className="text-right">
-                <p className="text-sm font-bold text-slate-400">Generated On</p>
-                <p className="text-lg font-black text-navyPrimary">{new Date().toLocaleDateString()}</p>
+                <p className="text-sm font-bold" style={{ color: "#94a3b8" }}>Generated On</p>
+                <p className="text-lg font-black" style={{ color: "#1e3a8a" }}>{new Date().toLocaleDateString()}</p>
              </div>
           </div>
 
           <div className="grid grid-cols-3 gap-8 mb-12">
-             <div className="p-8 rounded-3xl bg-slate-50 ring-1 ring-slate-200">
-                <p className="text-sm font-bold text-slate-400 uppercase mb-2">Total Volume</p>
-                <p className="text-5xl font-black text-navyPrimary">{totalComplaints}</p>
-                <p className="text-sm font-bold text-emerald-600 mt-2">{trends.total.value} trend</p>
+             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#f8fafc", boxShadow: "0 0 0 1px #e2e8f0" }}>
+                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#94a3b8" }}>Total Volume</p>
+                <p className="text-5xl font-black" style={{ color: "#1e3a8a" }}>{totalComplaints}</p>
+                <p className="text-sm font-bold mt-2" style={{ color: "#059669" }}>{trends.total.value} trend</p>
              </div>
-             <div className="p-8 rounded-3xl bg-tealPrimary/5 ring-1 ring-tealPrimary/20">
-                <p className="text-sm font-bold text-slate-400 uppercase mb-2">SLA Performance</p>
-                <p className="text-5xl font-black text-tealPrimary">{slaCompliance.toFixed(1)}%</p>
-                <p className="text-sm font-bold text-tealPrimary mt-2">{trends.sla.value} vs target</p>
+             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#f0fdfa", boxShadow: "0 0 0 1px #ccfbf1" }}>
+                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#94a3b8" }}>SLA Performance</p>
+                <p className="text-5xl font-black" style={{ color: "#0f766e" }}>{slaCompliance.toFixed(1)}%</p>
+                <p className="text-sm font-bold mt-2" style={{ color: "#0f766e" }}>{trends.sla.value} vs target</p>
              </div>
-             <div className="p-8 rounded-3xl bg-slate-900 ring-1 ring-slate-800">
-                <p className="text-sm font-bold text-slate-500 uppercase mb-2">Avg Resolution</p>
-                <p className="text-5xl font-black text-white">{avgResolutionHours.toFixed(1)}h</p>
-                <p className="text-sm font-bold text-slate-400 mt-2">Operational Speed</p>
+             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#0f172a", boxShadow: "0 0 0 1px #1e293b" }}>
+                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#64748b" }}>Avg Resolution</p>
+                <p className="text-5xl font-black" style={{ color: "#ffffff" }}>{avgResolutionHours.toFixed(1)}h</p>
+                <p className="text-sm font-bold mt-2" style={{ color: "#94a3b8" }}>Operational Speed</p>
              </div>
           </div>
 
           <div className="grid grid-cols-2 gap-12 mb-12">
-             <div className="p-8 rounded-3xl bg-white ring-2 ring-slate-100 shadow-xl">
+             <div className="p-8 rounded-3xl ring-2 shadow-xl" style={{ backgroundColor: "#ffffff", boxShadow: "0 0 0 2px #f1f5f9, 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                   <div className="h-2 w-8 bg-navyPrimary rounded-full" />
+                   <div className="h-2 w-8 rounded-full" style={{ backgroundColor: "#1e3a8a" }} />
                    Category Breakdown
                 </h3>
                 <div className="space-y-4">
@@ -379,10 +379,10 @@ export function CommandCenterClient({
                             <span>{cat.name}</span>
                             <span>{cat.count}</span>
                          </div>
-                         <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                         <div className="h-3 w-full rounded-full overflow-hidden" style={{ backgroundColor: "#f1f5f9" }}>
                             <div 
-                              className="h-full bg-navyPrimary" 
-                              style={{ width: `${(cat.count / totalComplaints) * 100}%` }} 
+                              className="h-full" 
+                              style={{ width: `${(cat.count / totalComplaints) * 100}%`, backgroundColor: "#1e3a8a" }} 
                             />
                          </div>
                       </div>
@@ -390,26 +390,26 @@ export function CommandCenterClient({
                 </div>
              </div>
 
-             <div className="p-8 rounded-3xl bg-navyPrimary text-white shadow-2xl relative overflow-hidden">
-                <div className="absolute -top-12 -right-12 h-48 w-48 bg-white/10 rounded-full blur-3xl" />
+             <div className="p-8 rounded-3xl shadow-2xl relative overflow-hidden" style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}>
+                <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full blur-3xl" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                   <Zap className="h-6 w-6 text-tealSecondary" />
+                   <Zap className="h-6 w-6" style={{ color: "#14b8a6" }} />
                    AI Forensic Insight
                 </h3>
                 <div className="space-y-4 relative z-10">
                    <p className="text-sm leading-relaxed opacity-90 font-medium">
-                      Based on current metrics, <span className="font-black text-tealSecondary">{categoryData[0]?.name || "Maintenance"}</span> is the primary driver of student dissatisfaction. 
-                      Predictive analysis suggests focusing preventive maintenance on <span className="font-black text-tealSecondary">Block {overdueComplaints[0]?.hostel.name.split(' ')[1] || "A"}</span> to optimize SLA compliance next month.
+                      Based on current metrics, <span className="font-black" style={{ color: "#14b8a6" }}>{categoryData[0]?.name || "Maintenance"}</span> is the primary driver of student dissatisfaction. 
+                      Predictive analysis suggests focusing preventive maintenance on <span className="font-black" style={{ color: "#14b8a6" }}>Block {overdueComplaints[0]?.hostel.name.split(' ')[1] || "A"}</span> to optimize SLA compliance next month.
                    </p>
-                   <div className="p-4 rounded-xl bg-white/10 border border-white/20">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-tealSecondary">Recommendation</p>
+                   <div className="p-4 rounded-xl border" style={{ backgroundColor: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.2)" }}>
+                      <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#14b8a6" }}>Recommendation</p>
                       <p className="text-xs font-bold mt-1">Audit high-wattage appliance usage to reduce electrical trip recurrence.</p>
                    </div>
                 </div>
              </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-8 mt-auto flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          <div className="border-t pt-8 mt-auto flex justify-between items-center text-[10px] font-bold uppercase tracking-widest" style={{ borderColor: "#f1f5f9", color: "#94a3b8" }}>
              <p>© 2026 UNITEN Residential Services | All Rights Reserved</p>
              <p>Page 01 | Secure Operational Data</p>
           </div>

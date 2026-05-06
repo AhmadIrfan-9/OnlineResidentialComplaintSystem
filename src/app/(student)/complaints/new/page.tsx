@@ -1,31 +1,14 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { categoryLabels, type ComplaintCategory } from "@/lib/validations";
 import { StudentComplaintForm } from "@/components/shared/StudentComplaintForm";
-
-interface CategoryRow {
-  enumlabel: string;
-}
 
 interface CategoryOption {
   value: string;
   label: string;
 }
 
-const fallbackCategories: CategoryOption[] = (Object.keys(
-  categoryLabels
-) as ComplaintCategory[]).map(
-  (key) => ({
-    value: key,
-    label: categoryLabels[key],
-  })
-);
 
-const toLabel = (value: string): string => {
-  const key = value as ComplaintCategory;
-  return categoryLabels[key] ?? value.replaceAll("_", " ").toLowerCase();
-};
 
 export default async function NewComplaintPage() {
   const session = await auth();
@@ -61,24 +44,19 @@ export default async function NewComplaintPage() {
 
   const hostelName = studentProfile.room!.hostel.name;
 
-  let categories: CategoryOption[] = fallbackCategories;
+  let categories: CategoryOption[] = [];
   try {
-    const rows = await db.$queryRaw<CategoryRow[]>`
-      SELECT e.enumlabel
-      FROM pg_enum e
-      JOIN pg_type t ON t.oid = e.enumtypid
-      WHERE t.typname = 'ComplaintCategory'
-      ORDER BY e.enumsortorder
-    `;
+    const adminCategories = await db.adminCategory.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" }
+    });
 
-    if (rows.length > 0) {
-      categories = rows.map((row) => ({
-        value: row.enumlabel,
-        label: toLabel(row.enumlabel),
-      }));
-    }
-  } catch {
-    categories = fallbackCategories;
+    categories = adminCategories.map((row) => ({
+      value: row.name,
+      label: row.name,
+    }));
+  } catch (err) {
+    console.error("Failed to load categories", err);
   }
 
   return (

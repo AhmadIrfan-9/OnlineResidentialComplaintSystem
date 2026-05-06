@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ComplaintUpdates } from "@/components/shared/ComplaintUpdates";
 import { StudentComplaintDetailClient } from "@/components/student/StudentComplaintDetailClient";
-import { categoryLabels, statusLabels } from "@/lib/validations";
+import { statusLabels } from "@/lib/validations";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
 export default async function StudentComplaintDetailPage({
@@ -70,7 +70,7 @@ export default async function StudentComplaintDetailPage({
             </p>
 
             <p>
-              <span className="font-medium">Category:</span> {categoryLabels[complaint.category]}
+              <span className="font-medium">Category:</span> {complaint.category}
             </p>
             <p>
               <span className="font-medium">Hostel / Room:</span> {complaint.hostel.name} -{" "}

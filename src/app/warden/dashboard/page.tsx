@@ -302,7 +302,7 @@ export default async function ManagementDashboardPage() {
           
           <Link href="/warden/analytics" className="surface-card p-5 hover:border-purple-300 hover:bg-purple-50/50 transition-all cursor-pointer group flex-1">
             <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 flex items-center justify-between">
-              Management Command Center <TrendingUp className="h-4 w-4 text-slate-400 group-hover:text-purple-600" />
+              Management Insights <TrendingUp className="h-4 w-4 text-slate-400 group-hover:text-purple-600" />
             </h3>
             <p className="text-xs text-slate-500 mt-2">View detailed historical charts, category breakdowns, and semester reports.</p>
           </Link>

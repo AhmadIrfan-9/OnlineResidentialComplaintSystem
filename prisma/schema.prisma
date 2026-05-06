@@ -11,17 +11,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum ComplaintCategory {
-  PLUMBING
-  WIFI
-  ELECTRIC
-  CLEANING
-  FURNITURE
-  MAINTENANCE
-  NOISE
-  SECURITY
-  OTHER
-}
+
 
 enum Status {
   PENDING      // New / Assigned — awaiting action (replaces SUBMITTED + ACKNOWLEDGED)
@@ -165,7 +155,7 @@ model Complaint {
   title       String
   description String   @db.Text
   locationBlock String?
-  category    ComplaintCategory
+  category    String
   status      Status   @default(PENDING)
   priority    Priority @default(ROUTINE)
   isAnonymous Boolean  @default(false)
@@ -266,6 +256,9 @@ model AdminSlaSetting {
   safeThresholdDays     Int      @default(14)
   warningThresholdDays  Int      @default(30)
   reminderFrequencyDays Int      @default(14)
+  routineTargetHours    Int      @default(72)
+  urgentTargetHours     Int      @default(24)
+  emergencyTargetHours  Int      @default(4)
   updatedAt           DateTime @updatedAt
 
   @@map("admin_sla_settings")
@@ -306,7 +299,7 @@ model AuditLog {
 model ComplaintEmbedding {
   id               String            @id @default(cuid())
   complaintId      String            @unique @map("complaint_id")
-  category         ComplaintCategory
+  category         String
   hostelBlock      String?           @map("hostel_block")
   hostelName       String            @map("hostel_name")
   // Plain-text snapshot used for display in AI context window

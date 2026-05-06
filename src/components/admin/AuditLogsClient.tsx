@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+
 type AuditAction = "Login" | "Create" | "Update" | "Delete" | "View";
 
 type AuditLogRow = {
@@ -24,6 +27,7 @@ export function AuditLogsClient({ userOptions }: { userOptions: string[] }) {
   const [actionFilter, setActionFilter] = useState("All");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [selectedRow, setSelectedRow] = useState<AuditLogRow | null>(null);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -161,34 +165,88 @@ export function AuditLogsClient({ userOptions }: { userOptions: string[] }) {
 
       {loading ? <p className="text-sm text-slate-600">Loading logs...</p> : null}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1200px] text-sm">
+      <div className="w-full">
+        <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="py-2">Timestamp</th>
               <th className="py-2">User</th>
               <th className="py-2">Action</th>
-              <th className="py-2">Resource</th>
-              <th className="py-2">Before</th>
-              <th className="py-2">After</th>
-              <th className="py-2">IP Address</th>
+              <th className="py-2">Status</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr key={`${row.timestamp}-${idx}`} className="border-t border-slate-100">
+              <tr 
+                key={`${row.timestamp}-${idx}`} 
+                className="border-t border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors"
+                onClick={() => setSelectedRow(row)}
+              >
                 <td className="py-2 text-slate-700">{new Date(row.timestamp).toLocaleString()}</td>
-                <td className="py-2 text-slate-700">{row.user}</td>
+                <td className="py-2 text-slate-700 font-medium">{row.user}</td>
                 <td className="py-2 text-slate-700">{row.action}</td>
-                <td className="py-2 text-slate-700">{row.resource}</td>
-                <td className="py-2 text-slate-600">{row.before || "-"}</td>
-                <td className="py-2 text-slate-600">{row.after || "-"}</td>
-                <td className="py-2 text-slate-600">{row.ip}</td>
+                <td className="py-2">
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    Success
+                  </Badge>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!selectedRow} onOpenChange={(open) => !open && setSelectedRow(null)}>
+        <DialogContent className="sm:max-w-[600px] bg-slate-50 border-slate-200 overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Audit Log Detail</DialogTitle>
+            <DialogDescription>
+              Detailed view of the administrative action.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRow && (
+            <div className="space-y-4 text-sm mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <span className="text-slate-500 block text-xs uppercase">Timestamp</span>
+                  <p className="font-medium text-slate-900">{new Date(selectedRow.timestamp).toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-slate-500 block text-xs uppercase">User</span>
+                  <p className="font-medium text-slate-900">{selectedRow.user}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-slate-500 block text-xs uppercase">Action</span>
+                  <p className="font-medium text-slate-900">{selectedRow.action}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-slate-500 block text-xs uppercase">IP Address</span>
+                  <p className="font-medium text-slate-900">{selectedRow.ip}</p>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <span className="text-slate-500 block text-xs uppercase">Resource</span>
+                  <p className="font-medium text-slate-900">{selectedRow.resource}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <span className="text-slate-500 block text-xs uppercase">Before</span>
+                <div className="bg-white p-3 rounded-md border border-slate-200 text-slate-700 font-mono text-xs whitespace-pre-wrap overflow-x-auto">
+                  {selectedRow.before || "N/A"}
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <span className="text-slate-500 block text-xs uppercase">After</span>
+                <div className="bg-white p-3 rounded-md border border-slate-200 text-slate-700 font-mono text-xs whitespace-pre-wrap overflow-x-auto">
+                  {selectedRow.after || "N/A"}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

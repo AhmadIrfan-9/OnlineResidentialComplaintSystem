@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 const prisma = db; // Keep the 'prisma' alias to avoid changing all usages below
 import {
-  ComplaintCategoryEnum,
   complaintSubmissionSchema,
   ComplaintStatusEnum,
   type ComplaintSubmissionInput,
@@ -30,7 +29,7 @@ const createComplaintSubmissionSchema = z
   .object({
     title: z.string().min(5).max(100),
     description: z.string().min(10).max(2000),
-    category: ComplaintCategoryEnum,
+    category: z.string().min(1),
     locationBlock: z
       .string()
       .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
@@ -448,7 +447,7 @@ export async function updateComplaintCategory(
       };
     }
 
-    const validatedCategory = ComplaintCategoryEnum.parse(newCategory);
+    const validatedCategory = z.string().min(1).parse(newCategory);
 
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
@@ -868,7 +867,7 @@ export async function updateComplaint(
       return { success: false, error: "Only pending complaints can be edited" };
     }
 
-    const validatedCategory = ComplaintCategoryEnum.parse(input.category);
+    const validatedCategory = z.string().min(1).parse(input.category);
 
     await db.$transaction(async (tx) => {
       await tx.complaint.update({

@@ -23,6 +23,9 @@ interface SlaSetting {
   safeThresholdDays: number;
   warningThresholdDays: number;
   reminderFrequencyDays: number;
+  routineTargetHours: number;
+  urgentTargetHours: number;
+  emergencyTargetHours: number;
 }
 
 interface TemplateRow {
@@ -51,6 +54,9 @@ export function ConfigurationManagementClient() {
     safeThresholdDays: 14,
     warningThresholdDays: 30,
     reminderFrequencyDays: 14,
+    routineTargetHours: 72,
+    urgentTargetHours: 24,
+    emergencyTargetHours: 4,
   });
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
@@ -95,6 +101,9 @@ export function ConfigurationManagementClient() {
         safeThresholdDays: sData.setting?.safeThresholdDays ?? 14,
         warningThresholdDays: sData.setting?.warningThresholdDays ?? 30,
         reminderFrequencyDays: sData.setting?.reminderFrequencyDays ?? 14,
+        routineTargetHours: sData.setting?.routineTargetHours ?? 72,
+        urgentTargetHours: sData.setting?.urgentTargetHours ?? 24,
+        emergencyTargetHours: sData.setting?.emergencyTargetHours ?? 4,
       });
       setTemplates(tData.templates ?? []);
     } finally {
@@ -365,6 +374,9 @@ export function ConfigurationManagementClient() {
               ["Safe Threshold (days)", "safeThresholdDays"],
               ["Warning Threshold (days)", "warningThresholdDays"],
               ["Reminder Frequency (days)", "reminderFrequencyDays"],
+              ["Routine Target (hours)", "routineTargetHours"],
+              ["Urgent Target (hours)", "urgentTargetHours"],
+              ["Emergency Target (hours)", "emergencyTargetHours"],
             ].map(([label, key]) => (
               <label key={key} className="space-y-1 text-sm">
                 <span>{label}</span>

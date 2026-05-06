@@ -1,19 +1,6 @@
 import { z } from "zod";
 
-// Complaint Category enum - matches Prisma
-export const ComplaintCategoryEnum = z.enum([
-  "PLUMBING",
-  "WIFI",
-  "ELECTRIC",
-  "CLEANING",
-  "FURNITURE",
-  "MAINTENANCE",
-  "NOISE",
-  "SECURITY",
-  "OTHER",
-]);
 
-export type ComplaintCategory = z.infer<typeof ComplaintCategoryEnum>;
 
 
 // ─── Complaint Status enum ── 4 logical workflow states (matches Prisma) ──────
@@ -46,10 +33,7 @@ export const complaintSubmissionSchema = z.object({
     .string()
     .min(10, "Description must be at least 10 characters")
     .max(2000, "Description must not exceed 2000 characters"),
-  category: ComplaintCategoryEnum.refine(
-    (val) => val !== undefined,
-    "Please select a category"
-  ),
+  category: z.string().min(1, "Please select a category"),
   locationBlock: z
     .string()
     .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
@@ -80,18 +64,7 @@ export const complaintUpdateSchema = z.object({
 
 export type ComplaintUpdateInput = z.infer<typeof complaintUpdateSchema>;
 
-// Category display names
-export const categoryLabels: Record<ComplaintCategory, string> = {
-  PLUMBING: "Plumbing",
-  WIFI: "WiFi & Internet",
-  ELECTRIC: "Electrical",
-  CLEANING: "Cleaning",
-  FURNITURE: "Furniture",
-  MAINTENANCE: "Maintenance",
-  NOISE: "Noise",
-  SECURITY: "Security",
-  OTHER: "Other",
-};
+
 
 
 // ─── Status display ────────────────────────────────────────────────────────────

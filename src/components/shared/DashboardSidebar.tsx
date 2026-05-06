@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -44,7 +45,7 @@ const getNavItems = (role: string | undefined) => {
     return [
       { label: "Dashboard", href: "/warden/dashboard", icon: LayoutDashboard },
       { label: "Complaint Queue", href: "/warden/queue", icon: ClipboardList },
-      { label: "Command Center", href: "/warden/analytics", icon: Activity },
+      { label: "Management Insights", href: "/warden/analytics", icon: Activity },
     ];
   }
   if (isStudentRole(role)) {
@@ -105,42 +106,45 @@ function LogoutButton() {
       <button
         type="button"
         onClick={() => setShowModal(true)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm bg-red-600 text-white hover:bg-red-700 hover:shadow-md"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 shadow-sm bg-[#dc2626] text-[#ffffff] hover:bg-[#b91c1c] hover:shadow-md"
       >
-        <LogOut className="h-4 w-4 text-white" />
+        <LogOut className="h-4 w-4 text-[#ffffff]" />
         <span>Sign Out</span>
       </button>
 
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="mb-2 text-lg font-bold text-slate-900">
-              Confirm Sign Out / Sahkan Log Keluar
-            </h3>
-            <p className="mb-6 text-sm text-slate-500">
-              Are you sure you want to end your session? / Adakah anda pasti ingin menamatkan sesi ini?
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                disabled={isLoggingOut}
-                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
-              >
-                No, Stay
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={isLoggingOut}
-                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 hover:shadow-md disabled:opacity-50"
-              >
-                {isLoggingOut ? "Signing Out..." : "Yes, Sign Out"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showModal && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                <h3 className="mb-2 text-lg font-bold text-slate-900">
+                  Confirm Sign Out / Sahkan Log Keluar
+                </h3>
+                <p className="mb-6 text-sm text-slate-500">
+                  Are you sure you want to end your session? / Adakah anda pasti ingin menamatkan sesi ini?
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    disabled={isLoggingOut}
+                    className="rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    No, Stay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={isLoggingOut}
+                    className="rounded-lg bg-[#dc2626] px-4 py-2.5 text-sm font-semibold text-[#ffffff] shadow-sm transition-all hover:bg-[#b91c1c] hover:shadow-md disabled:opacity-50"
+                  >
+                    {isLoggingOut ? "Signing Out..." : "Yes, Sign Out"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }

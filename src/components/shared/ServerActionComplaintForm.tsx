@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   complaintSubmissionSchema,
-  categoryLabels,
-  ComplaintCategory,
   type ComplaintSubmissionInput,
 } from "@/lib/validations";
 import { createComplaint } from "@/actions/complaints";
@@ -44,6 +42,27 @@ export function ServerActionComplaintForm({
   const [isPending, startTransition] = useTransition();
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string>("");
+  const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+
+  
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories/active");
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
 
   const {
     register,
@@ -204,17 +223,17 @@ export function ServerActionComplaintForm({
             </Label>
             <Select
               onValueChange={(value) =>
-                setValue("category", value as ComplaintCategory)
+                setValue("category", value)
               }
-              disabled={isPending}
+              disabled={isPending || loadingCategories}
             >
               <SelectTrigger className={errors.category ? "border-red-500" : ""}>
-                <SelectValue placeholder="Select a category" />
+                <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select a category"} />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(categoryLabels).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -224,11 +243,10 @@ export function ServerActionComplaintForm({
             )}
           </div>
 
-          {selectedCategory && (
+          {selectedCategory && categories.find(c => c.name === selectedCategory)?.description && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-              <strong>Selected Category:</strong> {categoryLabels[selectedCategory]} -
-              Ensure your description matches this category for faster
-              resolution.
+              <strong>Selected Category:</strong> {selectedCategory} -
+              {categories.find(c => c.name === selectedCategory)?.description}
             </div>
           )}
 

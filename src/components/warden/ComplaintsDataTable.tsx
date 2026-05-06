@@ -12,13 +12,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
-  categoryLabels,
   statusColors,
   statusLabels,
-} from "@/lib/validations";
-import {
-  ComplaintCategory,
-  ComplaintStatus,
+  type ComplaintStatus,
 } from "@/lib/validations";
 import { Loader2 } from "lucide-react";
 import { updateComplaintStatus } from "@/actions/complaints";
@@ -39,7 +35,7 @@ export interface ComplaintDataRow {
   room: {
     roomNumber: string;
   };
-  category: ComplaintCategory;
+  category: string;
   status: ComplaintStatus;
   createdAt: string;
 }
@@ -162,7 +158,7 @@ export function ComplaintsDataTable() {
               </TableCell>
               <TableCell className="text-slate-700">{complaint.room.roomNumber}</TableCell>
               <TableCell>
-                {categoryLabels[complaint.category] || complaint.category}
+                {complaint.category}
               </TableCell>
               <TableCell>
                 <Select

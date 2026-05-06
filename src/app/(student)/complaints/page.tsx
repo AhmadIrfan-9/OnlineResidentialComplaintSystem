@@ -8,8 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   statusLabels,
   statusColors,
-  categoryLabels,
-  type ComplaintCategory,
   type ComplaintStatus,
 } from "@/lib/validations";
 import { Loader2, Plus, AlertCircle } from "lucide-react";
@@ -19,7 +17,7 @@ interface Complaint {
   id: string;
   title: string;
   description: string;
-  category: ComplaintCategory;
+  category: string;
   status: ComplaintStatus;
   createdAt: string;
   room: {
@@ -140,7 +138,7 @@ export default function StudentComplaintsPage() {
                               Category:
                             </span>{" "}
                             <span className="text-gray-600">
-                              {categoryLabels[complaint.category]}
+                              {complaint.category}
                             </span>
                           </div>
                           <div className="text-sm">

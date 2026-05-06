@@ -6,8 +6,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   complaintSubmissionSchema,
-  categoryLabels,
-  ComplaintCategory,
   type ComplaintSubmissionInput,
 } from "@/lib/validations";
 import { Button } from "@/components/ui/button";
@@ -173,6 +171,26 @@ export function ComplaintSubmissionForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submittedData, setSubmittedData] = useState<{ id: string; severityScore?: number; fellowName?: string } | null>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string; description: string }[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories/active");
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   const [loadingProgress, setLoadingProgress] = useState(0);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -368,17 +386,17 @@ export function ComplaintSubmissionForm({
               <RequiredLabel htmlFor="category">Category</RequiredLabel>
               <Select
                 onValueChange={(value) =>
-                  setValue("category", value as ComplaintCategory)
+                  setValue("category", value)
                 }
-                disabled={isSubmitting}
+                disabled={isSubmitting || loadingCategories}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a category" />
+                  <SelectValue placeholder={loadingCategories ? "Loading categories..." : "Select a category"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(categoryLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -391,11 +409,10 @@ export function ComplaintSubmissionForm({
             </div>
 
             {/* Category Help Text */}
-            {selectedCategory && (
+            {selectedCategory && categories.find(c => c.name === selectedCategory)?.description && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
                 <strong>Category Selected:</strong>{" "}
-                {categoryLabels[selectedCategory]} - Please provide relevant
-                details about this type of issue.
+                {selectedCategory} - {categories.find(c => c.name === selectedCategory)?.description}
               </div>
             )}
 

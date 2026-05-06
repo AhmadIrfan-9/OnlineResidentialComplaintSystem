@@ -7,6 +7,9 @@ const schema = z.object({
   safeThresholdDays: z.number().int().positive(),
   warningThresholdDays: z.number().int().positive(),
   reminderFrequencyDays: z.number().int().positive(),
+  routineTargetHours: z.number().int().positive(),
+  urgentTargetHours: z.number().int().positive(),
+  emergencyTargetHours: z.number().int().positive(),
 });
 
 export async function GET() {

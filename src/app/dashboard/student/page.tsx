@@ -161,14 +161,14 @@ export default async function StudentDashboardPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/complaints/new"
-          className="group relative inline-flex origin-center items-center gap-2 rounded-xl bg-gradient-to-br from-[#003087] to-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:from-blue-600 hover:to-blue-800 hover:shadow-[0_0_20px_rgba(29,78,216,0.6)] active:scale-95"
+          className="group relative inline-flex origin-center items-center gap-2 rounded-xl bg-gradient-to-br from-[#003087] to-[#1d4ed8] px-6 py-3 text-sm font-semibold text-[#ffffff] shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:from-[#2563eb] hover:to-[#1e40af] hover:shadow-[0_0_20px_rgba(29,78,216,0.6)] active:scale-95"
         >
           <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
           Submit New Complaint
         </Link>
         <Link
           href="/complaints"
-          className="group inline-flex origin-center items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:border-slate-300 hover:bg-gradient-to-br hover:from-slate-50 hover:to-slate-100 hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] active:scale-95"
+          className="group inline-flex origin-center items-center gap-2 rounded-xl border border-slate-200 bg-[#ffffff] px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:border-slate-300 hover:bg-gradient-to-br hover:from-[#f8fafc] hover:to-[#f1f5f9] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] active:scale-95"
         >
           <FileText className="h-4 w-4 text-slate-500 transition-colors duration-300 group-hover:text-slate-700" />
           View All

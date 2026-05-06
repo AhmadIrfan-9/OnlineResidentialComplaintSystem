@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addComplaintComment, updateComplaint, deleteComplaint } from "@/actions/complaints";
-import { type ComplaintCategory } from "@/lib/validations";
+
 import { Loader2 } from "lucide-react";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   status: string;
   initialTitle: string;
   initialDescription: string;
-  initialCategory: ComplaintCategory;
+  initialCategory: string;
   initialAnonymous: boolean;
   initialAttachments: string[];
   location: string;
@@ -33,7 +33,7 @@ export function StudentComplaintDetailClient({
   const [message, setMessage] = useState("");
   const [title, setTitle] = useState(initialTitle);
   const [description, setDescription] = useState(initialDescription);
-  const [category, setCategory] = useState<ComplaintCategory>(initialCategory);
+  const [category, setCategory] = useState<string>(initialCategory);
   const [isAnonymous, setIsAnonymous] = useState(initialAnonymous);
   const [attachmentUrls, setAttachmentUrls] = useState(initialAttachments.join(", "));
   const [editing, setEditing] = useState(false);
@@ -188,7 +188,7 @@ export function StudentComplaintDetailClient({
               <select
                 className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
                 value={category}
-                onChange={(e) => setCategory(e.target.value as ComplaintCategory)}
+                onChange={(e) => setCategory(e.target.value)}
               >
                 {[
                   "PLUMBING",
