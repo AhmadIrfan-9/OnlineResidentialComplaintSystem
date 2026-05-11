@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 const loginSchema = z.object({
@@ -48,6 +49,8 @@ type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("logout") === "inactive";
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -174,7 +177,7 @@ export function LoginForm() {
       {/* Card */}
       <div className="w-full rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
         {/* Card Header */}
-        <div className="flex flex-col items-center px-8 pt-8 pb-6 text-center border-b border-slate-100">
+        <div className="flex flex-col items-center px-4 sm:px-8 pt-8 pb-6 text-center border-b border-slate-100">
           {/* UNITEN Logo */}
           <div className="mb-5 flex items-center justify-center rounded-2xl bg-white p-3 shadow-md ring-1 ring-slate-100">
             <Image
@@ -204,9 +207,19 @@ export function LoginForm() {
         </div>
 
         {/* Form Body */}
-        <div className="px-8 py-7">
+        <div className="px-4 sm:px-8 py-7">
           {view === "login" && (
             <>
+              {/* Session Timeout Warning Banner */}
+              {sessionExpired && (
+                <div className="field-error mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                  <p className="text-sm font-medium leading-snug text-amber-800">
+                    Security Notice: Your session has timed out. Please log in to continue.
+                  </p>
+                </div>
+              )}
+
               {/* Error Banner */}
               {error && (
                 <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -452,7 +465,7 @@ export function LoginForm() {
         </div>
 
         {/* Card Footer */}
-        <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-8 py-4 text-center">
+        <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-4 sm:px-8 py-4 text-center">
           <p className="text-xs text-slate-500">
             For IT support, contact{" "}
             <a

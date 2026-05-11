@@ -173,103 +173,107 @@ export function CommandCenterClient({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {[
-          { label: "Total Semester Tickets", value: totalComplaints, trend: trends.total, icon: ClipboardList, color: "text-slate-600" },
-          { label: "SLA Compliance", value: `${slaCompliance.toFixed(1)}%`, trend: trends.sla, icon: CheckCircle2, color: "text-tealPrimary" },
-          { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, trend: trends.resolution, icon: Clock, color: "text-navyPrimary" },
-          { label: "Semester Context", value: semesterName, subtext: "Active Period", icon: Calendar, color: "text-slate-900" },
-        ].map((kpi, i) => (
-          <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{kpi.label}</p>
-              <kpi.icon className="h-4 w-4 text-slate-300" />
+      <div className="overflow-x-auto">
+        <div className="grid gap-4 md:grid-cols-4 min-w-[480px]">
+          {[
+            { label: "Total Semester Tickets", value: totalComplaints, trend: trends.total, icon: ClipboardList, color: "text-slate-600" },
+            { label: "SLA Compliance", value: `${slaCompliance.toFixed(1)}%`, trend: trends.sla, icon: CheckCircle2, color: "text-tealPrimary" },
+            { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, trend: trends.resolution, icon: Clock, color: "text-navyPrimary" },
+            { label: "Semester Context", value: semesterName, subtext: "Active Period", icon: Calendar, color: "text-slate-900" },
+          ].map((kpi, i) => (
+            <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{kpi.label}</p>
+                <kpi.icon className="h-4 w-4 text-slate-300" />
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <p className={cn("text-2xl font-bold", kpi.color)}>{kpi.value}</p>
+                {kpi.trend && (
+                  <div className={cn("flex items-center gap-0.5 text-xs font-bold", kpi.trend.isUp ? "text-emerald-600" : "text-rose-600")}>
+                    {kpi.trend.isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {kpi.trend.value}
+                  </div>
+                )}
+              </div>
+              {kpi.subtext && <p className="mt-1 text-[10px] font-medium text-slate-400">{kpi.subtext}</p>}
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <p className={cn("text-2xl font-bold", kpi.color)}>{kpi.value}</p>
-              {kpi.trend && (
-                <div className={cn("flex items-center gap-0.5 text-xs font-bold", kpi.trend.isUp ? "text-emerald-600" : "text-rose-600")}>
-                  {kpi.trend.isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {kpi.trend.value}
-                </div>
-              )}
-            </div>
-            {kpi.subtext && <p className="mt-1 text-[10px] font-medium text-slate-400">{kpi.subtext}</p>}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Main Chart */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm relative overflow-hidden">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Complaint Volume Trend</h3>
-            <p className="text-xs text-slate-500">Visualization of operational workload</p>
+      <div className="overflow-x-auto">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm relative overflow-hidden min-w-[320px]">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Complaint Volume Trend</h3>
+              <p className="text-xs text-slate-500">Visualization of operational workload</p>
+            </div>
+            
+            <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+              <button
+                onClick={() => setChartView("daily")}
+                className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "daily" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Daily
+              </button>
+              <button
+                onClick={() => setChartView("monthly")}
+                className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "monthly" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+              >
+                Monthly
+              </button>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
-            <button
-              onClick={() => setChartView("daily")}
-              className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "daily" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              Daily
-            </button>
-            <button
-              onClick={() => setChartView("monthly")}
-              className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "monthly" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
-            >
-              Monthly
-            </button>
+
+          {/* Chart Badge */}
+          <div className="absolute top-6 right-36 z-10 px-3 py-1.5 rounded-full bg-navyPrimary/5 border border-navyPrimary/20 backdrop-blur-sm">
+             <p className="text-[10px] font-bold text-navyPrimary uppercase tracking-tighter">
+               Total for {chartView === "daily" ? currentMonthName : "Semester"}: {chartView === "daily" ? monthTotal : totalComplaints}
+             </p>
           </div>
-        </div>
 
-        {/* Chart Badge */}
-        <div className="absolute top-6 right-36 z-10 px-3 py-1.5 rounded-full bg-navyPrimary/5 border border-navyPrimary/20 backdrop-blur-sm">
-           <p className="text-[10px] font-bold text-navyPrimary uppercase tracking-tighter">
-             Total for {chartView === "daily" ? currentMonthName : "Semester"}: {chartView === "daily" ? monthTotal : totalComplaints}
-           </p>
-        </div>
-
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart 
-              data={chartView === "daily" ? dailyTrendData : monthlyTrendData} 
-              margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={colors.navyPrimary} stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor={colors.navyPrimary} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis 
-                dataKey="dateStr" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
-                dy={10}
-              />
-              <YAxis 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
-              />
-              <Tooltip 
-                contentStyle={tooltipStyle}
-                itemStyle={{ color: colors.navyPrimary, fontWeight: 700 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="count"
-                name="Total Complaints"
-                stroke={colors.navyPrimary}
-                strokeWidth={4}
-                dot={{ r: 4, fill: "#fff", stroke: colors.navyPrimary, strokeWidth: 2 }}
-                activeDot={{ r: 6, fill: colors.tealPrimary, stroke: "#fff", strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart 
+                data={chartView === "daily" ? dailyTrendData : monthlyTrendData} 
+                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={colors.navyPrimary} stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor={colors.navyPrimary} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="dateStr" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
+                />
+                <Tooltip 
+                  contentStyle={tooltipStyle}
+                  itemStyle={{ color: colors.navyPrimary, fontWeight: 700 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  name="Total Complaints"
+                  stroke={colors.navyPrimary}
+                  strokeWidth={4}
+                  dot={{ r: 4, fill: "#fff", stroke: colors.navyPrimary, strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: colors.tealPrimary, stroke: "#fff", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 

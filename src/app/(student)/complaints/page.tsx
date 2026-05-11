@@ -113,56 +113,85 @@ export default function StudentComplaintsPage() {
                 key={complaint.id}
                 href={`/complaints/${complaint.id}`}
               >
-                <Card className="surface-card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold text-slate-900">
-                            {complaint.title}
-                          </h3>
-                          <Badge
-                            className={statusColors[complaint.status]}
-                          >
-                            {statusLabels[complaint.status]}
-                          </Badge>
-                        </div>
+                {/* ── Mobile Card (<md): Compact vertical stack ──── */}
+                <div className="surface-card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md rounded-xl border border-slate-200 bg-white shadow-sm md:hidden">
+                  <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
+                    {/* Ticket ID */}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      #{complaint.id.slice(0, 8).toUpperCase()}
+                    </p>
+                    {/* Status Badge */}
+                    <Badge className={statusColors[complaint.status]}>
+                      {statusLabels[complaint.status]}
+                    </Badge>
+                    {/* Date */}
+                    <p className="text-xs text-slate-500">
+                      {new Date(complaint.createdAt).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                    {/* Title — still useful on mobile */}
+                    <p className="text-sm font-semibold text-slate-800 line-clamp-1">
+                      {complaint.title}
+                    </p>
+                  </div>
+                </div>
 
-                        <p className="mt-2 line-clamp-2 text-sm text-slate-600">
-                          {complaint.description}
-                        </p>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-4">
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-900">
-                              Category:
-                            </span>{" "}
-                            <span className="text-gray-600">
-                              {complaint.category}
-                            </span>
+                {/* ── Desktop Card (md+): Rich layout ────────────── */}
+                <div className="hidden md:block">
+                  <Card className="surface-card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-semibold text-slate-900">
+                              {complaint.title}
+                            </h3>
+                            <Badge
+                              className={statusColors[complaint.status]}
+                            >
+                              {statusLabels[complaint.status]}
+                            </Badge>
                           </div>
-                          <div className="text-sm">
-                            <span className="font-medium text-gray-900">
-                              Room:
-                            </span>{" "}
-                            <span className="text-gray-600">
-                              {complaint.room.roomNumber}
-                            </span>
+
+                          <p className="mt-2 line-clamp-2 text-sm text-slate-600">
+                            {complaint.description}
+                          </p>
+
+                          <div className="mt-4 flex flex-wrap items-center gap-4">
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-900">
+                                Category:
+                              </span>{" "}
+                              <span className="text-gray-600">
+                                {complaint.category}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="font-medium text-gray-900">
+                                Room:
+                              </span>{" "}
+                              <span className="text-gray-600">
+                                {complaint.room.roomNumber}
+                              </span>
+                            </div>
                           </div>
 
+                          <p className="mt-3 text-xs text-gray-500">
+                            Submitted:{" "}
+                            {new Date(complaint.createdAt).toLocaleDateString()}
+                          </p>
                         </div>
-
-                        <p className="mt-3 text-xs text-gray-500">
-                          Submitted:{" "}
-                          {new Date(complaint.createdAt).toLocaleDateString()}
-                        </p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
               </Link>
             ))}
           </div>
+
         )}
       </main>
     </div>

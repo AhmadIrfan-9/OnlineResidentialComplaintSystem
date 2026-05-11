@@ -21,13 +21,6 @@ import {
   FileText,
 } from "lucide-react";
 import { logoutAndRedirect } from "@/lib/client/logout";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
 
@@ -63,7 +56,15 @@ const isActivePath = (pathname: string, href: string): boolean => {
   return pathname === href;
 };
 
-function SidebarLinks({ pathname, role }: { pathname: string; role: string | undefined }) {
+function SidebarLinks({
+  pathname,
+  role,
+  onLinkClick,
+}: {
+  pathname: string;
+  role: string | undefined;
+  onLinkClick?: () => void;
+}) {
   const items = getNavItems(role);
 
   return (
@@ -76,6 +77,7 @@ function SidebarLinks({ pathname, role }: { pathname: string; role: string | und
           <Link
             key={item.href}
             href={item.href}
+            onClick={onLinkClick}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
               isActive
@@ -83,7 +85,9 @@ function SidebarLinks({ pathname, role }: { pathname: string; role: string | und
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             )}
           >
-            <Icon className={cn("h-4 w-4", isActive ? "text-sky-600" : "text-slate-400")} />
+            <Icon
+              className={cn("h-4 w-4", isActive ? "text-sky-600" : "text-slate-400")}
+            />
             <span>{item.label}</span>
           </Link>
         );
@@ -120,7 +124,8 @@ function LogoutButton() {
                   Confirm Sign Out / Sahkan Log Keluar
                 </h3>
                 <p className="mb-6 text-sm text-slate-500">
-                  Are you sure you want to end your session? / Adakah anda pasti ingin menamatkan sesi ini?
+                  Are you sure you want to end your session? / Adakah anda pasti ingin
+                  menamatkan sesi ini?
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <button
@@ -153,34 +158,42 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const role = session?.user?.role;
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const hiddenPaths = ["/login"];
-  if (hiddenPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+  if (
+    hiddenPaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`)
+    )
+  ) {
     return null;
   }
 
-  const brand = (
-    <div className="px-6 py-8">
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1.5 ring-1 ring-slate-200 shadow-sm">
-          <Image src="/assets/logo-light.png" alt="ORCS" width={52} height={52} className="object-contain" />
-        </div>
-        <div>
-          <p className="text-xl font-bold uppercase tracking-widest text-slate-400">
-            UNITEN CCI
-          </p>
-          <h1 className="text-lg font-bold text-slate-900">
-            Residential Portal
-          </h1>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <>
-      <aside className="hidden flex-col border-r border-slate-200 bg-white md:flex sticky top-0 h-[100dvh]">
-        {brand}
+      {/* ── Desktop Sidebar (lg: 1024px and above) ─────────────────── */}
+      <aside className="hidden flex-col border-r border-slate-200 bg-white lg:flex sticky top-0 h-[100dvh]">
+        {/* Brand */}
+        <div className="px-6 py-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50 p-1.5 ring-1 ring-slate-200 shadow-sm">
+              <Image
+                src="/assets/logo-light.png"
+                alt="ORCS"
+                width={52}
+                height={52}
+                className="object-contain"
+              />
+            </div>
+            <div>
+              <p className="text-xl font-bold uppercase tracking-widest text-slate-400">
+                UNITEN CCI
+              </p>
+              <h1 className="text-lg font-bold text-slate-900">Residential Portal</h1>
+            </div>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           <SidebarLinks pathname={pathname} role={role} />
         </div>
@@ -189,38 +202,97 @@ export function DashboardSidebar() {
         </div>
       </aside>
 
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-md md:hidden">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-slate-50 p-0.5 ring-1 ring-slate-200">
-              <Image src="/assets/logo-light.png" alt="ORCS" width={24} height={24} className="object-contain" />
-            </div>
-            <h2 className="text-sm font-bold text-slate-900">
-              Residential Portal
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <Menu className="h-5 w-5 text-slate-600" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="!top-0 !left-0 flex h-[100dvh] w-[320px] max-w-[320px] !translate-x-0 !translate-y-0 flex-col rounded-none border-none bg-white p-0 shadow-2xl">
-                <DialogTitle className="sr-only">Navigation Menu</DialogTitle>
-                {brand}
-                <div className="flex-1 overflow-y-auto px-4 pb-4">
-                  <SidebarLinks pathname={pathname} role={role} />
+      {/* ── Mobile: Floating Hamburger FAB (bottom-left, <lg) ──────── */}
+      <button
+        type="button"
+        id="mobile-nav-fab"
+        aria-label="Open navigation menu"
+        onClick={() => setDrawerOpen(true)}
+        className="fixed bottom-5 left-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#003087] shadow-lg ring-2 ring-white/20 transition-transform hover:scale-105 active:scale-95 lg:hidden"
+      >
+        <Menu className="h-6 w-6 text-white" />
+      </button>
+
+      {/* ── Mobile Drawer (portal-rendered) ─────────────────────────── */}
+      {typeof document !== "undefined" && drawerOpen
+        ? createPortal(
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={() => setDrawerOpen(false)}
+                aria-hidden="true"
+              />
+
+              {/* Slide-in panel */}
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Navigation Menu"
+                className="fixed inset-y-0 left-0 z-[9991] flex w-[300px] flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-300"
+              >
+                {/* Drawer header */}
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200">
+                      <Image
+                        src="/assets/logo-light.png"
+                        alt="ORCS"
+                        width={28}
+                        height={28}
+                        className="object-contain"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                        UNITEN CCI
+                      </p>
+                      <p className="text-sm font-bold text-slate-900">
+                        Residential Portal
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close navigation menu"
+                    onClick={() => setDrawerOpen(false)}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
+
+                {/* Nav links — scrollable */}
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                  <SidebarLinks
+                    pathname={pathname}
+                    role={role}
+                    onLinkClick={() => setDrawerOpen(false)}
+                  />
+                </div>
+
+                {/* Sign Out — pinned at bottom */}
                 <div className="border-t border-slate-100 bg-slate-50/50 p-4">
                   <LogoutButton />
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </header>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
     </>
   );
 }
-

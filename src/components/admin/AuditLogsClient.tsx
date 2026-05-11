@@ -165,7 +165,8 @@ export function AuditLogsClient({ userOptions }: { userOptions: string[] }) {
 
       {loading ? <p className="text-sm text-slate-600">Loading logs...</p> : null}
 
-      <div className="w-full">
+      {/* ── Desktop Table (hidden on mobile) ──────────────────────── */}
+      <div className="hidden md:block w-full overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
@@ -177,8 +178,8 @@ export function AuditLogsClient({ userOptions }: { userOptions: string[] }) {
           </thead>
           <tbody>
             {rows.map((row, idx) => (
-              <tr 
-                key={`${row.timestamp}-${idx}`} 
+              <tr
+                key={`${row.timestamp}-${idx}`}
                 className="border-t border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors"
                 onClick={() => setSelectedRow(row)}
               >
@@ -195,6 +196,38 @@ export function AuditLogsClient({ userOptions }: { userOptions: string[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* ── Mobile Cards (hidden on md+) ───────────────────────────── */}
+      <div className="grid gap-3 md:hidden">
+        {rows.length === 0 && !loading && (
+          <p className="text-sm text-slate-500 italic text-center py-4">No audit logs found.</p>
+        )}
+        {rows.map((row, idx) => (
+          <button
+            key={`card-${row.timestamp}-${idx}`}
+            type="button"
+            onClick={() => setSelectedRow(row)}
+            className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm hover:bg-white hover:shadow-md transition-all"
+          >
+            {/* Timestamp */}
+            <p className="text-xs text-slate-400 mb-1">
+              {new Date(row.timestamp).toLocaleString()}
+            </p>
+            {/* User */}
+            <p className="text-sm font-semibold text-slate-800 mb-2">{row.user}</p>
+            {/* Badges row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="bg-slate-100 text-slate-600 border-slate-200 text-xs">
+                {row.action}
+              </Badge>
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                Success
+              </Badge>
+            </div>
+          </button>
+        ))}
+      </div>
+
 
       <Dialog open={!!selectedRow} onOpenChange={(open) => !open && setSelectedRow(null)}>
         <DialogContent className="sm:max-w-[600px] bg-slate-50 border-slate-200 overflow-y-auto max-h-[90vh]">
