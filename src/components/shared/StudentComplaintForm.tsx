@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { EvidenceCapture } from "@/components/shared/EvidenceCapture";
 
 // ─── AI Evidence Validation Types ─────────────────────────────────────────────
 
@@ -625,33 +626,19 @@ export function StudentComplaintForm({
 
           <div className="space-y-3">
             <Label>Evidence Files</Label>
-            <div
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className="cursor-pointer rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:border-slate-400 hover:bg-slate-100"
-            >
-              <UploadCloud className="mx-auto h-7 w-7 text-slate-600" />
-              <p className="mt-2 text-sm font-medium text-slate-800">
-                Drag and drop files here, or click to browse
-              </p>
-              <p className="mt-1 text-xs text-slate-600">
-                Maximum 3 files, 10MB each
-              </p>
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-                <FileImage className="h-3.5 w-3.5" />
-                <Film className="h-3.5 w-3.5" />
-                JPEG, PNG, MP4 accepted
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".jpg,.jpeg,.png,.mp4"
-                className="hidden"
-                onChange={(event) => applyFiles(event.target.files)}
-              />
-            </div>
+            <EvidenceCapture
+              maxFiles={MAX_FILES}
+              accept={ACCEPTED_TYPES}
+              disabled={isSubmitting}
+              onFilesChange={(newFiles) => {
+                setFiles(newFiles);
+                setFileError("");
+                // Clean up validations for removed files
+                setValidations((prev) =>
+                  prev.filter((v) => newFiles.some((f) => f.name === v.fileName))
+                );
+              }}
+            />
 
             {fileError && (
               <p className="flex items-center gap-1 text-xs text-red-700">
