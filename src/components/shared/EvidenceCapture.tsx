@@ -20,13 +20,23 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  type NoiseReport,
+  analyzeAudioFile,
+  WaveformGraph,
+  NoiseReportCard,
+  NoisePrivacyDisclaimer,
+  BilingualNoiseDraft,
+} from "@/components/shared/NoiseAnalysis";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface EvidenceCaptureProps {
   maxFiles?: number;
   onFilesChange: (files: File[]) => void;
-  accept?: string[]; // MIME types, default ["image/jpeg","image/png","video/mp4"]
+  onNoiseReport?: (report: NoiseReport | null) => void;
+  locationBlock?: string;  // e.g. "C1" — used in bilingual draft
+  accept?: string[];
   disabled?: boolean;
 }
 
@@ -92,6 +102,8 @@ async function compressImage(
 export function EvidenceCapture({
   maxFiles = 3,
   onFilesChange,
+  onNoiseReport,
+  locationBlock = "",
   accept = ["image/jpeg", "image/png", "video/mp4"],
   disabled = false,
 }: EvidenceCaptureProps) {
@@ -108,6 +120,24 @@ export function EvidenceCapture({
 
   const [captured, setCaptured] = useState<CapturedFile[]>([]);
   const [fileError, setFileError] = useState("");
+  const [noiseReport, setNoiseReport] = useState<NoiseReport | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [draftCopied, setDraftCopied] = useState(false);
+
+  // Run audio analysis whenever a video file is added
+  const runNoiseAnalysis = useCallback(async (file: File) => {
+    if (!file.type.startsWith("video/") && !file.type.startsWith("audio/")) return;
+    setIsAnalyzing(true);
+    try {
+      const report = await analyzeAudioFile(file);
+      setNoiseReport(report);
+      onNoiseReport?.(report);
+    } catch {
+      // Audio track may be absent; silently skip
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [onNoiseReport]);
 
   // Notify parent whenever captured changes
   const notifyParent = useCallback((list: CapturedFile[]) => {
@@ -139,6 +169,9 @@ export function EvidenceCapture({
       validated.push({ id, file, previewUrl, isVideo: file.type.startsWith("video/") });
     }
     if (validated.length === 0) return;
+    // Trigger noise analysis for first video in batch
+    const firstVideo = validated.find((c) => c.isVideo);
+    if (firstVideo) runNoiseAnalysis(firstVideo.file);
     setCaptured((prev) => {
       const next = [...prev, ...validated].slice(0, maxFiles);
       notifyParent(next);
@@ -152,9 +185,14 @@ export function EvidenceCapture({
       const removed = prev.find((c) => c.id === id);
       if (removed) URL.revokeObjectURL(removed.previewUrl);
       notifyParent(next);
+      // Clear noise report if no more videos
+      if (!next.some((c) => c.isVideo)) {
+        setNoiseReport(null);
+        onNoiseReport?.(null);
+      }
       return next;
     });
-  }, [notifyParent]);
+  }, [notifyParent, onNoiseReport]);
 
   // Clean up blob URLs on unmount
   useEffect(() => {
@@ -199,6 +237,45 @@ export function EvidenceCapture({
         <p className="text-xs text-slate-500 text-right">
           {captured.length} / {maxFiles} file{captured.length !== 1 ? "s" : ""} added
         </p>
+      )}
+
+      {/* ── Privacy Disclaimer (shown when video present) ─ */}
+      {captured.some((c) => c.isVideo) && <NoisePrivacyDisclaimer />}
+
+      {/* ── Audio Analysis Loading ────────────────────────── */}
+      {isAnalyzing && (
+        <div className="flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3">
+          <Loader2 className="h-4 w-4 animate-spin text-sky-600 flex-shrink-0" />
+          <p className="text-xs font-medium text-sky-700">
+            Analyzing audio waveform…
+          </p>
+        </div>
+      )}
+
+      {/* ── Waveform + Noise Report ───────────────────────── */}
+      {noiseReport && !isAnalyzing && (
+        <div className="space-y-3">
+          <WaveformGraph
+            samples={noiseReport.waveform_samples}
+            peakIndex={noiseReport.waveform_samples.indexOf(
+              Math.max(...noiseReport.waveform_samples)
+            )}
+          />
+          <NoiseReportCard report={noiseReport} />
+          {/* Bilingual draft only when threshold exceeded */}
+          {noiseReport.threshold_violation && (
+            <BilingualNoiseDraft
+              block={locationBlock.split("-")[0] ?? locationBlock}
+              onCopy={() => {
+                setDraftCopied(true);
+                setTimeout(() => setDraftCopied(false), 2000);
+              }}
+            />
+          )}
+          {draftCopied && (
+            <p className="text-center text-xs font-medium text-emerald-700">✓ Copied to clipboard</p>
+          )}
+        </div>
       )}
     </div>
   );

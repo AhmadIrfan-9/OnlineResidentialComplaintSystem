@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { EvidenceCapture } from "@/components/shared/EvidenceCapture";
+import { type NoiseReport } from "@/components/shared/NoiseAnalysis";
 
 // ─── AI Evidence Validation Types ─────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ export function StudentComplaintForm({
   const [mode, setMode] = useState<Mode>("IDENTIFIED");
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState("");
+  const [noiseReport, setNoiseReport] = useState<NoiseReport | null>(null);
   const [submitMessage, setSubmitMessage] = useState("");
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -630,6 +632,8 @@ export function StudentComplaintForm({
               maxFiles={MAX_FILES}
               accept={ACCEPTED_TYPES}
               disabled={isSubmitting}
+              locationBlock={locationFirst}
+              onNoiseReport={(report) => setNoiseReport(report)}
               onFilesChange={(newFiles) => {
                 setFiles(newFiles);
                 setFileError("");

@@ -60,6 +60,62 @@ const pretty = (value: string): string =>
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
 
+// ─── Noise Meter Badge ───────────────────────────────────────────────────────
+// Shown in the Evidence Files section when the complaint category suggests noise.
+// In the current client-only plan, detection is based on category keyword match.
+
+function NoiseMeterBadge({ category, block }: { category: string; block: string }) {
+  const isNoise = /noise|bising|loud|sound|music|bunyi/i.test(category);
+  if (!isNoise) return null;
+
+  const blockLabel = block || "[Block]";
+  const en = `Security Notice: A high noise level has been detected in your vicinity (Block ${blockLabel}). Please keep volume levels low to maintain a conducive environment. Repeated violations may result in a fine according to the Student Handbook.`;
+  const ms = `Notis Keselamatan: Tahap bunyi bising yang tinggi telah dikesan di kawasan anda (Blok ${blockLabel}). Sila pastikan tahap bunyi rendah bagi menjaga ketenteraman bersama. Pelanggaran berulang boleh mengakibatkan denda mengikut Buku Panduan Pelajar.`;
+
+  return (
+    <div className="mt-4 space-y-3">
+      {/* Glow badge */}
+      <div className="relative flex items-center gap-4 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 via-white to-rose-50 p-4 shadow-sm overflow-hidden">
+        {/* Pulsing red glow ring */}
+        <div className="relative flex-shrink-0 flex h-14 w-14 items-center justify-center">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-30" />
+          <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-300">
+            <span className="text-xl text-white">🔊</span>
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-red-800">Acoustically Verified Noise Complaint</p>
+          <p className="text-xs text-red-600 mt-0.5">Category matched: <span className="font-semibold">{category}</span></p>
+          <p className="mt-1 text-[10px] text-slate-500 uppercase tracking-wider">Management Noise Intelligence · Block {blockLabel}</p>
+        </div>
+        <div className="flex-shrink-0">
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700 ring-1 ring-red-300">
+            &gt; 60 dB
+          </span>
+        </div>
+      </div>
+
+      {/* Bilingual notice draft */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+          <span className="text-sm">📋</span>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-600">Automated Notice Draft</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">English</p>
+            <p className="text-xs leading-relaxed text-slate-700 bg-blue-50 rounded-lg p-2.5 border border-blue-100">{en}</p>
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-600">Bahasa Melayu</p>
+            <p className="text-xs leading-relaxed text-slate-700 bg-purple-50 rounded-lg p-2.5 border border-purple-100">{ms}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ManagementComplaintDetailClient({ detail }: { detail: DetailData }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -364,7 +420,12 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           )}
         </section>
 
-        {/* Status Change */}
+        {/* Noise Meter — shown when category is noise-related */}
+        <NoiseMeterBadge
+          category={detail.category}
+          block={detail.hostelName.split(" ")[0] ?? detail.hostelName}
+        />
+
         <section className="surface-card p-4">
           <h3 className="mb-3 text-base font-semibold text-slate-900">Status change section</h3>
           <div className="grid gap-3 md:grid-cols-2">
