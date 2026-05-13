@@ -48,6 +48,7 @@ model User {
   phone     String?
   avatar    String?
   isActive  Boolean  @default(true)
+  mustChangePassword Boolean @default(true) @map("must_change_password")
   lastLoginAt DateTime?
 
   // Relations

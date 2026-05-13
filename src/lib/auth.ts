@@ -48,6 +48,7 @@ export const authOptions = {
             password: true,
             role: true,
             isActive: true,
+            mustChangePassword: true,
           },
         });
 
@@ -87,6 +88,7 @@ export const authOptions = {
           name: user.name,
           role: user.role,
           hostelId: null,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),
@@ -94,13 +96,14 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const authUser = user as typeof user & {
-          role?: string;
+        const authUser = user as any;
+
           hostelId?: string | null;
         };
         token.id = user.id;
         token.role = authUser.role;
         token.hostelId = authUser.hostelId ?? null;
+        token.mustChangePassword = authUser.mustChangePassword;
       }
       return token;
     },
@@ -109,6 +112,7 @@ export const authOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.hostelId = token.hostelId as string | null;
+        (session.user as any).mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;
     },

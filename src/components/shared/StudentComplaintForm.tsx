@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Film,
   Globe2,
   Loader2,
+  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -66,20 +67,15 @@ const MAX_FILES = 3;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "video/mp4"];
 const MIN_DESCRIPTION_LENGTH = 20;
-const LOCATION_FIRST_OPTIONS = ["C1", "C2", "C3"] as const;
-const LOCATION_SECOND_OPTIONS = [
-  "01",
-  "02",
-  "03",
-  "04",
-  "05",
-  "06",
-  "07",
-  "08",
-  "09",
-  "10",
-] as const;
-const LOCATION_THIRD_OPTIONS = ["01", "02", "03", "04", "05", "06", "07", "08"] as const;
+
+const BLOCKS = ["C1", "C2", "C3"];
+const FLOORS = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, "0"));
+const UNITS  = Array.from({ length: 8  }, (_, i) => String(i + 1).padStart(2, "0"));
+
+const ALL_ROOM_LABELS: string[] = BLOCKS.flatMap(b =>
+  FLOORS.flatMap(f => UNITS.map(u => `${b}-${f}-${u}`))
+); // 240 rooms total
+
 type UploadedEvidence = { key: string; fileType: string; fileName: string };
 const parseEvidenceKey = (key: string): { complaintId: string; fileUuid: string; ext: string } | null => {
   const match = key.match(
@@ -92,6 +88,62 @@ const parseEvidenceKey = (key: string): { complaintId: string; fileUuid: string;
     ext: match[3].toLowerCase(),
   };
 };
+
+// ── Searchable Room Combobox ──────────────────────────────────────────────────
+function RoomCombobox({ value, onChange, isError }: { value: string; onChange: (v: string) => void; isError?: boolean }) {
+  const [query, setQuery]   = useState(value);
+  const [open, setOpen]     = useState(false);
+  const ref                 = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toUpperCase();
+    return q.length === 0 ? ALL_ROOM_LABELS.slice(0, 40) : ALL_ROOM_LABELS.filter(r => r.includes(q)).slice(0, 40);
+  }, [query]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const select = (room: string) => { onChange(room); setQuery(room); setOpen(false); };
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input
+          className={cn("w-full rounded-lg border bg-white pl-10 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all", isError ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : "border-slate-300 focus:border-blue-500 focus:ring-blue-500/20")}
+          placeholder='Search room (e.g. C2-04-01)…'
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); onChange(""); }}
+          onFocus={() => setOpen(true)}
+        />
+        {value && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+            {value}
+          </span>
+        )}
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl">
+          {filtered.map(room => (
+            <button
+              key={room}
+              type="button"
+              onClick={() => select(room)}
+              className={`w-full px-4 py-2 text-left text-sm hover:bg-sky-50 hover:text-sky-700 transition-colors font-mono ${room === value ? "bg-sky-50 font-bold text-sky-700" : "text-slate-700"}`}
+            >
+              {room}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function StudentComplaintForm({
   categories,
@@ -150,9 +202,7 @@ export function StudentComplaintForm({
     fetchCategories();
   }, []);
 
-  const [locationFirst, setLocationFirst] = useState<string>("");
-  const [locationSecond, setLocationSecond] = useState<string>("");
-  const [locationThird, setLocationThird] = useState<string>("");
+  const [locationBlock, setLocationBlock] = useState<string>("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<Mode>("IDENTIFIED");
   const [files, setFiles] = useState<File[]>([]);
@@ -175,15 +225,7 @@ export function StudentComplaintForm({
   const titleValid = title.trim().length >= 5;
   const descriptionCount = description.length;
   const categoryValid = category.trim().length > 0;
-  const locationValid =
-    LOCATION_FIRST_OPTIONS.includes(locationFirst as (typeof LOCATION_FIRST_OPTIONS)[number]) &&
-    LOCATION_SECOND_OPTIONS.includes(
-      locationSecond as (typeof LOCATION_SECOND_OPTIONS)[number]
-    ) &&
-    LOCATION_THIRD_OPTIONS.includes(locationThird as (typeof LOCATION_THIRD_OPTIONS)[number]);
-  const locationBlock = locationValid
-    ? `${locationFirst}-${locationSecond}-${locationThird}`
-    : "";
+  const locationValid = ALL_ROOM_LABELS.includes(locationBlock);
   const descriptionRequiredValid = description.trim().length > 0;
   const descriptionValid = descriptionCount >= MIN_DESCRIPTION_LENGTH;
   const formValid = titleValid && categoryValid && locationValid && descriptionValid;
@@ -598,84 +640,18 @@ export function StudentComplaintForm({
               <Label>Location / Block</Label>
               {locationValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Select
-                value={locationFirst}
-                onValueChange={(value) => {
-                  setLocationFirst(value);
+            <div className="mt-2">
+              <RoomCombobox 
+                value={locationBlock} 
+                onChange={(v) => {
+                  setLocationBlock(v);
                   setTouched((prev) => ({ ...prev, location: true }));
                 }}
-              >
-                <SelectTrigger
-                  className={cn(
-                    showLocationError && "border-red-500 focus-visible:ring-red-500",
-                    locationFirst && "border-emerald-500"
-                  )}
-                >
-                  <SelectValue placeholder="First" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCATION_FIRST_OPTIONS.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={locationSecond}
-                onValueChange={(value) => {
-                  setLocationSecond(value);
-                  setTouched((prev) => ({ ...prev, location: true }));
-                }}
-              >
-                <SelectTrigger
-                  className={cn(
-                    showLocationError && "border-red-500 focus-visible:ring-red-500",
-                    locationSecond && "border-emerald-500"
-                  )}
-                >
-                  <SelectValue placeholder="Second" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCATION_SECOND_OPTIONS.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={locationThird}
-                onValueChange={(value) => {
-                  setLocationThird(value);
-                  setTouched((prev) => ({ ...prev, location: true }));
-                }}
-              >
-                <SelectTrigger
-                  className={cn(
-                    showLocationError && "border-red-500 focus-visible:ring-red-500",
-                    locationThird && "border-emerald-500"
-                  )}
-                >
-                  <SelectValue placeholder="Third" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOCATION_THIRD_OPTIONS.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                isError={showLocationError}
+              />
             </div>
-            <p className="text-xs text-slate-600">
-              Selected format: {locationBlock || "first-second-third"}
-            </p>
             {showLocationError && (
-              <p className="text-xs text-red-600">Please select all three location values</p>
+              <p className="text-xs text-red-600">Please select a valid room assignment</p>
             )}
           </div>
 
@@ -721,7 +697,7 @@ export function StudentComplaintForm({
               maxFiles={MAX_FILES}
               accept={ACCEPTED_TYPES}
               disabled={isSubmitting}
-              locationBlock={locationFirst}
+              locationBlock={locationBlock}
               onNoiseReport={(report) => setNoiseReport(report)}
               onFilesChange={(newFiles) => {
                 setFiles(newFiles);

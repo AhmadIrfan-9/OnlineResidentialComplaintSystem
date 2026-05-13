@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Email or identifier already exists" }, { status: 409 });
     }
 
-    const defaultPassword = await hash("ChangeMe123!", 10);
+    const defaultPassword = await hash("123456", 10);
 
     const created = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({

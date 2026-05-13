@@ -81,7 +81,7 @@ export function LoginForm() {
 
       if (!result?.ok) {
         if (result?.error === "CredentialsSignin") {
-          setError("Invalid email or password. Please verify your credentials and try again.");
+          setError("Invalid credentials.");
         } else {
           setError(
             result?.error ||
@@ -96,7 +96,7 @@ export function LoginForm() {
       router.refresh();
     } catch (err: any) {
       if (err?.type === "CredentialsSignin" || err?.message?.includes("CredentialsSignin")) {
-        setError("Invalid email or password. Please verify your credentials and try again.");
+        setError("Invalid credentials.");
       } else {
         setError("An unexpected error occurred. Please try again.");
       }

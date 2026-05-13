@@ -134,6 +134,17 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
     name: "", email: "", role: "STUDENT" as Role,
     roomLabel: "", hostelId: "", isActive: true,
   });
+  const [roomBlock, setRoomBlock] = useState("");
+  const [roomFloor, setRoomFloor] = useState("");
+  const [roomUnit, setRoomUnit] = useState("");
+
+  useEffect(() => {
+    if (roomBlock && roomFloor && roomUnit) {
+      setNewUser(p => ({ ...p, roomLabel: `${roomBlock}-${roomFloor}-${roomUnit}` }));
+    } else {
+      setNewUser(p => ({ ...p, roomLabel: "" }));
+    }
+  }, [roomBlock, roomFloor, roomUnit]);
 
   const selectedUser = users.find(u => u.id === selectedId) ?? null;
 
@@ -161,11 +172,21 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
     setLoading(true);
     try {
       const res  = await fetch("/api/admin/users", { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) { setNotice(data.message ?? "Failed to load users"); return; }
+      
+      if (!res.ok) { 
+        setNotice(`Failed to load users: ${res.statusText}`); 
+        return; 
+      }
+
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+
       const next = (data.users ?? []).map(mapApiUser);
       setUsers(next);
       if (!selectedId && next.length > 0) setSelectedId(next[0].id);
+    } catch (error) {
+      console.error("Fetch Error:", error);
+      setNotice("A network error occurred while loading users.");
     } finally { setLoading(false); }
   };
 
@@ -202,6 +223,9 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
       setToast(`User created and assigned to ${assignedRoom} successfully.`);
       setShowCreate(false);
       setNewUser({ name: "", email: "", role: "STUDENT", roomLabel: "", hostelId: "", isActive: true });
+      setRoomBlock("");
+      setRoomFloor("");
+      setRoomUnit("");
       await loadUsers();
     } finally { setSaving(false); }
   };
@@ -317,16 +341,41 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
                     {hostels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                   </select>
                 </div>
-                {/* Room — searchable combobox, full width */}
+                {/* Room — triple dropdown, full width */}
                 {newUser.role === "STUDENT" && (
                   <div className="md:col-span-2">
                     <label className={labelCls}>Room Assignment * <span className="text-slate-400 font-normal normal-case">(Block-Floor-Unit)</span></label>
-                    <RoomCombobox value={newUser.roomLabel} onChange={v => setNewUser(p => ({ ...p, roomLabel: v }))} />
+                    <div className="flex flex-row gap-2">
+                      <select 
+                        className={fieldCls} 
+                        value={roomBlock} 
+                        onChange={e => setRoomBlock(e.target.value)}
+                      >
+                        <option value="">Block</option>
+                        {BLOCKS.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                      <select 
+                        className={fieldCls} 
+                        value={roomFloor} 
+                        onChange={e => setRoomFloor(e.target.value)}
+                      >
+                        <option value="">Floor</option>
+                        {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <select 
+                        className={fieldCls} 
+                        value={roomUnit} 
+                        onChange={e => setRoomUnit(e.target.value)}
+                      >
+                        <option value="">Unit</option>
+                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
                   </div>
                 )}
                 {/* Actions */}
                 <div className="flex items-center gap-3 pt-1 md:col-span-2">
-                  <button className={btnPrimary} onClick={createUser} disabled={saving}>
+                  <button className={btnPrimary} onClick={createUser} disabled={saving || (newUser.role === "STUDENT" && (!roomBlock || !roomFloor || !roomUnit))}>
                     {saving ? "Creating…" : "Create User"}
                   </button>
                   <button className={btnGhost} onClick={() => setShowCreate(false)}>Cancel</button>
@@ -351,8 +400,6 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
             </select>
           </div>
 
-          {loading && <p className="text-sm text-slate-500 py-2">Loading users…</p>}
-
           {/* ── Table ────────────────────────────────────────────────────── */}
           <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[900px] text-sm">
@@ -368,49 +415,68 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {paginatedUsers.map(u => {
-                  const hostelName = hostels.find(h => h.id === u.hostelId)?.name ?? "—";
-                  return (
-                    <tr key={u.id}
-                      className={`group relative border-t border-slate-100 transition-colors cursor-pointer ${u.id === selectedId ? "bg-sky-50" : "hover:bg-slate-50"}`}
-                      onClick={e => { if ((e.target as HTMLElement).closest("button")) return; setSelectedId(u.id); }}>
-                      <td className="py-3 px-4 font-mono text-xs font-bold text-slate-500">{u.id.slice(0, 8)}</td>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
                       <td className="py-3 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900">{u.name}</span>
-                          <span className="text-xs text-slate-500">{u.email}</span>
+                        <div className="flex flex-col gap-1.5">
+                          <div className="h-4 w-32 bg-slate-200 rounded"></div>
+                          <div className="h-3 w-40 bg-slate-200 rounded"></div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-700">{prettyRole(u.role)}</td>
-                      <td className="py-3 px-4 text-slate-600">{hostelName}</td>
-                      <td className="py-3 px-4">
-                        {u.roomLabel
-                          ? <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">{u.roomLabel}</span>
-                          : <span className="text-slate-400 text-xs">—</span>}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${u.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="relative inline-flex items-center justify-end gap-1">
-                          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all"
-                            onClick={e => { e.stopPropagation(); setSelectedId(u.id); }} title="Edit">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
-                            onClick={e => { e.stopPropagation(); deleteSelected(u.id); }} title="Delete">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                          <div className="absolute top-full right-0 mt-1 z-10 hidden group-hover:block w-48 rounded-lg bg-slate-800 p-2 text-xs font-medium text-white shadow-xl">
-                            <span className="mb-1 block text-slate-400">Last Login</span>{u.lastLogin}
-                          </div>
-                        </div>
-                      </td>
+                      <td className="py-3 px-4"><div className="h-4 w-20 bg-slate-200 rounded"></div></td>
+                      <td className="py-3 px-4"><div className="h-4 w-24 bg-slate-200 rounded"></div></td>
+                      <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
+                      <td className="py-3 px-4"><div className="h-6 w-16 bg-slate-200 rounded-full"></div></td>
+                      <td className="py-3 px-4 text-right"><div className="inline-block h-6 w-16 bg-slate-200 rounded"></div></td>
                     </tr>
-                  );
-                })}
+                  ))
+                ) : (
+                  paginatedUsers.map(u => {
+                    const hostelName = hostels.find(h => h.id === u.hostelId)?.name ?? "—";
+                    return (
+                      <tr key={u.id}
+                        className={`group relative border-t border-slate-100 transition-colors cursor-pointer ${u.id === selectedId ? "bg-sky-50" : "hover:bg-slate-50"}`}
+                        onClick={e => { if ((e.target as HTMLElement).closest("button")) return; setSelectedId(u.id); }}>
+                        <td className="py-3 px-4 font-mono text-xs font-bold text-slate-500">{u.id.slice(0, 8)}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-900">{u.name}</span>
+                            <span className="text-xs text-slate-500">{u.email}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-700">{prettyRole(u.role)}</td>
+                        <td className="py-3 px-4 text-slate-600">{hostelName}</td>
+                        <td className="py-3 px-4">
+                          {u.roomLabel
+                            ? <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">{u.roomLabel}</span>
+                            : <span className="text-slate-400 text-xs">—</span>}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${u.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="relative inline-flex items-center justify-end gap-1">
+                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all"
+                              onClick={e => { e.stopPropagation(); setSelectedId(u.id); }} title="Edit">
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                              onClick={e => { e.stopPropagation(); deleteSelected(u.id); }} title="Delete">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                            <div className="absolute top-full right-0 mt-1 z-10 hidden group-hover:block w-48 rounded-lg bg-slate-800 p-2 text-xs font-medium text-white shadow-xl">
+                              <span className="mb-1 block text-slate-400">Last Login</span>{u.lastLogin}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
                 {paginatedUsers.length === 0 && !loading && (
                   <tr><td colSpan={7} className="py-10 text-center text-slate-400 italic">No users match the current filters.</td></tr>
                 )}

@@ -52,6 +52,12 @@ export async function middleware(request: NextRequest) {
     return withNoStore(NextResponse.redirect(loginUrl));
   }
 
+  // FORCE PASSWORD CHANGE REDIRECT
+  // If mustChangePassword is true, and user is not on the change-password page, redirect them.
+  if (token.mustChangePassword === true && pathname !== "/settings/change-password") {
+    return withNoStore(NextResponse.redirect(new URL("/settings/change-password", request.url)));
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // SAFE MODE PATHS — always accessible to any authenticated user.
   // These routes MUST remain reachable even if the user's student profile is
