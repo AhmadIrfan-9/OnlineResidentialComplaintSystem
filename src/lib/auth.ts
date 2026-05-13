@@ -98,8 +98,8 @@ export const authOptions = {
       if (user) {
         const authUser = user as any;
 
-          hostelId?: string | null;
-        };
+
+
         token.id = user.id;
         token.role = authUser.role;
         token.hostelId = authUser.hostelId ?? null;
