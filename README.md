@@ -52,3 +52,5 @@ ESCALATION_EMAIL_TO="dean@university.edu,my-manager@university.edu"
 Notes:
 - If `ESCALATION_EMAIL_TO` is empty, active management user emails are used.
 - If SMTP env vars are missing, the system still queues in-app notifications but skips email sending.
+
+# Collaborator: rzmegaresources
