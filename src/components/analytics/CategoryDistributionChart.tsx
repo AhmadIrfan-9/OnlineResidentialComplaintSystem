@@ -6,9 +6,7 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  TooltipProps,
 } from "recharts";
 import type { CategoryData } from "./CommandCenterClient";
 
@@ -49,10 +47,18 @@ interface CategoryDistributionChartProps {
 
 // ─── Custom Tooltip ──────────────────────────────────────────────────────────
 
-function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
+interface CustomTooltipProps {
+  active?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: Array<{ payload: ProcessedSlice }>;
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
 
-  const item = payload[0].payload as ProcessedSlice;
+  // Recharts wraps our data object in payload[0].payload
+  const item = payload[0]?.payload as ProcessedSlice | undefined;
+  if (!item) return null;
   return (
     <div
       className="pointer-events-none rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xl"

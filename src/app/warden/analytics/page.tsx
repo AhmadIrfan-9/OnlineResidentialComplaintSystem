@@ -173,8 +173,7 @@ export default async function ManagementCommandCenterPage(props: {
   });
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="space-y-6">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-slate-900">Management Insights</h1>
           <p className="text-sm text-slate-500">Comprehensive oversight of residential trends and SLA performance.</p>
@@ -193,7 +192,6 @@ export default async function ManagementCommandCenterPage(props: {
           avgResolutionHours={avgResolutionHours}
           trends={trends}
         />
-      </div>
-    </main>
+    </div>
   );
 }

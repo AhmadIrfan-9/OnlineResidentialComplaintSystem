@@ -519,7 +519,7 @@ export function StudentComplaintForm({
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <>
       <section className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-8">
         <div className="mb-7">
           <h1 className="text-2xl font-semibold text-slate-900 md:text-3xl">
@@ -880,7 +880,7 @@ export function StudentComplaintForm({
           </div>
         </form>
       </section>
-    </main>
+    </>
   );
 }
 
