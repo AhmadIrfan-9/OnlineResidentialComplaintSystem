@@ -405,10 +405,10 @@ export function LoginForm() {
           <p className="text-sm font-medium text-white/90 drop-shadow-md">
             IT Support:{" "}
             <a
-              href="mailto:OCRSsupport@uniten.edu.my"
+              href="mailto:ORCSsupport@uniten.edu.my"
               className="font-bold text-white transition-colors hover:underline"
             >
-              OCRSsupport@uniten.edu.my
+              ORCSsupport@uniten.edu.my
             </a>
           </p>
           <p className="mt-1 text-xs font-medium text-white/80 drop-shadow-md" suppressHydrationWarning>
