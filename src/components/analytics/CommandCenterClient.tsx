@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { CategoryDistributionChart, CategoryDistributionChartStatic } from "./CategoryDistributionChart";
 import {
   LineChart,
   Line,
@@ -333,6 +334,14 @@ export function CommandCenterClient({
         </div>
       </div>
 
+      {/* Category Distribution Chart — live */}
+      <div className="overflow-x-auto">
+        <CategoryDistributionChart
+          categoryData={categoryData}
+          totalComplaints={totalComplaints}
+        />
+      </div>
+
       {/* Hidden Infographic Template for PDF Export */}
       <div className="sr-only">
         <div ref={infographicRef} className="w-[800px] p-12 font-sans" style={{ backgroundColor: "#ffffff", color: "#0f172a" }}>
@@ -370,7 +379,8 @@ export function CommandCenterClient({
              </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-12 mb-12">
+          <div className="grid grid-cols-3 gap-8 mb-12">
+             {/* Column 1: Category Breakdown bars */}
              <div className="p-8 rounded-3xl ring-2 shadow-xl" style={{ backgroundColor: "#ffffff", boxShadow: "0 0 0 2px #f1f5f9, 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
                    <div className="h-2 w-8 rounded-full" style={{ backgroundColor: "#1e3a8a" }} />
@@ -394,6 +404,15 @@ export function CommandCenterClient({
                 </div>
              </div>
 
+             {/* Column 2: Doughnut Distribution */}
+             <div className="p-8 rounded-3xl ring-2 shadow-xl" style={{ backgroundColor: "#ffffff", boxShadow: "0 0 0 2px #f1f5f9, 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
+                <CategoryDistributionChartStatic
+                  categoryData={categoryData}
+                  totalComplaints={totalComplaints}
+                />
+             </div>
+
+             {/* Column 3: AI Forensic Insight */}
              <div className="p-8 rounded-3xl shadow-2xl relative overflow-hidden" style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}>
                 <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full blur-3xl" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
                 <h3 className="text-xl font-black mb-6 flex items-center gap-3">
