@@ -103,6 +103,53 @@ export function StudentComplaintForm({
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<string>(categories[0]?.value ?? "");
+  const [categoriesList, setCategoriesList] = useState<CategoryOption[]>(categories && categories.length > 0 ? categories : []);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories/active");
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        
+        let fetchedCategories = data.categories?.map((c: any) => ({
+          value: c.name,
+          label: c.name,
+        })) || [];
+        
+        if (fetchedCategories.length === 0) {
+          fetchedCategories = [
+            { value: "Plumbing", label: "Plumbing" },
+            { value: "Electrical", label: "Electrical" },
+            { value: "Furniture", label: "Furniture" },
+            { value: "WIFI", label: "WIFI" },
+          ];
+        }
+        setCategoriesList(fetchedCategories);
+        setCategory((prev) => {
+            if (!prev || !fetchedCategories.find((c: any) => c.value === prev)) {
+                return fetchedCategories[0].value;
+            }
+            return prev;
+        });
+      } catch (error) {
+        console.error("[Category Fetch Error]", error);
+        const fallbacks = [
+          { value: "Plumbing", label: "Plumbing" },
+          { value: "Electrical", label: "Electrical" },
+          { value: "Furniture", label: "Furniture" },
+          { value: "WIFI", label: "WIFI" },
+        ];
+        setCategoriesList(fallbacks);
+        setCategory((prev) => prev || fallbacks[0].value);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   const [locationFirst, setLocationFirst] = useState<string>("");
   const [locationSecond, setLocationSecond] = useState<string>("");
   const [locationThird, setLocationThird] = useState<string>("");
@@ -168,6 +215,42 @@ export function StudentComplaintForm({
     });
   }, []);
 
+  // ── Image Compressor ────────────────────────────────────────────────────────
+  const compressImage = useCallback((file: File, maxWidth = 1024, maxHeight = 1024): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else if (height >= width && height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+           URL.revokeObjectURL(img.src);
+           return resolve(file);
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(img.src);
+          if (!blob) return resolve(file);
+          resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
+        }, "image/jpeg", 0.8);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        resolve(file);
+      };
+    });
+  }, []);
+
   // ── Trigger AI validation for a single image file ─────────────────────────
   const validateFile = useCallback(
     async (file: File) => {
@@ -193,7 +276,8 @@ export function StudentComplaintForm({
       });
 
       try {
-        const base64Url = await fileToBase64(file);
+        const compressedFile = await compressImage(file);
+        const base64Url = await fileToBase64(compressedFile);
 
         const response = await fetch("/api/ai/vision-validate", {
           method: "POST",
@@ -207,7 +291,11 @@ export function StudentComplaintForm({
           }),
         });
 
-        if (!response.ok) throw new Error("Validation request failed");
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[Evidence Validation] HTTP ${response.status}: ${errorText}`);
+          throw new Error(`Validation request failed: HTTP ${response.status} - ${errorText}`);
+        }
 
         const result: BilingualVisionResult = await response.json();
 
@@ -231,7 +319,7 @@ export function StudentComplaintForm({
         validationInFlight.current.delete(file.name);
       }
     },
-    [title, description, category, hostelName, fileToBase64]
+    [title, description, category, hostelName, fileToBase64, compressImage]
   );
 
   // ── Auto-trigger validation when files change and form is ready ───────────
@@ -476,6 +564,7 @@ export function StudentComplaintForm({
                   setCategory(value);
                   setTouched((prev) => ({ ...prev, category: true }));
                 }}
+                disabled={isLoadingCategories}
               >
                 <SelectTrigger
                   className={cn(
@@ -483,10 +572,10 @@ export function StudentComplaintForm({
                     categoryValid && "border-emerald-500"
                   )}
                 >
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select category"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((item) => (
+                  {categoriesList.map((item) => (
                     <SelectItem key={item.value} value={item.value}>
                       {item.label}
                     </SelectItem>
