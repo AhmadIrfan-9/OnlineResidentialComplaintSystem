@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -15,7 +15,6 @@ import {
   EyeOff,
   Mail,
   Lock,
-  ShieldCheck,
   ArrowLeft,
   CheckCircle2,
   Clock,
@@ -24,7 +23,7 @@ import {
 const loginSchema = z.object({
   identifier: z
     .string()
-    .min(3, "Please enter your institutional email or student ID."),
+    .min(3, "Please enter your student email."),
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
@@ -94,8 +93,9 @@ export function LoginForm() {
 
       router.push("/");
       router.refresh();
-    } catch (err: any) {
-      if (err?.type === "CredentialsSignin" || err?.message?.includes("CredentialsSignin")) {
+    } catch (err: unknown) {
+      const e = err as Record<string, unknown>;
+      if (e?.type === "CredentialsSignin" || (err instanceof Error && err.message?.includes("CredentialsSignin"))) {
         setError("Invalid credentials.");
       } else {
         setError("An unexpected error occurred. Please try again.");
@@ -124,97 +124,31 @@ export function LoginForm() {
 
   return (
     <>
-      {/* Inject focus-glow micro-interaction styles */}
-      <style>{`
-        .orcs-input {
-          transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-        }
-        .orcs-input:focus {
-          outline: none;
-          border-color: #1d4ed8;
-          background-color: #ffffff;
-          box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12), 0 1px 3px rgba(0,0,0,0.06);
-        }
-        .orcs-input:focus + .input-icon {
-          color: #1d4ed8;
-        }
-        .orcs-btn {
-          position: relative;
-          overflow: hidden;
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
-        .orcs-btn::after {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
-          pointer-events: none;
-        }
-        .orcs-btn:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 25px rgba(0, 48, 135, 0.35);
-        }
-        .orcs-btn:active:not(:disabled) {
-          transform: translateY(0);
-        }
-        .field-error {
-          animation: slideIn 0.2s ease;
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .error-banner {
-          animation: shakeIn 0.3s ease;
-        }
-        @keyframes shakeIn {
-          0%,100% { transform: translateX(0); }
-          20%,60% { transform: translateX(-4px); }
-          40%,80% { transform: translateX(4px); }
-        }
-      `}</style>
+      {/* Dark Glass Card */}
 
-      {/* Card */}
-      <div className="w-full rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80">
-        {/* Card Header */}
-        <div className="flex flex-col items-center px-4 sm:px-8 pt-8 pb-6 text-center border-b border-slate-100">
-          {/* UNITEN Logo */}
-          <div className="mb-5 flex items-center justify-center rounded-2xl bg-white p-3 shadow-md ring-1 ring-slate-100">
-            <Image
-              src="/assets/logo-light.png"
-              alt="UNITEN Logo"
-              width={72}
-              height={72}
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+      <div className="flex flex-col items-center w-full">
+        {/* Header - Natural Flow */}
+        <div className="flex flex-col items-center text-center px-4 mb-10 sm:mb-12 w-screen sm:w-auto">
+          <h1 className="whitespace-nowrap text-4xl sm:text-5xl font-bold tracking-tight text-white drop-shadow-md leading-tight">
             Online Residential Complaint System
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Universiti Tenaga Nasional &mdash; CCI Portal
+          <p className="mt-3 text-lg sm:text-xl font-medium drop-shadow-md text-white/95">
+            Universiti Tenaga Nasional
           </p>
-
-          {/* Security badge */}
-          {view === "login" && (
-            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Secure institutional login
-            </div>
-          )}
         </div>
 
-        {/* Form Body */}
-        <div className="px-4 sm:px-8 py-7">
+        {/* Dark Glass Card */}
+        <div className="w-full max-w-[420px] rounded-[20px] border border-white/10 bg-[#0f141e]/70 shadow-[0_40px_80px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl backdrop-saturate-150">
+          {/* Form Body */}
+          <div className="px-6 sm:px-10 py-8">
           {view === "login" && (
             <>
               {/* Session Timeout Warning Banner */}
               {sessionExpired && (
-                <div className="field-error mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-                  <p className="text-sm font-medium leading-snug text-amber-800">
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in slide-in-from-top-1"
+                  style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.30)" }}>
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fcd34d" }} />
+                  <p className="text-sm font-medium leading-snug" style={{ color: "#fde68a" }}>
                     Security Notice: Your session has timed out. Please log in to continue.
                   </p>
                 </div>
@@ -222,9 +156,10 @@ export function LoginForm() {
 
               {/* Error Banner */}
               {error && (
-                <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-                  <p className="text-sm font-medium leading-snug text-red-700">
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in"
+                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)" }}>
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fca5a5" }} />
+                  <p className="text-sm font-medium leading-snug" style={{ color: "#fca5a5" }}>
                     {error}
                   </p>
                 </div>
@@ -239,31 +174,31 @@ export function LoginForm() {
             <div className="space-y-1.5">
               <label
                 htmlFor="identifier"
-                className="block text-base sm:text-lg font-semibold text-slate-700"
+                className="block text-sm font-semibold text-white/80"
               >
-                Institutional Email or Student ID
+                Student Email
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                  <Mail className="input-icon h-5 w-5 text-slate-400 transition-colors" />
+                  <Mail className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
                 </div>
                 <input
                   id="identifier"
                   type="text"
                   autoComplete="username"
-                  placeholder="e.g. name@uniten.edu.my or MM12345"
+                  placeholder="e.g StudentID@uniten.edu.my"
                   disabled={isLoading}
-                  className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-5 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
+                  className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-5 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                     form.formState.errors.identifier
-                      ? "border-red-300 bg-red-50"
-                      : "border-slate-200 bg-slate-50"
+                      ? "border-red-400/50"
+                      : ""
                   }`}
                   {...form.register("identifier")}
                 />
               </div>
               {form.formState.errors.identifier && (
-                <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
+                <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
+                  <AlertCircle className="h-3.5 w-3.5" />
                   {form.formState.errors.identifier.message}
                 </p>
               )}
@@ -271,29 +206,15 @@ export function LoginForm() {
 
             {/* Password Field */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="password"
-                  className="block text-base sm:text-lg font-semibold text-slate-700"
-                >
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setView("forgot-password");
-                    setError(null);
-                    setResetError(null);
-                  }}
-                  className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline underline-offset-2 transition-colors"
-                  tabIndex={-1}
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-semibold text-white/80"
+              >
+                Password
+              </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                  <Lock className="input-icon h-5 w-5 text-slate-400 transition-colors" />
+                  <Lock className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
                 </div>
                 <input
                   id="password"
@@ -301,10 +222,8 @@ export function LoginForm() {
                   autoComplete="current-password"
                   placeholder="Enter your password"
                   disabled={isLoading}
-                  className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-12 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
-                    form.formState.errors.password
-                      ? "border-red-300 bg-red-50"
-                      : "border-slate-200 bg-slate-50"
+                  className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-12 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                    form.formState.errors.password ? "border-red-400/50" : ""
                   }`}
                   {...form.register("password")}
                 />
@@ -312,7 +231,8 @@ export function LoginForm() {
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute inset-y-0 right-4 flex items-center transition-colors"
+                  style={{ color: "rgba(255,255,255,0.38)" } as React.CSSProperties}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -322,12 +242,28 @@ export function LoginForm() {
                   )}
                 </button>
               </div>
-              {form.formState.errors.password && (
-                <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4" />
-                  {form.formState.errors.password.message}
-                </p>
-              )}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex-1">
+                  {form.formState.errors.password && (
+                    <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {form.formState.errors.password.message}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setView("forgot-password");
+                    setError(null);
+                    setResetError(null);
+                  }}
+                  className="text-xs sm:text-sm font-medium text-red-300/90 transition-colors hover:text-white hover:underline underline-offset-2 shrink-0 ml-3"
+                  tabIndex={-1}
+                >
+                  Forgot password?
+                </button>
+              </div>
             </div>
 
             {/* Submit Button */}
@@ -335,8 +271,7 @@ export function LoginForm() {
               id="login-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="orcs-btn mt-2 flex h-14 sm:h-16 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-800 to-blue-700 text-lg sm:text-xl font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
-              style={{ background: isLoading ? undefined : "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
+              className="relative mt-3 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-red-700 to-red-600 text-sm font-bold text-white transition-all hover:-translate-y-[2px] hover:shadow-[0_14px_36px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? (
                 <>
@@ -354,16 +289,17 @@ export function LoginForm() {
           {view === "forgot-password" && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="mb-5">
-                <h3 className="text-xl font-bold text-slate-900">Reset Password</h3>
-                <p className="text-base text-slate-500 mt-1">
+                <h3 className="text-lg font-bold text-white">Reset Password</h3>
+                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.50)" }}>
                   Enter your university email to receive a reset link.
                 </p>
               </div>
 
               {resetError && (
-                <div className="error-banner mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
-                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
-                  <p className="text-sm font-medium leading-snug text-red-700">
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in"
+                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)" }}>
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fca5a5" }} />
+                  <p className="text-sm font-medium leading-snug" style={{ color: "#fca5a5" }}>
                     {resetError}
                   </p>
                 </div>
@@ -377,30 +313,28 @@ export function LoginForm() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="block text-base sm:text-lg font-semibold text-slate-700"
+                    className="block text-sm font-semibold text-white/80"
                   >
                     University Email
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                      <Mail className="input-icon h-5 w-5 text-slate-400 transition-colors" />
+                      <Mail className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
                     </div>
                     <input
                       id="email"
                       type="email"
                       placeholder="e.g. name@uniten.edu.my"
                       disabled={isResetting}
-                      className={`orcs-input block h-14 sm:h-16 w-full rounded-xl border pl-12 pr-5 text-base sm:text-lg text-slate-900 placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 ${
-                        resetForm.formState.errors.email
-                          ? "border-red-300 bg-red-50"
-                          : "border-slate-200 bg-slate-50"
+                      className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-5 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                        resetForm.formState.errors.email ? "border-red-400/50" : ""
                       }`}
                       {...resetForm.register("email")}
                     />
                   </div>
                   {resetForm.formState.errors.email && (
-                    <p className="field-error flex items-center gap-1.5 text-sm text-red-600">
-                      <AlertCircle className="h-4 w-4" />
+                    <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
+                      <AlertCircle className="h-3.5 w-3.5" />
                       {resetForm.formState.errors.email.message}
                     </p>
                   )}
@@ -409,8 +343,7 @@ export function LoginForm() {
                 <button
                   type="submit"
                   disabled={isResetting}
-                  className="orcs-btn mt-2 flex h-14 sm:h-16 w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-800 to-blue-700 text-lg sm:text-xl font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
-                  style={{ background: isResetting ? undefined : "linear-gradient(135deg, #003087 0%, #1d4ed8 100%)" }}
+                  className="relative mt-2 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-red-700 to-red-600 text-sm font-bold text-white transition-all hover:-translate-y-[2px] hover:shadow-[0_14px_36px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isResetting ? (
                     <>
@@ -425,7 +358,7 @@ export function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setView("login")}
-                  className="mt-5 flex w-full items-center justify-center gap-2 text-base font-medium text-slate-500 hover:text-slate-800 transition-colors"
+                  className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-medium text-red-300/90 transition-colors hover:text-white hover:underline"
                 >
                   <ArrowLeft className="h-5 w-5" />
                   Back to Login
@@ -436,16 +369,18 @@ export function LoginForm() {
 
           {view === "forgot-password-success" && (
             <div className="animate-in zoom-in-95 duration-300 flex flex-col items-center text-center py-6">
-              <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center mb-5">
-                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              <div className="h-20 w-20 rounded-full flex items-center justify-center mb-5"
+                style={{ background: "rgba(16,185,129,0.18)", border: "1px solid rgba(16,185,129,0.35)" }}>
+                <CheckCircle2 className="h-10 w-10" style={{ color: "#6ee7b7" }} />
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">Check Your Email</h3>
-              
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-8">
-                <p className="text-base text-slate-700 leading-relaxed mb-3">
+              <h3 className="text-xl font-bold text-white mb-2">Check Your Email</h3>
+
+              <div className="rounded-xl p-5 mb-8"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <p className="text-sm leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.75)" }}>
                   A password reset link has been sent to your registered email. Please check your inbox.
                 </p>
-                <p className="text-sm text-slate-500 italic">
+                <p className="text-xs italic" style={{ color: "rgba(255,255,255,0.40)" }}>
                   Sila semak peti masuk emel anda. Pautan set semula kata laluan telah dihantar.
                 </p>
               </div>
@@ -456,29 +391,53 @@ export function LoginForm() {
                   setView("login");
                   resetForm.reset();
                 }}
-                className="text-base font-bold text-blue-700 hover:text-blue-900 transition-colors"
+                className="text-sm font-bold text-red-300/90 transition-colors hover:text-white hover:underline"
               >
                 Return to Login
               </button>
             </div>
           )}
         </div>
+        </div>
 
-        {/* Card Footer */}
-        <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50/70 px-4 sm:px-8 py-4 text-center">
-          <p className="text-xs text-slate-500">
-            For IT support, contact{" "}
+        {/* Footer - Below Card */}
+        <div className="mt-8 text-center z-50">
+          <p className="text-sm font-medium text-white/90 drop-shadow-md">
+            IT Support:{" "}
             <a
-              href="mailto:itsupport@uniten.edu.my"
-              className="font-medium text-blue-700 hover:underline"
+              href="mailto:OCRSsupport@uniten.edu.my"
+              className="font-bold text-white transition-colors hover:underline"
             >
-              itsupport@uniten.edu.my
+              OCRSsupport@uniten.edu.my
             </a>
           </p>
-          <p className="mt-1 text-xs text-slate-400" suppressHydrationWarning>
-            &copy; {new Date().getFullYear()} Universiti Tenaga Nasional. All
-            rights reserved.
+          <p className="mt-1 text-xs font-medium text-white/80 drop-shadow-md" suppressHydrationWarning>
+            &copy; {new Date().getFullYear()} Universiti Tenaga Nasional
           </p>
+        </div>
+      </div>
+
+      {/* Floating Logos - Bottom Right */}
+      <div className="fixed bottom-6 right-6 z-50 hidden sm:flex items-center gap-4">
+        <div className="transition-transform hover:scale-105">
+          <Image
+            src="/assets/UNITENLOGO.png"
+            alt="UNITEN Logo"
+            width={120}
+            height={64}
+            className="object-contain drop-shadow-xl"
+            priority
+          />
+        </div>
+        <div className="transition-transform hover:scale-105">
+          <Image
+            src="/assets/logo-light.png"
+            alt="ORCS Logo"
+            width={64}
+            height={64}
+            className="object-contain drop-shadow-xl"
+            priority
+          />
         </div>
       </div>
     </>
