@@ -100,6 +100,9 @@ model StudentProfile {
   room            Room?   @relation(fields: [roomId], references: [id])
   roomId          String?
 
+  // Human-readable room label e.g. "C1-04-02" (Block-Floor-Unit)
+  assignedRoom    String? @map("assigned_room")
+
   // Relations
   complaints      Complaint[]
 

@@ -5,31 +5,28 @@ import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
 import { normalizeLoginIdentifier } from "@/lib/identity";
 
+// Validate the Block-Floor-Unit pattern e.g. C1-04-02
+const ROOM_LABEL_RE = /^C[1-3]-(?:0[1-9]|10)-0[1-8]$/;
+
 const createSchema = z
   .object({
-    name: z.string().min(2),
-    email: z.string().min(3),
-    role: z.enum(["STUDENT", "MANAGEMENT", "IT_STAFF_ADMIN"]),
-    phone: z.string().optional(),
-    studentId: z.string().optional(), // Required for students; admin-assigned placeholder if omitted
-    roomId: z.string().optional(),
-    hostelId: z.string().optional(),
-    isActive: z.boolean().default(true),
+    name:      z.string().min(2),
+    email:     z.string().min(3),
+    role:      z.enum(["STUDENT", "MANAGEMENT", "IT_STAFF_ADMIN"]),
+    roomLabel: z.string().optional(), // e.g. "C1-04-02"
+    hostelId:  z.string().optional(),
+    isActive:  z.boolean().default(true),
   })
   .superRefine((value, ctx) => {
-    if (value.role === "STUDENT" && !value.roomId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["roomId"],
-        message: "Room is required for student accounts",
-      });
+    if (value.role === "STUDENT") {
+      if (!value.roomLabel) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["roomLabel"], message: "Room is required for student accounts" });
+      } else if (!ROOM_LABEL_RE.test(value.roomLabel)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["roomLabel"], message: "Room must follow pattern C[1-3]-[01-10]-[01-08]" });
+      }
     }
     if (value.role === "MANAGEMENT" && !value.hostelId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["hostelId"],
-        message: "Hostel is required for management accounts",
-      });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["hostelId"], message: "Hostel is required for management accounts" });
     }
   });
 
@@ -49,11 +46,10 @@ export async function GET() {
       wardenHostels: { select: { id: true, name: true }, take: 1 },
       studentProfile: {
         select: {
+          assignedRoom: true,
           room: {
             select: {
-              hostel: {
-                select: { id: true, name: true },
-              },
+              hostel: { select: { id: true, name: true } },
             },
           },
         },
@@ -82,24 +78,43 @@ export async function POST(request: NextRequest) {
           name: payload.name.trim(),
           email,
           role: payload.role,
-          phone: payload.phone?.trim() || null,
           isActive: payload.isActive,
           password: defaultPassword,
         },
         select: { id: true, name: true, email: true, role: true, isActive: true },
       });
 
-      if (payload.role === "STUDENT" && payload.roomId) {
-        // Use admin-supplied studentId if provided; otherwise generate a placeholder.
-        // The student can update their real ID via the Profile Setup page.
-        const studentId =
-          payload.studentId?.trim().toUpperCase() ||
-          `PENDING-${newUser.id.slice(0, 8).toUpperCase()}`;
+      if (payload.role === "STUDENT" && payload.roomLabel) {
+        const studentId = `PENDING-${newUser.id.slice(0, 8).toUpperCase()}`;
+
+        // Parse the roomLabel into parts to find/create the Room record
+        // roomLabel format: "C1-04-02" → roomNumber = "C1-04-02", floor = 4
+        const parts = payload.roomLabel.split("-");
+        const floorNum = parseInt(parts[1], 10);
+
+        // Find the hostel that matches the block prefix (C1, C2, C3)
+        // We look for a Room with this roomNumber in any hostel; if not found, create it
+        let room = await tx.room.findFirst({
+          where: { roomNumber: payload.roomLabel },
+        });
+
+        if (!room) {
+          // Find the first available hostel (prefer the one the admin selected)
+          const targetHostelId = payload.hostelId ||
+            (await tx.hostel.findFirst({ select: { id: true } }))?.id;
+          if (targetHostelId) {
+            room = await tx.room.create({
+              data: { roomNumber: payload.roomLabel, floor: floorNum, hostelId: targetHostelId },
+            });
+          }
+        }
+
         await tx.studentProfile.create({
           data: {
             userId: newUser.id,
             studentId,
-            roomId: payload.roomId,
+            roomId: room?.id ?? undefined,
+            assignedRoom: payload.roomLabel,
           },
         });
       }
