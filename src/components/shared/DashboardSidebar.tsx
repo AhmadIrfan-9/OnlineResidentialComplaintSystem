@@ -38,7 +38,8 @@ const getNavItems = (role: string | undefined) => {
     return [
       { label: "Dashboard", href: "/warden/dashboard", icon: LayoutDashboard },
       { label: "Complaint Queue", href: "/warden/queue", icon: ClipboardList },
-      { label: "Management Insights", href: "/warden/analytics", icon: Activity },
+      { label: "Insights", href: "/warden/analytics", icon: Activity },
+      { label: "Overview", href: "/warden/table", icon: FileText },
     ];
   }
   if (isStudentRole(role)) {
@@ -186,10 +187,10 @@ export function DashboardSidebar() {
               />
             </div>
             <div>
-              <p className="text-xl font-bold uppercase tracking-widest text-slate-400">
-                UNITEN CCI
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                Online Residential
               </p>
-              <h1 className="text-lg font-bold text-slate-900">Residential Portal</h1>
+              <h1 className="text-sm font-bold text-slate-900">Complaint System</h1>
             </div>
           </div>
         </div>
@@ -244,11 +245,11 @@ export function DashboardSidebar() {
                       />
                     </div>
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-                        UNITEN CCI
+                      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                        Online Residential
                       </p>
-                      <p className="text-sm font-bold text-slate-900">
-                        Residential Portal
+                      <p className="text-xs font-bold text-slate-900">
+                        Complaint System
                       </p>
                     </div>
                   </div>

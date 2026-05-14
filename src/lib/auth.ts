@@ -101,7 +101,10 @@ export const authOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: sessionUpdate }) {
+      if (trigger === "update" && sessionUpdate) {
+        if (sessionUpdate.name) token.name = sessionUpdate.name;
+      }
       if (user) {
         const u = user as unknown as ExtendedUser;
         token.id = u.id;
@@ -116,6 +119,7 @@ export const authOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.hostelId = token.hostelId as string | null;
+        if (token.name) session.user.name = token.name as string;
         (session.user as unknown as ExtendedUser).mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;

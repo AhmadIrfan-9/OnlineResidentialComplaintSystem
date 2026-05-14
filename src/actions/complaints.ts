@@ -370,6 +370,22 @@ export async function updateComplaintStatus(
       },
     });
 
+    // Auto-assign to whoever moves the complaint to IN_PROGRESS
+    if (validatedStatus === "IN_PROGRESS") {
+      const actor = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true },
+      });
+      const actorName = actor?.name ?? session.user.name ?? "Management";
+      await db.complaintUpdate.create({
+        data: {
+          complaintId,
+          content: assignmentComment(actorName),
+          updatedById: session.user.id,
+        },
+      });
+    }
+
     if (complaint.studentProfile?.userId) {
       await createInAppNotification({
         userId: complaint.studentProfile.userId,

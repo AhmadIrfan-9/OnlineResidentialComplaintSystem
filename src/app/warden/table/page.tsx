@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { type QueueItem } from "@/components/warden/ComplaintQueueTable";
-import { ComplaintKanbanBoard } from "@/components/warden/ComplaintKanbanBoard";
+import { ComplaintCompressedTable } from "@/components/warden/ComplaintCompressedTable";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { storageService } from "@/lib/storage/StorageService";
@@ -25,7 +24,7 @@ const ticketId = (id: string, createdAt: Date): string => {
   return `ORCS-${y}${m}${d}-${id.slice(0, 4).toUpperCase()}`;
 };
 
-export default async function ComplaintQueuePage() {
+export default async function TableViewPage() {
   const session = await auth();
   const role = normalizeRoleKey(session?.user?.role);
 
@@ -67,33 +66,20 @@ export default async function ComplaintQueuePage() {
     include: {
       hostel: {
         include: {
-          warden: {
-            select: { name: true },
-          },
+          warden: { select: { name: true } },
         },
       },
       studentProfile: {
         include: {
-          user: {
-            select: {
-              name: true,
-            },
-          },
+          user: { select: { name: true } },
         },
       },
       evidences: {
-        select: {
-          id: true,
-          fileUrl: true,
-          fileType: true,
-        },
+        select: { id: true, fileUrl: true, fileType: true },
       },
       complaintUpdates: {
         orderBy: { createdAt: "desc" },
-        select: {
-          content: true,
-          createdAt: true,
-        },
+        select: { content: true, createdAt: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -113,14 +99,8 @@ export default async function ComplaintQueuePage() {
         resolvedEvidence.map(async (evidence) => {
           const parsed = storageService.parseObjectKey(evidence.fileUrl);
           if (!parsed) {
-            return {
-              ...evidence,
-              uploadDate: null,
-              uploaderId: null,
-              virusScanStatus: null,
-            };
+            return { ...evidence, uploadDate: null, uploaderId: null, virusScanStatus: null };
           }
-
           try {
             const objectMeta = await storageService.getObjectMetadata(
               parsed.complaintId,
@@ -135,12 +115,7 @@ export default async function ComplaintQueuePage() {
               virusScanStatus: metadataAny.virus_scan_status ?? null,
             };
           } catch {
-            return {
-              ...evidence,
-              uploadDate: null,
-              uploaderId: null,
-              virusScanStatus: null,
-            };
+            return { ...evidence, uploadDate: null, uploaderId: null, virusScanStatus: null };
           }
         })
       );
@@ -170,46 +145,22 @@ export default async function ComplaintQueuePage() {
 
   return (
     <div className="space-y-6">
-      {/* Blue/red themed page banner */}
       <div className="surface-hero px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
               Management Portal
             </p>
-            <h1 className="text-2xl font-black text-white">Complaint Queue</h1>
+            <h1 className="text-2xl font-black text-white">Overview</h1>
             <p className="text-sm text-blue-200 mt-0.5">Residency: {scopeLabel}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-            <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
-              <div className="flex items-center gap-1.5 text-emerald-200">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="font-bold">0–2 days</span>
-                <span className="ml-1 rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-200">On Track</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-white/50">Complaint is within safe response window.</p>
-            </div>
-            <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
-              <div className="flex items-center gap-1.5 text-amber-200">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span className="font-bold">3–7 days</span>
-                <span className="ml-1 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-200">Warning</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-white/50">Needs attention — response overdue soon.</p>
-            </div>
-            <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
-              <div className="flex items-center gap-1.5 text-red-200">
-                <span className="h-2 w-2 rounded-full bg-red-400" />
-                <span className="font-bold">8+ days</span>
-                <span className="ml-1 rounded-full bg-red-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-200">Critical</span>
-              </div>
-              <p className="mt-0.5 text-[10px] text-white/50">SLA breached — immediate action required.</p>
-            </div>
+          <div className="flex items-center gap-3 text-xs font-semibold text-blue-200">
+            <span>{items.length} total complaints</span>
           </div>
         </div>
       </div>
 
-      <ComplaintKanbanBoard items={items} />
+      <ComplaintCompressedTable items={items} />
     </div>
   );
 }

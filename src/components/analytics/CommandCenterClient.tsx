@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { CategoryDistributionChart, CategoryDistributionChartStatic } from "./CategoryDistributionChart";
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { CategoryDistributionChart } from "./CategoryDistributionChart";
 import {
   LineChart,
   Line,
@@ -10,30 +11,29 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell,
-  PieChart,
-  Pie,
-  Legend,
 } from "recharts";
-import { 
-  Download, 
-  Filter, 
-  Building, 
-  Calendar, 
-  AlertCircle, 
-  TrendingUp, 
+import {
+  Download,
+  Filter,
+  Calendar,
+  AlertTriangle,
+  TrendingUp,
   TrendingDown,
   Clock,
   CheckCircle2,
-  AlertTriangle,
   Zap,
-  ClipboardList
+  ClipboardList,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type TrendData = { dateStr: string; date: string; count: number };
 export type CategoryData = { name: string; count: number };
@@ -45,6 +45,14 @@ export type OverdueComplaint = {
   status: string;
   createdAt: Date;
 };
+export type StatusCounts = {
+  PENDING: number;
+  IN_PROGRESS: number;
+  RESOLVED: number;
+  CLOSED: number;
+};
+
+type KpiKey = "total" | "sla" | "resolution" | "semester";
 
 interface CommandCenterClientProps {
   dailyTrendData: TrendData[];
@@ -52,8 +60,9 @@ interface CommandCenterClientProps {
   categoryData: CategoryData[];
   histogramData: HistogramData[];
   overdueComplaints: OverdueComplaint[];
-  hostels: { id: string; name: string }[];
+  statusCounts: StatusCounts;
   semesterName: string;
+  semesterOptions: { name: string; value: string }[];
   totalComplaints: number;
   slaCompliance: number;
   avgResolutionHours: number;
@@ -62,7 +71,194 @@ interface CommandCenterClientProps {
     sla: { value: string; isUp: boolean };
     resolution: { value: string; isUp: boolean };
   };
+  initialRangeFilter?: string;
 }
+
+// ── Tooltip style ─────────────────────────────────────────────────────────────
+
+const tooltipStyle = {
+  backgroundColor: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  color: "#0f172a",
+  fontSize: "12px",
+  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+};
+
+// ── KPI popup detail content ──────────────────────────────────────────────────
+
+function KpiPopupContent({
+  kpiKey,
+  totalComplaints,
+  slaCompliance,
+  avgResolutionHours,
+  semesterName,
+  statusCounts,
+  categoryData,
+  histogramData,
+  trends,
+}: {
+  kpiKey: KpiKey;
+  totalComplaints: number;
+  slaCompliance: number;
+  avgResolutionHours: number;
+  semesterName: string;
+  statusCounts: StatusCounts;
+  categoryData: CategoryData[];
+  histogramData: HistogramData[];
+  trends: CommandCenterClientProps["trends"];
+}) {
+  const statusRows = [
+    { label: "Pending",     key: "PENDING" as const,     color: "#3b82f6" },
+    { label: "In Progress", key: "IN_PROGRESS" as const, color: "#f59e0b" },
+    { label: "Resolved",    key: "RESOLVED" as const,    color: "#10b981" },
+    { label: "Closed",      key: "CLOSED" as const,      color: "#94a3b8" },
+  ];
+  const maxStatus = Math.max(...statusRows.map((r) => statusCounts[r.key]), 1);
+
+  if (kpiKey === "total") {
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Tracks every complaint submitted since the start of this period across all assigned residencies.
+        </p>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Status Breakdown</p>
+          <div className="space-y-2.5">
+            {statusRows.map((row) => (
+              <div key={row.key} className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-slate-600 w-20 shrink-0">{row.label}</span>
+                <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${(statusCounts[row.key] / maxStatus) * 100}%`, backgroundColor: row.color }} />
+                </div>
+                <span className="text-xs font-black w-6 text-right" style={{ color: row.color }}>{statusCounts[row.key]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {categoryData.length > 0 && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Top Categories</p>
+            <div className="space-y-2">
+              {categoryData.slice(0, 4).map((cat, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                  <span className="flex-1 text-xs text-slate-700 truncate">{cat.name}</span>
+                  <span className="text-xs font-bold text-slate-500">{cat.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+          <p className="text-xs font-semibold text-blue-700">
+            Compared to previous period:{" "}
+            <span className={cn("font-black", trends.total.isUp ? "text-amber-600" : "text-emerald-600")}>{trends.total.value}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (kpiKey === "sla") {
+    const compliantCount = Math.round((slaCompliance / 100) * totalComplaints);
+    const ringCls = slaCompliance >= 80 ? "border-emerald-500 text-emerald-600" : slaCompliance >= 60 ? "border-amber-500 text-amber-600" : "border-red-500 text-red-600";
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-slate-600 leading-relaxed">
+          SLA compliance measures complaints resolved within the <span className="font-bold text-slate-800">14-day target window</span>. Higher compliance means faster, more reliable service.
+        </p>
+        <div className={cn("flex flex-col items-center justify-center rounded-2xl border-4 py-6", ringCls)}>
+          <p className="text-5xl font-black">{slaCompliance.toFixed(1)}%</p>
+          <p className="text-sm font-semibold text-slate-500 mt-1">{compliantCount} / {totalComplaints} complaints on time</p>
+        </div>
+        <div>
+          <div className="flex justify-between text-xs font-bold mb-1.5">
+            <span className="text-slate-500">Current Performance</span>
+            <span className="text-slate-700">Target: ≥ 80%</span>
+          </div>
+          <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${Math.min(slaCompliance, 100)}%`, backgroundColor: slaCompliance >= 80 ? "#10b981" : slaCompliance >= 60 ? "#f59e0b" : "#ef4444" }} />
+          </div>
+          <div className="relative mt-1 h-4">
+            <div className="absolute text-[10px] font-bold text-slate-400" style={{ left: "80%" }}>80%</div>
+          </div>
+        </div>
+        <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-1">
+          <p className="text-xs font-bold text-slate-700">How it&apos;s calculated</p>
+          <p className="text-xs text-slate-500">(Complaints resolved ≤ 14 days) ÷ Total complaints × 100%</p>
+        </div>
+        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+          <p className="text-xs font-semibold text-blue-700">
+            Trend vs previous period: <span className={cn("font-black", trends.sla.isUp ? "text-emerald-600" : "text-red-600")}>{trends.sla.value}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (kpiKey === "resolution") {
+    const maxBucket = Math.max(...histogramData.map((d) => d.current), 1);
+    const HIST_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#f97316", "#ef4444"];
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Average resolution time from submission to resolution. Target is <span className="font-bold text-slate-800">under 72 hours</span> for routine issues.
+        </p>
+        <div className={cn("text-center rounded-2xl border-4 py-6", avgResolutionHours <= 72 ? "border-emerald-400 text-emerald-600" : avgResolutionHours <= 168 ? "border-amber-400 text-amber-600" : "border-red-400 text-red-600")}>
+          <p className="text-5xl font-black">{avgResolutionHours.toFixed(1)}<span className="text-2xl font-bold ml-1">h</span></p>
+          <p className="text-sm font-semibold text-slate-500 mt-1">
+            {avgResolutionHours <= 72 ? "Within target ✓" : avgResolutionHours <= 168 ? "Above target — review needed" : "Critical — action required"}
+          </p>
+        </div>
+        {histogramData.some((d) => d.current > 0) && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Resolution Time Distribution</p>
+            <div className="space-y-2">
+              {histogramData.map((d, i) => (
+                <div key={d.bucket} className="flex items-center gap-3">
+                  <span className="text-[11px] font-semibold text-slate-500 w-16 shrink-0">{d.bucket}</span>
+                  <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(d.current / maxBucket) * 100}%`, backgroundColor: HIST_COLORS[i] }} />
+                  </div>
+                  <span className="text-xs font-black w-5 text-right text-slate-600">{d.current}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+          <p className="text-xs font-semibold text-blue-700">
+            Trend vs previous period: <span className={cn("font-black", trends.resolution.isUp ? "text-emerald-600" : "text-red-600")}>{trends.resolution.value}</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-slate-600 leading-relaxed">
+        The academic semester defines the active complaint tracking window. Metrics are scoped to complaints submitted within this period.
+      </p>
+      <div className="rounded-2xl bg-blue-600 text-white px-6 py-8 text-center">
+        <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-2">Active Period</p>
+        <p className="text-3xl font-black">{semesterName}</p>
+        <p className="text-sm text-blue-200 mt-2">Complaint tracking is active</p>
+      </div>
+      <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2">
+        <p className="text-xs font-bold text-slate-700">What this means</p>
+        <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
+          <li>All complaint metrics are scoped to this semester</li>
+          <li>SLA compliance is calculated within this window</li>
+          <li>Historical comparison uses the equivalent prior period</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 
 export function CommandCenterClient({
   dailyTrendData,
@@ -70,261 +266,422 @@ export function CommandCenterClient({
   categoryData,
   histogramData,
   overdueComplaints,
-  hostels,
+  statusCounts,
   semesterName,
+  semesterOptions,
   totalComplaints,
   slaCompliance,
   avgResolutionHours,
   trends,
+  initialRangeFilter = "30D",
 }: CommandCenterClientProps) {
-  const [selectedHostel, setSelectedHostel] = useState<string>("ALL");
-  const [dateRange, setDateRange] = useState<string>("30D");
-  const [chartView, setChartView] = useState<"daily" | "monthly">("daily");
+  const router = useRouter();
+
+  // Determine initial select value (custom → show "CUSTOM" placeholder)
+  const initSelectVal = initialRangeFilter.startsWith("CUSTOM:") ? "CUSTOM" : initialRangeFilter;
+  const initCustomFrom = initialRangeFilter.startsWith("CUSTOM:")
+    ? initialRangeFilter.slice(7).split(":")[0]
+    : new Date(Date.now() - 29 * 86400000).toISOString().split("T")[0];
+  const initCustomTo = initialRangeFilter.startsWith("CUSTOM:")
+    ? initialRangeFilter.slice(7).split(":")[1]
+    : new Date().toISOString().split("T")[0];
+
+  const [selectVal, setSelectVal] = useState(initSelectVal);
+  const [showCustom, setShowCustom] = useState(initialRangeFilter.startsWith("CUSTOM:"));
+  const [customFrom, setCustomFrom] = useState(initCustomFrom);
+  const [customTo, setCustomTo] = useState(initCustomTo);
+  const [chartView, setChartView] = useState<"daily" | "monthly">(
+    dailyTrendData.length > 0 ? "daily" : "monthly"
+  );
   const [isExporting, setIsExporting] = useState(false);
-  const infographicRef = useRef<HTMLDivElement>(null);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [activeKpi, setActiveKpi] = useState<KpiKey | null>(null);
 
-  const colors = {
-    tealPrimary: "#0f766e",
-    tealSecondary: "#14b8a6",
-    tealLight: "#ccfbf1",
-    navyPrimary: "#1e3a8a",
-    navySecondary: "#1e40af",
-    navyLight: "#dbeafe",
-    gray: "#64748b",
-    red: "#ef4444",
+  const applyFilter = (range: string) => {
+    router.push(`/warden/analytics?range=${encodeURIComponent(range)}`);
   };
 
-  const tooltipStyle = {
-    backgroundColor: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: "8px",
-    color: "#0f172a",
-    fontSize: "12px",
-    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-  };
-
-  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
-  const monthTotal = dailyTrendData.reduce((sum, item) => sum + item.count, 0);
-
-  const generateInfographicPDF = async () => {
-    if (!infographicRef.current) return;
-    setIsExporting(true);
-    
-    try {
-      const canvas = await html2canvas(infographicRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`UNITEN_CommandCenter_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-    } catch (error) {
-      console.error("PDF Export failed:", error);
-    } finally {
-      setIsExporting(false);
+  const handleSelectChange = (val: string) => {
+    setSelectVal(val);
+    if (val === "CUSTOM") {
+      setShowCustom(true);
+    } else {
+      setShowCustom(false);
+      applyFilter(val);
     }
   };
 
+  const applyCustom = () => {
+    if (!customFrom || !customTo) return;
+    applyFilter(`CUSTOM:${customFrom}:${customTo}`);
+  };
+
+  const slaAccent = slaCompliance >= 80 ? "border-t-emerald-500" : slaCompliance >= 60 ? "border-t-amber-500" : "border-t-red-500";
+  const slaValueColor = slaCompliance >= 80 ? "text-emerald-600" : slaCompliance >= 60 ? "text-amber-600" : "text-red-600";
+
+  const kpis: {
+    key: KpiKey;
+    label: string;
+    description: string;
+    value: string | number;
+    trend?: { value: string; isUp: boolean };
+    icon: React.ElementType;
+    accent: string;
+    valueColor: string;
+  }[] = [
+    { key: "total",      label: "Total Semester Tickets", description: "All complaints submitted since period start.", value: totalComplaints,                     trend: trends.total,      icon: ClipboardList, accent: "border-t-slate-400",  valueColor: "text-slate-900" },
+    { key: "sla",        label: "SLA Compliance",         description: "% of complaints resolved within 14-day target.", value: `${slaCompliance.toFixed(1)}%`,  trend: trends.sla,        icon: CheckCircle2,  accent: slaAccent,            valueColor: slaValueColor },
+    { key: "resolution", label: "Avg Resolution Time",    description: "Mean time from submission to resolution. Target: < 72h.", value: `${avgResolutionHours.toFixed(1)}h`, trend: trends.resolution, icon: Clock,         accent: "border-t-blue-500",  valueColor: "text-blue-700" },
+    { key: "semester",   label: "Semester Context",       description: "Active academic period for complaint tracking.", value: semesterName,                    icon: Calendar,                                accent: "border-t-indigo-400", valueColor: "text-indigo-900" },
+  ];
+
+  const navyColor = "#1e3a8a";
+
+  // ── PDF Export (programmatic — no html2canvas) ────────────────────────────
+  const generatePDF = () => {
+    setIsExporting(true);
+    setExportMsg(null);
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+      const W = 210;
+      const margin = 15;
+      let y = 0;
+
+      // Header banner
+      pdf.setFillColor(30, 58, 138);
+      pdf.rect(0, 0, W, 42, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(20);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("UNITEN Management Report", margin, 18);
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`${semesterName}  ·  Generated ${new Date().toLocaleDateString("en-MY")}`, margin, 30);
+      pdf.text("ORCS — Online Residential Complaint System", margin, 38);
+      y = 52;
+
+      // KPI row (3 boxes)
+      const kpiBoxW = (W - margin * 2 - 8) / 3;
+      const kpiData = [
+        { label: "Total Complaints", value: String(totalComplaints), color: [30, 58, 138] as [number, number, number] },
+        { label: "SLA Compliance", value: `${slaCompliance.toFixed(1)}%`, color: slaCompliance >= 80 ? [16, 185, 129] as [number, number, number] : slaCompliance >= 60 ? [245, 158, 11] as [number, number, number] : [239, 68, 68] as [number, number, number] },
+        { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, color: [37, 99, 235] as [number, number, number] },
+      ];
+      kpiData.forEach((k, i) => {
+        const x = margin + i * (kpiBoxW + 4);
+        pdf.setFillColor(248, 250, 252);
+        pdf.roundedRect(x, y, kpiBoxW, 28, 3, 3, "F");
+        pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(x, y, kpiBoxW, 28, 3, 3, "S");
+        pdf.setTextColor(...k.color);
+        pdf.setFontSize(18);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(k.value, x + kpiBoxW / 2, y + 14, { align: "center" });
+        pdf.setTextColor(100, 116, 139);
+        pdf.setFontSize(8);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(k.label.toUpperCase(), x + kpiBoxW / 2, y + 22, { align: "center" });
+      });
+      y += 38;
+
+      // Status breakdown
+      pdf.setTextColor(15, 23, 42);
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Status Breakdown", margin, y);
+      y += 8;
+      const statusData = [
+        { label: "Pending",     count: statusCounts.PENDING,     color: [59, 130, 246] as [number, number, number] },
+        { label: "In Progress", count: statusCounts.IN_PROGRESS, color: [245, 158, 11] as [number, number, number] },
+        { label: "Resolved",    count: statusCounts.RESOLVED,    color: [16, 185, 129] as [number, number, number] },
+        { label: "Closed",      count: statusCounts.CLOSED,      color: [148, 163, 184] as [number, number, number] },
+      ];
+      const maxCount = Math.max(...statusData.map((s) => s.count), 1);
+      const barW = W - margin * 2 - 40;
+      statusData.forEach((s) => {
+        pdf.setTextColor(71, 85, 105);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(s.label, margin, y + 4);
+        pdf.setFillColor(241, 245, 249);
+        pdf.roundedRect(margin + 30, y, barW, 6, 2, 2, "F");
+        pdf.setFillColor(...s.color);
+        const filledW = Math.max((s.count / maxCount) * barW, s.count > 0 ? 2 : 0);
+        if (filledW > 0) pdf.roundedRect(margin + 30, y, filledW, 6, 2, 2, "F");
+        pdf.setTextColor(...s.color);
+        pdf.setFont("helvetica", "bold");
+        pdf.text(String(s.count), margin + 30 + barW + 4, y + 5);
+        y += 10;
+      });
+      y += 6;
+
+      // Category breakdown
+      if (categoryData.length > 0) {
+        pdf.setTextColor(15, 23, 42);
+        pdf.setFontSize(12);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Complaint Categories", margin, y);
+        y += 8;
+        const maxCat = Math.max(...categoryData.map((c) => c.count), 1);
+        categoryData.slice(0, 8).forEach((cat, i) => {
+          const colors: [number, number, number][] = [
+            [30, 58, 138], [15, 118, 110], [29, 78, 216], [13, 148, 136],
+            [59, 130, 246], [20, 184, 166], [100, 116, 139], [239, 68, 68],
+          ];
+          const c = colors[i % colors.length];
+          pdf.setTextColor(71, 85, 105);
+          pdf.setFontSize(9);
+          pdf.setFont("helvetica", "normal");
+          pdf.text(cat.name, margin, y + 4);
+          pdf.setFillColor(241, 245, 249);
+          pdf.roundedRect(margin + 38, y, barW - 8, 6, 2, 2, "F");
+          pdf.setFillColor(...c);
+          const fw = Math.max((cat.count / maxCat) * (barW - 8), cat.count > 0 ? 2 : 0);
+          if (fw > 0) pdf.roundedRect(margin + 38, y, fw, 6, 2, 2, "F");
+          pdf.setTextColor(71, 85, 105);
+          pdf.setFont("helvetica", "bold");
+          pdf.text(`${cat.count} (${totalComplaints ? Math.round((cat.count / totalComplaints) * 100) : 0}%)`, margin + 38 + barW - 8 + 4, y + 5);
+          y += 10;
+        });
+        y += 4;
+      }
+
+      // Trend note
+      pdf.setFillColor(239, 246, 255);
+      pdf.roundedRect(margin, y, W - margin * 2, 20, 3, 3, "F");
+      pdf.setTextColor(30, 58, 138);
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Period Comparison vs Previous Period", margin + 4, y + 7);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.text(
+        `Volume: ${trends.total.value}  ·  SLA: ${trends.sla.value}  ·  Resolution: ${trends.resolution.value}`,
+        margin + 4, y + 14
+      );
+      y += 26;
+
+      // Footer
+      pdf.setFillColor(30, 58, 138);
+      pdf.rect(0, 287, W, 10, "F");
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("© 2026 UNITEN Residential Services  ·  ORCS Management Report  ·  Confidential", W / 2, 293, { align: "center" });
+
+      pdf.save(`UNITEN_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+      setExportMsg("✓ PDF exported successfully.");
+    } catch {
+      setExportMsg("✕ Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+      setTimeout(() => setExportMsg(null), 4000);
+    }
+  };
+
+  const activeKpiConfig = kpis.find((k) => k.key === activeKpi) ?? null;
+
   return (
-    <div className="space-y-6 pb-24">
-      {/* Filters */}
-      <div className="flex flex-col items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm border border-slate-100">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <span className="font-semibold text-slate-700">Filters</span>
+    <div className="space-y-4 pb-8">
+      {/* ── Filter bar ────────────────────────────────────────────── */}
+      <div className="surface-card px-4 py-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5">
+              <Filter className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-semibold text-slate-700 text-xs">Filters</span>
+            </div>
+            <select
+              value={selectVal}
+              onChange={(e) => handleSelectChange(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="7D">Last 7 Days</option>
+              <option value="30D">Last 30 Days</option>
+              <optgroup label="Semesters">
+                {semesterOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.name}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Custom">
+                <option value="CUSTOM">Custom Period…</option>
+              </optgroup>
+            </select>
           </div>
-          
-          <select 
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="7D">Last 7 Days</option>
-            <option value="30D">Last 30 Days</option>
-            <option value="SEMESTER">This Semester</option>
-          </select>
 
-          <select 
-            value={selectedHostel}
-            onChange={(e) => setSelectedHostel(e.target.value)}
-            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            <option value="ALL">All Assigned Hostels</option>
-            {hostels.map(h => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            {exportMsg && (
+              <span className={cn("text-xs font-semibold", exportMsg.startsWith("✓") ? "text-emerald-600" : "text-red-600")}>
+                {exportMsg}
+              </span>
+            )}
+            <button
+              onClick={generatePDF}
+              disabled={isExporting}
+              className="btn-primary px-4 py-2 text-sm gap-2"
+            >
+              {isExporting ? <Zap className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {isExporting ? "Generating…" : "Export PDF"}
+            </button>
+          </div>
         </div>
 
-        <button 
-          onClick={generateInfographicPDF}
-          disabled={isExporting}
-          className="flex items-center gap-2 rounded-lg bg-navyPrimary px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-navySecondary disabled:opacity-50"
-        >
-          {isExporting ? <Zap className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Generate Infographic PDF
-        </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="overflow-x-auto">
-        <div className="grid gap-4 md:grid-cols-4 min-w-[480px]">
-          {[
-            { label: "Total Semester Tickets", value: totalComplaints, trend: trends.total, icon: ClipboardList, color: "text-slate-600" },
-            { label: "SLA Compliance", value: `${slaCompliance.toFixed(1)}%`, trend: trends.sla, icon: CheckCircle2, color: "text-tealPrimary" },
-            { label: "Avg Resolution", value: `${avgResolutionHours.toFixed(1)}h`, trend: trends.resolution, icon: Clock, color: "text-navyPrimary" },
-            { label: "Semester Context", value: semesterName, subtext: "Active Period", icon: Calendar, color: "text-slate-900" },
-          ].map((kpi, i) => (
-            <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{kpi.label}</p>
-                <kpi.icon className="h-4 w-4 text-slate-300" />
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <p className={cn("text-2xl font-bold", kpi.color)}>{kpi.value}</p>
-                {kpi.trend && (
-                  <div className={cn("flex items-center gap-0.5 text-xs font-bold", kpi.trend.isUp ? "text-emerald-600" : "text-rose-600")}>
-                    {kpi.trend.isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {kpi.trend.value}
-                  </div>
-                )}
-              </div>
-              {kpi.subtext && <p className="mt-1 text-[10px] font-medium text-slate-400">{kpi.subtext}</p>}
+        {/* Custom date picker row */}
+        {showCustom && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+            <Calendar className="h-4 w-4 text-slate-500 shrink-0" />
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-600">From</label>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+              />
             </div>
-          ))}
-        </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-600">To</label>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <button
+              onClick={applyCustom}
+              className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-sm font-bold text-white transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Main Chart */}
-      <div className="overflow-x-auto">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm relative overflow-hidden min-w-[320px]">
-          <div className="flex items-center justify-between mb-8">
+      {/* ── KPI cards ─────────────────────────────────────────────── */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {kpis.map((kpi) => (
+          <button
+            key={kpi.key}
+            onClick={() => setActiveKpi(kpi.key)}
+            className={cn(
+              "surface-card border-t-4 px-5 py-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer group",
+              kpi.accent
+            )}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{kpi.label}</p>
+              <kpi.icon className="h-4 w-4 text-slate-300 group-hover:text-blue-400 transition-colors" />
+            </div>
+            <div className="flex items-baseline gap-2 mb-2">
+              <p className={cn("text-2xl font-black", kpi.valueColor)}>{kpi.value}</p>
+              {kpi.trend && (
+                <span className={cn("flex items-center gap-0.5 text-[10px] font-bold", kpi.trend.isUp ? "text-emerald-600" : "text-rose-600")}>
+                  {kpi.trend.isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {kpi.trend.value}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">{kpi.description}</p>
+            <p className="text-[10px] text-blue-500 font-semibold mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              Click for details →
+            </p>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Charts side by side ───────────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Trend chart */}
+        <div className="surface-card p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Complaint Volume Trend</h3>
-              <p className="text-xs text-slate-500">Visualization of operational workload</p>
+              <h3 className="text-sm font-bold text-slate-900">Complaint Volume Trend</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Total:{" "}
+                <span className="font-bold text-slate-700">
+                  {(chartView === "daily" ? dailyTrendData : monthlyTrendData).reduce((s, d) => s + d.count, 0)}
+                </span>
+              </p>
             </div>
-            
-            <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+            <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1">
               <button
                 onClick={() => setChartView("daily")}
-                className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "daily" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                disabled={dailyTrendData.length === 0}
+                className={cn("rounded-lg px-3 py-1 text-xs font-bold transition-all disabled:opacity-40", chartView === "daily" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
               >
                 Daily
               </button>
               <button
                 onClick={() => setChartView("monthly")}
-                className={cn("px-3 py-1 text-xs font-bold rounded-md transition-all", chartView === "monthly" ? "bg-white text-navyPrimary shadow-sm" : "text-slate-500 hover:text-slate-700")}
+                className={cn("rounded-lg px-3 py-1 text-xs font-bold transition-all", chartView === "monthly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-700")}
               >
                 Monthly
               </button>
             </div>
           </div>
-
-          {/* Chart Badge */}
-          <div className="absolute top-6 right-36 z-10 px-3 py-1.5 rounded-full bg-navyPrimary/5 border border-navyPrimary/20 backdrop-blur-sm">
-             <p className="text-[10px] font-bold text-navyPrimary uppercase tracking-tighter">
-               Total for {chartView === "daily" ? currentMonthName : "Semester"}: {chartView === "daily" ? monthTotal : totalComplaints}
-             </p>
-          </div>
-
-          <div className="h-80 w-full">
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart 
-                data={chartView === "daily" ? dailyTrendData : monthlyTrendData} 
-                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              <LineChart
+                data={chartView === "daily" ? dailyTrendData : monthlyTrendData}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
               >
-                <defs>
-                  <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={colors.navyPrimary} stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor={colors.navyPrimary} stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis 
-                  dataKey="dateStr" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }}
-                />
-                <Tooltip 
-                  contentStyle={tooltipStyle}
-                  itemStyle={{ color: colors.navyPrimary, fontWeight: 700 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="Total Complaints"
-                  stroke={colors.navyPrimary}
-                  strokeWidth={4}
-                  dot={{ r: 4, fill: "#fff", stroke: colors.navyPrimary, strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: colors.tealPrimary, stroke: "#fff", strokeWidth: 2 }}
-                />
+                <XAxis dataKey="dateStr" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} dy={8} interval="preserveStartEnd" />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: navyColor, fontWeight: 700 }} />
+                <Line type="monotone" dataKey="count" name="Complaints" stroke={navyColor} strokeWidth={3} dot={{ r: 3, fill: "#fff", stroke: navyColor, strokeWidth: 2 }} activeDot={{ r: 5, fill: "#1d4ed8", stroke: "#fff", strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Category distribution */}
+        <CategoryDistributionChart
+          categoryData={categoryData}
+          totalComplaints={totalComplaints}
+          className="surface-card p-5"
+        />
       </div>
 
-      {/* Overdue Table */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+      {/* ── SLA Overdue table ─────────────────────────────────────── */}
+      <div className="surface-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">SLA Watch: Overdue Complaints</h3>
-            <p className="text-xs text-rose-500 font-semibold uppercase tracking-wider">Critical focus required for resolution</p>
+            <h3 className="text-sm font-bold text-slate-900">SLA Watch: Overdue Complaints</h3>
+            <p className="text-xs text-rose-500 font-semibold mt-0.5">Critical focus required for resolution</p>
           </div>
-          <AlertTriangle className="h-5 w-5 text-rose-500 animate-pulse" />
+          <AlertTriangle className="h-4 w-4 text-rose-500" />
         </div>
-        
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50/50 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                <th className="px-6 py-4">Ref ID</th>
-                <th className="px-6 py-4">Complaint Title</th>
-                <th className="px-6 py-4">Block</th>
-                <th className="px-6 py-4">SLA Aging</th>
-                <th className="px-6 py-4">Status</th>
+              <tr className="bg-slate-50 text-left">
+                {["Ref ID", "Complaint Title", "Block", "Days Overdue", "Status"].map((h) => (
+                  <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-50">
               {overdueComplaints.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">No overdue complaints detected in this period. Great job!</td>
+                  <td colSpan={5} className="px-5 py-10 text-center text-slate-400 italic text-sm">
+                    No overdue complaints detected in this period. Great job!
+                  </td>
                 </tr>
               ) : (
                 overdueComplaints.map((c) => {
-                  const aging = Math.floor((new Date().getTime() - new Date(c.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+                  const aging = Math.floor((Date.now() - new Date(c.createdAt).getTime()) / 86400000);
                   return (
-                    <tr key={c.id} className="group hover:bg-rose-50/30 transition-colors">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-slate-400 group-hover:text-rose-600">#{c.id.slice(0, 6)}</td>
-                      <td className="px-6 py-4 font-bold text-slate-700">{c.title}</td>
-                      <td className="px-6 py-4"><span className="px-2 py-1 rounded bg-slate-100 text-[10px] font-bold">{c.hostel.name}</span></td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-16 rounded-full bg-slate-100 overflow-hidden">
-                            <div className="h-full bg-rose-500" style={{ width: "100%" }} />
-                          </div>
-                          <span className="text-xs font-extrabold text-rose-600">{aging} Days</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                         <span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold uppercase ring-1 ring-rose-200">
-                           {c.status}
-                         </span>
-                      </td>
+                    <tr key={c.id} className="hover:bg-rose-50/30 transition-colors">
+                      <td className="px-5 py-3 font-mono text-xs font-bold text-slate-400">#{c.id.slice(0, 6)}</td>
+                      <td className="px-5 py-3 font-semibold text-slate-700 text-xs">{c.title}</td>
+                      <td className="px-5 py-3"><span className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{c.hostel.name}</span></td>
+                      <td className="px-5 py-3"><span className="text-xs font-extrabold text-rose-600">{aging}d</span></td>
+                      <td className="px-5 py-3"><span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-extrabold uppercase text-rose-700 ring-1 ring-rose-200">{c.status}</span></td>
                     </tr>
                   );
                 })
@@ -334,110 +691,39 @@ export function CommandCenterClient({
         </div>
       </div>
 
-      {/* Category Distribution Chart — live */}
-      <div className="overflow-x-auto">
-        <CategoryDistributionChart
-          categoryData={categoryData}
-          totalComplaints={totalComplaints}
-        />
-      </div>
-
-      {/* Hidden Infographic Template for PDF Export */}
-      <div className="sr-only">
-        <div ref={infographicRef} className="w-[800px] p-12 font-sans" style={{ backgroundColor: "#ffffff", color: "#0f172a" }}>
-          <div className="flex items-center justify-between border-b-4 pb-8 mb-12" style={{ borderColor: "#1e3a8a" }}>
-             <div className="flex items-center gap-6">
-                <div className="h-20 w-20 flex items-center justify-center rounded-xl ring-2" style={{ backgroundColor: "#f8fafc", boxShadow: "0 0 0 2px #e2e8f0" }}>
-                   <img src="/assets/logo-light.png" alt="UNITEN" className="h-16 w-16 object-contain" />
+      {/* ── KPI Detail Dialog ─────────────────────────────────────── */}
+      <Dialog open={Boolean(activeKpi)} onOpenChange={(open) => !open && setActiveKpi(null)}>
+        <DialogContent className="max-w-md overflow-y-auto max-h-[90vh]">
+          {activeKpi && activeKpiConfig && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <div className={cn("rounded-xl p-2.5", activeKpi === "sla" ? "bg-emerald-100" : activeKpi === "resolution" ? "bg-blue-100" : activeKpi === "semester" ? "bg-indigo-100" : "bg-slate-100")}>
+                    <activeKpiConfig.icon className={cn("h-5 w-5", activeKpiConfig.valueColor)} />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base font-black text-slate-900">{activeKpiConfig.label}</DialogTitle>
+                    <p className={cn("text-lg font-black mt-0.5", activeKpiConfig.valueColor)}>{activeKpiConfig.value}</p>
+                  </div>
                 </div>
-                <div>
-                   <h1 className="text-4xl font-black uppercase tracking-tighter" style={{ color: "#1e3a8a" }}>Management Report</h1>
-                   <p className="text-xl font-bold" style={{ color: "#94a3b8" }}>UNITEN Residential Portal | {semesterName}</p>
-                </div>
-             </div>
-             <div className="text-right">
-                <p className="text-sm font-bold" style={{ color: "#94a3b8" }}>Generated On</p>
-                <p className="text-lg font-black" style={{ color: "#1e3a8a" }}>{new Date().toLocaleDateString()}</p>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-8 mb-12">
-             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#f8fafc", boxShadow: "0 0 0 1px #e2e8f0" }}>
-                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#94a3b8" }}>Total Volume</p>
-                <p className="text-5xl font-black" style={{ color: "#1e3a8a" }}>{totalComplaints}</p>
-                <p className="text-sm font-bold mt-2" style={{ color: "#059669" }}>{trends.total.value} trend</p>
-             </div>
-             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#f0fdfa", boxShadow: "0 0 0 1px #ccfbf1" }}>
-                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#94a3b8" }}>SLA Performance</p>
-                <p className="text-5xl font-black" style={{ color: "#0f766e" }}>{slaCompliance.toFixed(1)}%</p>
-                <p className="text-sm font-bold mt-2" style={{ color: "#0f766e" }}>{trends.sla.value} vs target</p>
-             </div>
-             <div className="p-8 rounded-3xl ring-1" style={{ backgroundColor: "#0f172a", boxShadow: "0 0 0 1px #1e293b" }}>
-                <p className="text-sm font-bold uppercase mb-2" style={{ color: "#64748b" }}>Avg Resolution</p>
-                <p className="text-5xl font-black" style={{ color: "#ffffff" }}>{avgResolutionHours.toFixed(1)}h</p>
-                <p className="text-sm font-bold mt-2" style={{ color: "#94a3b8" }}>Operational Speed</p>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-8 mb-12">
-             {/* Column 1: Category Breakdown bars */}
-             <div className="p-8 rounded-3xl ring-2 shadow-xl" style={{ backgroundColor: "#ffffff", boxShadow: "0 0 0 2px #f1f5f9, 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
-                <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                   <div className="h-2 w-8 rounded-full" style={{ backgroundColor: "#1e3a8a" }} />
-                   Category Breakdown
-                </h3>
-                <div className="space-y-4">
-                   {categoryData.slice(0, 5).map((cat, i) => (
-                      <div key={i}>
-                         <div className="flex justify-between text-sm font-bold mb-1">
-                            <span>{cat.name}</span>
-                            <span>{cat.count}</span>
-                         </div>
-                         <div className="h-3 w-full rounded-full overflow-hidden" style={{ backgroundColor: "#f1f5f9" }}>
-                            <div 
-                              className="h-full" 
-                              style={{ width: `${(cat.count / totalComplaints) * 100}%`, backgroundColor: "#1e3a8a" }} 
-                            />
-                         </div>
-                      </div>
-                   ))}
-                </div>
-             </div>
-
-             {/* Column 2: Doughnut Distribution */}
-             <div className="p-8 rounded-3xl ring-2 shadow-xl" style={{ backgroundColor: "#ffffff", boxShadow: "0 0 0 2px #f1f5f9, 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" }}>
-                <CategoryDistributionChartStatic
-                  categoryData={categoryData}
+              </DialogHeader>
+              <div className="mt-2">
+                <KpiPopupContent
+                  kpiKey={activeKpi}
                   totalComplaints={totalComplaints}
+                  slaCompliance={slaCompliance}
+                  avgResolutionHours={avgResolutionHours}
+                  semesterName={semesterName}
+                  statusCounts={statusCounts}
+                  categoryData={categoryData}
+                  histogramData={histogramData}
+                  trends={trends}
                 />
-             </div>
-
-             {/* Column 3: AI Forensic Insight */}
-             <div className="p-8 rounded-3xl shadow-2xl relative overflow-hidden" style={{ backgroundColor: "#1e3a8a", color: "#ffffff" }}>
-                <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full blur-3xl" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
-                <h3 className="text-xl font-black mb-6 flex items-center gap-3">
-                   <Zap className="h-6 w-6" style={{ color: "#14b8a6" }} />
-                   AI Forensic Insight
-                </h3>
-                <div className="space-y-4 relative z-10">
-                   <p className="text-sm leading-relaxed opacity-90 font-medium">
-                      Based on current metrics, <span className="font-black" style={{ color: "#14b8a6" }}>{categoryData[0]?.name || "Maintenance"}</span> is the primary driver of student dissatisfaction. 
-                      Predictive analysis suggests focusing preventive maintenance on <span className="font-black" style={{ color: "#14b8a6" }}>Block {overdueComplaints[0]?.hostel.name.split(' ')[1] || "A"}</span> to optimize SLA compliance next month.
-                   </p>
-                   <div className="p-4 rounded-xl border" style={{ backgroundColor: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.2)" }}>
-                      <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#14b8a6" }}>Recommendation</p>
-                      <p className="text-xs font-bold mt-1">Audit high-wattage appliance usage to reduce electrical trip recurrence.</p>
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          <div className="border-t pt-8 mt-auto flex justify-between items-center text-[10px] font-bold uppercase tracking-widest" style={{ borderColor: "#f1f5f9", color: "#94a3b8" }}>
-             <p>© 2026 UNITEN Residential Services | All Rights Reserved</p>
-             <p>Page 01 | Secure Operational Data</p>
-          </div>
-        </div>
-      </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

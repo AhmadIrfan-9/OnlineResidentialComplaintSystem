@@ -4,7 +4,7 @@
  * UNITEN follows three academic periods:
  * - Semester 1: September → January
  * - Semester 2: February → June
- * - Short Semester / Break: June → August
+ * - Semester 3 (Short): June → August
  */
 
 export type Semester = {
@@ -51,9 +51,9 @@ export const getUnitenSemester = (date: Date): Semester => {
     };
   }
 
-  // June (5) → August (7) → Short Semester / Break
+  // June (5) → August (7) → Semester 3 (short semester / break)
   return {
-    name: `Short Sem ${year}`,
+    name: `Sem 3 ${year}/${year + 1}`,
     start: new Date(year, 5, 1),  // June 1
     end: new Date(year, 7, 31),   // Aug 31
     months: 3,

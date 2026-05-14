@@ -24,13 +24,16 @@ import {
   X,
   ChevronDown,
   Loader2,
+  UserCog,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { logoutAndRedirect } from "@/lib/client/logout";
 import { cn } from "@/lib/utils";
 import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
 
 // ─── Brand colour ────────────────────────────────────────────────────────────
-const NAVY = "#003366";
+const NAVY = "#dc2626";
 
 // ─── Role-based nav items ─────────────────────────────────────────────────────
 type NavItem = { label: string; href: string; icon: React.ElementType };
@@ -49,7 +52,8 @@ const getNavItems = (role: string | undefined): NavItem[] => {
     return [
       { label: "Dashboard",           href: "/warden/dashboard",  icon: LayoutDashboard },
       { label: "Complaint Queue",     href: "/warden/queue",      icon: ClipboardList   },
-      { label: "Management Insights", href: "/warden/analytics",  icon: Activity        },
+      { label: "Insights",             href: "/warden/analytics",  icon: Activity        },
+      { label: "Overview",             href: "/warden/table",      icon: FileText        },
     ];
   }
   if (isStudentRole(role)) {
@@ -241,10 +245,255 @@ function NavNotificationBell({ session }: { session: any }) {
   );
 }
 
+// ─── Profile Settings Modal ───────────────────────────────────────────────────
+function ProfileSettingsModal({
+  session,
+  onClose,
+}: {
+  session: any;
+  onClose: () => void;
+}) {
+  const { update } = useSession();
+  const router = useRouter();
+  // Profile fields
+  const [name, setName] = useState<string>(session?.user?.name ?? "");
+  const [phone, setPhone] = useState<string>(session?.user?.phone ?? "");
+  const [profileMsg, setProfileMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Password fields
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [savingPw, setSavingPw] = useState(false);
+
+  const handleProfileSave = async () => {
+    setSavingProfile(true);
+    setProfileMsg(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setProfileMsg({ text: data.error ?? "Update failed", ok: false });
+      } else {
+        setProfileMsg({ text: "Profile updated successfully.", ok: true });
+        await update({ name: name.trim() });
+        router.refresh();
+      }
+    } catch {
+      setProfileMsg({ text: "Network error. Please try again.", ok: false });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handlePasswordSave = async () => {
+    setPwMsg(null);
+    if (!currentPw || !newPw || !confirmPw) {
+      setPwMsg({ text: "Please fill in all password fields.", ok: false });
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwMsg({ text: "New passwords do not match.", ok: false });
+      return;
+    }
+    if (newPw.length < 6) {
+      setPwMsg({ text: "New password must be at least 6 characters.", ok: false });
+      return;
+    }
+    setSavingPw(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPwMsg({ text: data.error ?? "Password update failed", ok: false });
+      } else {
+        setPwMsg({ text: "Password changed successfully.", ok: true });
+        setCurrentPw(""); setNewPw(""); setConfirmPw("");
+      }
+    } catch {
+      setPwMsg({ text: "Network error. Please try again.", ok: false });
+    } finally {
+      setSavingPw(false);
+    }
+  };
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-bold text-slate-900">Profile Settings</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* ── Profile Section ── */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+              Account Details
+            </h3>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">Email</label>
+              <input
+                type="text"
+                value={session?.user?.email ?? ""}
+                disabled
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400 cursor-not-allowed"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">Display Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 0123456789"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            {profileMsg && (
+              <p className={`text-xs font-semibold ${profileMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                {profileMsg.text}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleProfileSave}
+              disabled={savingProfile}
+              className="flex items-center justify-center gap-2 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {savingProfile ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+              ) : "Save Profile"}
+            </button>
+          </section>
+
+          <div className="border-t border-slate-100" />
+
+          {/* ── Password Section ── */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+              Change Password
+            </h3>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showCurrent ? "text" : "password"}
+                  value={currentPw}
+                  onChange={(e) => setCurrentPw(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((p) => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">New Password</label>
+              <div className="relative">
+                <input
+                  type={showNew ? "text" : "password"}
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 pr-10 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((p) => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                placeholder="Repeat new password"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+
+            {pwMsg && (
+              <p className={`text-xs font-semibold ${pwMsg.ok ? "text-emerald-600" : "text-red-600"}`}>
+                {pwMsg.text}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handlePasswordSave}
+              disabled={savingPw}
+              className="flex items-center justify-center gap-2 w-full rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-900 disabled:opacity-50 transition-colors"
+            >
+              {savingPw ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Updating…</>
+              ) : "Change Password"}
+            </button>
+          </section>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── Profile / User avatar dropdown ──────────────────────────────────────────
 function ProfileDropdown({ session }: { session: any }) {
   const [open, setOpen] = useState(false);
   const [showSignOut, setShowSignOut] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
   const name: string = session?.user?.name ?? session?.user?.email ?? "User";
@@ -267,7 +516,6 @@ function ProfileDropdown({ session }: { session: any }) {
           className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 pl-1 pr-2.5 py-1 text-white transition-colors"
           aria-label="User menu"
         >
-          {/* Avatar circle */}
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[13px] font-black text-[#003366]">
             {initial}
           </span>
@@ -281,6 +529,15 @@ function ProfileDropdown({ session }: { session: any }) {
               <p className="text-sm font-bold text-slate-900 truncate">{name}</p>
               <p className="text-[11px] text-slate-400 truncate">{session?.user?.email}</p>
             </div>
+            {/* Profile Settings entry */}
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setShowProfile(true); }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <UserCog className="h-4 w-4 text-slate-400" />
+              Profile Settings
+            </button>
             {/* Sign out entry */}
             <button
               type="button"
@@ -295,6 +552,7 @@ function ProfileDropdown({ session }: { session: any }) {
       </div>
 
       {showSignOut && <SignOutModal onClose={() => setShowSignOut(false)} />}
+      {showProfile && <ProfileSettingsModal session={session} onClose={() => setShowProfile(false)} />}
     </>
   );
 }
@@ -337,10 +595,10 @@ export function TopNavBar() {
               />
             </div>
             <div className="hidden sm:block leading-tight">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">
-                UNITEN CCI
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/60">
+                Online Residential
               </p>
-              <p className="text-sm font-bold text-white">ORCS Portal</p>
+              <p className="text-sm font-bold text-white">Complaint System</p>
             </div>
           </Link>
 
@@ -417,7 +675,7 @@ export function TopNavBar() {
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 p-1">
                       <Image src="/assets/logo-light.png" alt="ORCS" width={24} height={24} className="object-contain" />
                     </div>
-                    <p className="text-sm font-bold text-white">ORCS Portal</p>
+                    <p className="text-sm font-bold text-white">Complaint System</p>
                   </div>
                   <button
                     type="button"

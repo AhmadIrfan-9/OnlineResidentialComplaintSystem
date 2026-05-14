@@ -7,8 +7,8 @@ export const toPendingDays = (createdAt: Date, now: Date = new Date()): number =
   Math.max(0, (now.getTime() - createdAt.getTime()) / DAY_MS);
 
 export const toAgeBand = (pendingDays: number): ComplaintAgeBand => {
-  if (pendingDays > 30) return "RED";
-  if (pendingDays > 14) return "YELLOW";
+  if (pendingDays > 7) return "RED";
+  if (pendingDays > 2) return "YELLOW";
   return "GREEN";
 };
 
@@ -18,9 +18,9 @@ export const toAgeBandFromDate = (
 ): ComplaintAgeBand => toAgeBand(toPendingDays(createdAt, now));
 
 export const ageBandLabel = (band: ComplaintAgeBand): string => {
-  if (band === "RED") return "Over 30 days";
-  if (band === "YELLOW") return "15-30 days";
-  return "0-14 days";
+  if (band === "RED") return "8+ days";
+  if (band === "YELLOW") return "3–7 days";
+  return "0–2 days";
 };
 
 export const parseAssignmentText = (content: string): string | null => {

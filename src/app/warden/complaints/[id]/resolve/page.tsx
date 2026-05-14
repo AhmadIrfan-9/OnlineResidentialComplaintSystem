@@ -43,13 +43,18 @@ export default async function ResolveComplaintPage({
   return (
     <main className="min-h-screen p-3 md:p-6">
       <div className="mx-auto max-w-4xl space-y-4">
-        <div className="surface-hero p-4">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="text-lg font-semibold text-slate-900">Resolution Form</h1>
-            <Link href={`/warden/complaints/${id}`} className="nav-pill px-3 py-1.5 text-sm">
-              Back to Detail
-            </Link>
+        <div className="surface-hero px-6 py-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Management Portal</p>
+            <h1 className="text-xl font-black text-white">Resolution Form</h1>
+            <p className="text-sm text-blue-200 mt-0.5 font-mono">{ticketId(id, complaint.createdAt)}</p>
           </div>
+          <Link
+            href={`/warden/complaints/${id}`}
+            className="rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+          >
+            ← Back to Detail
+          </Link>
         </div>
         <ResolutionFormClient complaintId={id} ticketId={ticketId(id, complaint.createdAt)} />
       </div>
