@@ -5,6 +5,13 @@ import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { buildLoginIdentifierCandidates } from "@/lib/identity";
 
+interface ExtendedUser {
+  id: string;
+  role: string;
+  hostelId: string | null;
+  mustChangePassword: boolean;
+}
+
 export const authOptions = {
   providers: [
     CredentialsProvider({
@@ -96,14 +103,11 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const authUser = user as any;
-
-
-
-        token.id = user.id;
-        token.role = authUser.role;
-        token.hostelId = authUser.hostelId ?? null;
-        token.mustChangePassword = authUser.mustChangePassword;
+        const u = user as unknown as ExtendedUser;
+        token.id = u.id;
+        token.role = u.role;
+        token.hostelId = u.hostelId;
+        token.mustChangePassword = u.mustChangePassword;
       }
       return token;
     },
@@ -112,7 +116,7 @@ export const authOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.hostelId = token.hostelId as string | null;
-        (session.user as any).mustChangePassword = token.mustChangePassword as boolean;
+        (session.user as unknown as ExtendedUser).mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;
     },
@@ -128,6 +132,8 @@ export const authOptions = {
   jwt: {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  secret: process.env.AUTH_SECRET || "development_secret_only_for_orcs",
 } satisfies NextAuthConfig;
+
 
 export const { auth, handlers, signIn, signOut } = NextAuth(authOptions);

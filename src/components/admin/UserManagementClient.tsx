@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Pencil, Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
@@ -9,28 +9,23 @@ type UserRow = {
   hostelId: string; roomLabel: string; status: "Active" | "Inactive"; lastLogin: string;
 };
 type HostelOption = { id: string; name: string };
-type RoomOption = { id: string; roomNumber: string; floor: number; hostel: { id: string; name: string } };
-
 const prettyRole = (role: Role) =>
   role === "IT_STAFF_ADMIN" ? "Admin" : role === "MANAGEMENT" ? "Management" : "Student";
 
 const formatLastLogin = (v: string | null) => (!v ? "Never" : new Date(v).toLocaleString());
 
-// ── Generate all valid Cendekiawan rooms ──────────────────────────────────────
+
+
 const BLOCKS = ["C1", "C2", "C3"];
 const FLOORS = Array.from({ length: 10 }, (_, i) => String(i + 1).padStart(2, "0"));
 const UNITS  = Array.from({ length: 8  }, (_, i) => String(i + 1).padStart(2, "0"));
-
-const ALL_ROOM_LABELS: string[] = BLOCKS.flatMap(b =>
-  FLOORS.flatMap(f => UNITS.map(u => `${b}-${f}-${u}`))
-); // 240 rooms total
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
-      <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+    <div className="fixed bottom-6 right-6 z-9999 flex items-center gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
       <p className="text-sm font-semibold text-slate-800">{message}</p>
       <button onClick={onClose} className="ml-2 text-slate-400 hover:text-slate-600 transition-colors">
         <X className="h-4 w-4" />
@@ -39,61 +34,7 @@ function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   );
 }
 
-// ── Searchable Room Combobox ──────────────────────────────────────────────────
-function RoomCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [query, setQuery]   = useState(value);
-  const [open, setOpen]     = useState(false);
-  const ref                 = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toUpperCase();
-    return q.length === 0 ? ALL_ROOM_LABELS.slice(0, 40) : ALL_ROOM_LABELS.filter(r => r.includes(q)).slice(0, 40);
-  }, [query]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const select = (room: string) => { onChange(room); setQuery(room); setOpen(false); };
-
-  return (
-    <div ref={ref} className="relative md:col-span-2">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-        <input
-          className="w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-          placeholder='Search room (e.g. C2-04-01)…'
-          value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true); onChange(""); }}
-          onFocus={() => setOpen(true)}
-        />
-        {value && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-            {value}
-          </span>
-        )}
-      </div>
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-2xl">
-          {filtered.map(room => (
-            <button
-              key={room}
-              type="button"
-              onClick={() => select(room)}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-sky-50 hover:text-sky-700 transition-colors font-mono ${room === value ? "bg-sky-50 font-bold text-sky-700" : "text-slate-700"}`}
-            >
-              {room}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 const mapApiUser = (u: {
   id: string; name: string; email: string; role: Role; isActive: boolean;
@@ -117,7 +58,7 @@ const mapApiUser = (u: {
 const fieldCls = "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all";
 const labelCls = "block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1";
 
-export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption[]; rooms: RoomOption[] }) {
+export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [roleFilter,    setRoleFilter]    = useState("All");
   const [statusFilter,  setStatusFilter]  = useState("All");
   const [searchQuery,   setSearchQuery]   = useState("");
@@ -168,7 +109,7 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
 
   useEffect(() => { setCurrentPage(1); }, [roleFilter, statusFilter, searchQuery]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
       const res  = await fetch("/api/admin/users", { cache: "no-store" });
@@ -188,9 +129,9 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
       console.error("Fetch Error:", error);
       setNotice("A network error occurred while loading users.");
     } finally { setLoading(false); }
-  };
+  }, [selectedId]);
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const updateSelected = (patch: Partial<UserRow>) => {
     if (!selectedUser) return;
@@ -307,7 +248,7 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
 
           {/* ── Create form ──────────────────────────────────────────────── */}
           {showCreate && (
-            <div className="mb-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50/60 to-white p-5 shadow-inner">
+            <div className="mb-5 rounded-2xl border border-slate-200 bg-linear-to-br from-sky-50/60 to-white p-5 shadow-inner">
               <h3 className="mb-4 text-sm font-bold text-slate-700 uppercase tracking-wider">New User</h3>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {/* Name */}
@@ -318,7 +259,7 @@ export function UserManagementClient({ hostels, rooms }: { hostels: HostelOption
                 </div>
                 {/* Email */}
                 <div>
-                  <label className={labelCls}>Email / Student ID *</label>
+                  <label className={labelCls}>Email / Student/Staff ID *</label>
                   <input className={fieldCls} placeholder="e.g. SW01084131" value={newUser.email}
                     onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))} />
                 </div>

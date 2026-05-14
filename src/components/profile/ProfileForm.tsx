@@ -9,18 +9,40 @@ type HostelOption = { id: string; name: string };
 
 const STUDENT_ID_REGEX = /^[A-Z]{2}\d{7}$/;
 
+interface ProfileInitialData {
+  studentId?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  hostelId?: string | null;
+  roomNumberStr?: string | null;
+  academicProgram?: string | null;
+}
+
+interface FormData {
+  studentId: string;
+  name: string;
+  email: string;
+  phone: string;
+  hostelId: string;
+  block: string;
+  floor: string;
+  roomNo: string;
+  academicProgram: string;
+}
+
 export default function ProfileForm({
   initialData,
   hostels,
 }: {
-  initialData: any;
+  initialData: ProfileInitialData;
   hostels: HostelOption[];
 }) {
   const router = useRouter();
   const isFirstSetup = !initialData.studentId; // No profile yet = first-time setup
   const roomParts = initialData.roomNumberStr ? initialData.roomNumberStr.split("-") : [];
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     studentId: initialData.studentId || "",
     name: initialData.name || "",
     email: initialData.email || "",
@@ -72,13 +94,13 @@ export default function ProfileForm({
     };
   }, []);
 
-  const isValid = (field: string) => {
+  const isValid = (field: keyof FormData) => {
     if (!attemptedSubmit) return null;
     if (field === "studentId") return isStudentIdValid;
-    return !!(formData as any)[field];
+    return !!formData[field];
   };
 
-  const getBorderColor = (field: string) => {
+  const getBorderColor = (field: keyof FormData) => {
     const valid = isValid(field);
     if (valid === null) return "border-slate-200 focus:border-blue-500 focus:ring-blue-500";
     return valid
@@ -86,7 +108,7 @@ export default function ProfileForm({
       : "border-red-400 ring-1 ring-red-400";
   };
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setSaved(false);
     setErrorToast("");
     const { name, value } = e.target;
@@ -105,7 +127,7 @@ export default function ProfileForm({
     setAttemptedSubmit(true);
 
     const missing = [];
-    if (!isStudentIdValid) missing.push("Student ID correctly");
+    if (!isStudentIdValid) missing.push("Student/Staff ID correctly");
     if (!formData.name) missing.push("Full Name");
     if (!formData.phone) missing.push("Contact Number");
     if (!formData.hostelId) missing.push("Hostel");
@@ -122,7 +144,7 @@ export default function ProfileForm({
     }
 
     if (idCheckStatus === "taken") {
-      setErrorToast("This Student ID is already registered to another account.");
+      setErrorToast("This Student/Staff ID is already registered to another account.");
       return;
     }
 
@@ -177,7 +199,7 @@ export default function ProfileForm({
         </h1>
         {isFirstSetup && (
           <p className="mt-1 text-sm text-blue-700 font-medium">
-            Please fill in all fields below to activate your student account.
+            Please fill in all fields below to activate your account.
           </p>
         )}
       </div>
@@ -204,7 +226,7 @@ export default function ProfileForm({
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-1 relative">
                 <label className="text-sm font-medium text-slate-700">
-                  UNITEN Student ID
+                  UNITEN Student/Staff ID
                 </label>
                 <div className="relative">
                   <input
@@ -223,7 +245,7 @@ export default function ProfileForm({
                 )}
                 {idCheckStatus === "taken" && (
                   <p className="text-xs text-red-500">
-                    This Student ID is already registered to another account
+                    This Student/Staff ID is already registered to another account
                   </p>
                 )}
               </div>
@@ -245,7 +267,7 @@ export default function ProfileForm({
 
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">
-                  UNITEN Student Email
+                  UNITEN Student/Staff Email
                 </label>
                 <input
                   name="email"

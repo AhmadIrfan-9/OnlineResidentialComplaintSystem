@@ -18,7 +18,7 @@ const OPEN_STATUSES: Status[] = ["PENDING", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
 
 export default async function StudentDashboardPage() {
-  const session = await auth();
+  const session = await auth(); 
 
   if (!session?.user?.id) {
     redirect("/login");

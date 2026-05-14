@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 
-import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,17 +12,17 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  Mail,
-  Lock,
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Mail,
+  Lock,
 } from "lucide-react";
 
 const loginSchema = z.object({
   identifier: z
     .string()
-    .min(3, "Please enter your student email."),
+    .min(3, "Please enter your Student/Staff email."),
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
@@ -47,7 +46,6 @@ const forgotPasswordSchema = z.object({
 type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionExpired = searchParams.get("logout") === "inactive";
   const [isLoading, setIsLoading] = useState(false);
@@ -91,8 +89,7 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err: unknown) {
       const e = err as Record<string, unknown>;
       if (e?.type === "CredentialsSignin" || (err instanceof Error && err.message?.includes("CredentialsSignin"))) {
@@ -123,32 +120,14 @@ export function LoginForm() {
   };
 
   return (
-    <>
-      {/* Dark Glass Card */}
-
-      <div className="flex flex-col items-center w-full">
-        {/* Header - Natural Flow */}
-        <div className="flex flex-col items-center text-center px-4 mb-10 sm:mb-12 w-screen sm:w-auto">
-          <h1 className="whitespace-nowrap text-4xl sm:text-5xl font-bold tracking-tight text-white drop-shadow-md leading-tight">
-            Online Residential Complaint System
-          </h1>
-          <p className="mt-3 text-lg sm:text-xl font-medium drop-shadow-md text-white/95">
-            Universiti Tenaga Nasional
-          </p>
-        </div>
-
-        {/* Dark Glass Card */}
-        <div className="w-full max-w-[420px] rounded-[20px] border border-white/10 bg-[#0f141e]/70 shadow-[0_40px_80px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(255,255,255,0.04),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl backdrop-saturate-150">
-          {/* Form Body */}
-          <div className="px-6 sm:px-10 py-8">
-          {view === "login" && (
+    <div className="w-full animate-in fade-in zoom-in-95 duration-500 bg-red-600 rounded-4xl p-8 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-red-500/30">
+      {view === "login" && (
             <>
               {/* Session Timeout Warning Banner */}
               {sessionExpired && (
-                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in slide-in-from-top-1"
-                  style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.30)" }}>
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fcd34d" }} />
-                  <p className="text-sm font-medium leading-snug" style={{ color: "#fde68a" }}>
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in slide-in-from-top-1 bg-amber-50 border border-amber-100">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <p className="text-sm font-medium leading-snug text-amber-800">
                     Security Notice: Your session has timed out. Please log in to continue.
                   </p>
                 </div>
@@ -156,10 +135,9 @@ export function LoginForm() {
 
               {/* Error Banner */}
               {error && (
-                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in"
-                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)" }}>
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fca5a5" }} />
-                  <p className="text-sm font-medium leading-snug" style={{ color: "#fca5a5" }}>
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in bg-red-50 border border-red-100">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                  <p className="text-sm font-medium leading-snug text-red-800">
                     {error}
                   </p>
                 </div>
@@ -171,33 +149,29 @@ export function LoginForm() {
             noValidate
           >
             {/* Email / ID Field */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="identifier"
-                className="block text-sm font-semibold text-white/80"
-              >
-                Student Email
+            <div className="space-y-2">
+              <label htmlFor="identifier" className="block text-sm font-bold text-white ml-1">
+                Student/Staff Email
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                  <Mail className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
-                </div>
                 <input
                   id="identifier"
                   type="text"
                   autoComplete="username"
-                  placeholder="e.g StudentID@uniten.edu.my"
+                  placeholder="e.g. ID@uniten.edu.my"
+                  aria-label="Student/Staff Email"
                   disabled={isLoading}
-                  className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-5 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`block h-12 w-full rounded-xl border border-white/20 bg-white pl-11 pr-4 text-sm text-gray-900 transition-all placeholder:text-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                     form.formState.errors.identifier
-                      ? "border-red-400/50"
+                      ? "border-blue-300 focus:border-blue-300 focus:ring-blue-300"
                       : ""
                   }`}
                   {...form.register("identifier")}
                 />
+                <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               </div>
               {form.formState.errors.identifier && (
-                <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
+                <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1 text-white font-medium">
                   <AlertCircle className="h-3.5 w-3.5" />
                   {form.formState.errors.identifier.message}
                 </p>
@@ -205,34 +179,29 @@ export function LoginForm() {
             </div>
 
             {/* Password Field */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="password"
-                className="block text-sm font-semibold text-white/80"
-              >
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-bold text-white ml-1">
                 Password
               </label>
               <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                  <Lock className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
-                </div>
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your password"
+                  aria-label="Password"
                   disabled={isLoading}
-                  className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-12 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                    form.formState.errors.password ? "border-red-400/50" : ""
+                  className={`block h-12 w-full rounded-xl border border-white/20 bg-white pl-11 pr-12 text-sm text-gray-900 transition-all placeholder:text-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                    form.formState.errors.password ? "border-blue-300 focus:border-blue-300 focus:ring-blue-300" : ""
                   }`}
                   {...form.register("password")}
                 />
+                <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <button
                   type="button"
                   tabIndex={-1}
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 right-4 flex items-center transition-colors"
-                  style={{ color: "rgba(255,255,255,0.38)" } as React.CSSProperties}
+                  className="absolute inset-y-0 right-4 flex items-center transition-colors text-gray-400 hover:text-gray-600"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -242,27 +211,27 @@ export function LoginForm() {
                   )}
                 </button>
               </div>
-              <div className="flex items-center justify-between pt-1">
-                <div className="flex-1">
-                  {form.formState.errors.password && (
-                    <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {form.formState.errors.password.message}
-                    </p>
-                  )}
+              <div className="flex flex-col gap-2 pt-1.5">
+                {form.formState.errors.password && (
+                  <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1 text-white font-medium whitespace-nowrap">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    {form.formState.errors.password.message}
+                  </p>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView("forgot-password");
+                      setError(null);
+                      setResetError(null);
+                    }}
+                    className="text-xs sm:text-sm font-semibold text-blue-200 transition-colors hover:text-white"
+                    tabIndex={-1}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setView("forgot-password");
-                    setError(null);
-                    setResetError(null);
-                  }}
-                  className="text-xs sm:text-sm font-medium text-red-300/90 transition-colors hover:text-white hover:underline underline-offset-2 shrink-0 ml-3"
-                  tabIndex={-1}
-                >
-                  Forgot password?
-                </button>
               </div>
             </div>
 
@@ -271,7 +240,7 @@ export function LoginForm() {
               id="login-submit-btn"
               type="submit"
               disabled={isLoading}
-              className="relative mt-3 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-red-700 to-red-600 text-sm font-bold text-white transition-all hover:-translate-y-[2px] hover:shadow-[0_14px_36px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+              className="relative mt-3 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-blue-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isLoading ? (
                 <>
@@ -290,16 +259,15 @@ export function LoginForm() {
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="mb-5">
                 <h3 className="text-lg font-bold text-white">Reset Password</h3>
-                <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.50)" }}>
+                <p className="text-sm mt-1 text-red-100">
                   Enter your university email to receive a reset link.
                 </p>
               </div>
 
               {resetError && (
-                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in"
-                  style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)" }}>
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "#fca5a5" }} />
-                  <p className="text-sm font-medium leading-snug" style={{ color: "#fca5a5" }}>
+                <div className="mb-5 flex items-start gap-3 rounded-xl p-4 animate-in fade-in bg-red-50 border border-red-100">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                  <p className="text-sm font-medium leading-snug text-red-800">
                     {resetError}
                   </p>
                 </div>
@@ -311,29 +279,21 @@ export function LoginForm() {
                 noValidate
               >
                 <div className="space-y-1.5">
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-semibold text-white/80"
-                  >
-                    University Email
-                  </label>
                   <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-                      <Mail className="h-5 w-5 transition-colors" style={{ color: "rgba(255,255,255,0.38)" }} />
-                    </div>
                     <input
                       id="email"
                       type="email"
-                      placeholder="e.g. name@uniten.edu.my"
+                      placeholder="University Email"
+                      aria-label="University Email"
                       disabled={isResetting}
-                      className={`block h-12 w-full rounded-xl border border-white/10 bg-white/5 pl-12 pr-5 text-sm text-slate-100 transition-all placeholder:text-white/30 focus:border-red-400/75 focus:bg-white/10 focus:shadow-[0_0_0_3px_rgba(248,113,113,0.18),0_2px_8px_rgba(0,0,0,0.25)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                        resetForm.formState.errors.email ? "border-red-400/50" : ""
+                      className={`block h-12 w-full rounded-xl border border-white/20 bg-white px-4 text-sm text-gray-900 transition-all placeholder:text-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                        resetForm.formState.errors.email ? "border-blue-300 focus:border-blue-300 focus:ring-blue-300" : ""
                       }`}
                       {...resetForm.register("email")}
                     />
                   </div>
                   {resetForm.formState.errors.email && (
-                    <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1" style={{ color: "#fca5a5" }}>
+                    <p className="flex items-center gap-1.5 text-xs animate-in fade-in slide-in-from-top-1 text-white font-medium">
                       <AlertCircle className="h-3.5 w-3.5" />
                       {resetForm.formState.errors.email.message}
                     </p>
@@ -343,7 +303,7 @@ export function LoginForm() {
                 <button
                   type="submit"
                   disabled={isResetting}
-                  className="relative mt-2 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-red-700 to-red-600 text-sm font-bold text-white transition-all hover:-translate-y-[2px] hover:shadow-[0_14px_36px_rgba(220,38,38,0.55)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="relative mt-2 flex h-12 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-blue-500/25 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isResetting ? (
                     <>
@@ -358,7 +318,7 @@ export function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setView("login")}
-                  className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-medium text-red-300/90 transition-colors hover:text-white hover:underline"
+                  className="mt-4 flex w-full items-center justify-center gap-2 text-sm font-semibold text-blue-200 transition-colors hover:text-white"
                 >
                   <ArrowLeft className="h-5 w-5" />
                   Back to Login
@@ -369,18 +329,16 @@ export function LoginForm() {
 
           {view === "forgot-password-success" && (
             <div className="animate-in zoom-in-95 duration-300 flex flex-col items-center text-center py-6">
-              <div className="h-20 w-20 rounded-full flex items-center justify-center mb-5"
-                style={{ background: "rgba(16,185,129,0.18)", border: "1px solid rgba(16,185,129,0.35)" }}>
-                <CheckCircle2 className="h-10 w-10" style={{ color: "#6ee7b7" }} />
+              <div className="h-20 w-20 rounded-full flex items-center justify-center mb-5 bg-emerald-50 border border-emerald-100">
+                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Check Your Email</h3>
 
-              <div className="rounded-xl p-5 mb-8"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                <p className="text-sm leading-relaxed mb-3" style={{ color: "rgba(255,255,255,0.75)" }}>
+              <div className="rounded-xl p-5 mb-8 bg-gray-50 border border-gray-100">
+                <p className="text-sm leading-relaxed mb-3 text-gray-600">
                   A password reset link has been sent to your registered email. Please check your inbox.
                 </p>
-                <p className="text-xs italic" style={{ color: "rgba(255,255,255,0.40)" }}>
+                <p className="text-xs italic text-gray-400">
                   Sila semak peti masuk emel anda. Pautan set semula kata laluan telah dihantar.
                 </p>
               </div>
@@ -391,55 +349,12 @@ export function LoginForm() {
                   setView("login");
                   resetForm.reset();
                 }}
-                className="text-sm font-bold text-red-300/90 transition-colors hover:text-white hover:underline"
+                className="text-sm font-semibold text-blue-200 transition-colors hover:text-white"
               >
                 Return to Login
               </button>
             </div>
           )}
-        </div>
-        </div>
-
-        {/* Footer - Below Card */}
-        <div className="mt-8 text-center z-50">
-          <p className="text-sm font-medium text-white/90 drop-shadow-md">
-            IT Support:{" "}
-            <a
-              href="mailto:ORCSsupport@uniten.edu.my"
-              className="font-bold text-white transition-colors hover:underline"
-            >
-              ORCSsupport@uniten.edu.my
-            </a>
-          </p>
-          <p className="mt-1 text-xs font-medium text-white/80 drop-shadow-md" suppressHydrationWarning>
-            &copy; {new Date().getFullYear()} Universiti Tenaga Nasional
-          </p>
-        </div>
       </div>
-
-      {/* Floating Logos - Bottom Right */}
-      <div className="fixed bottom-6 right-6 z-50 hidden sm:flex items-center gap-4">
-        <div className="transition-transform hover:scale-105">
-          <Image
-            src="/assets/UNITENLOGO.png"
-            alt="UNITEN Logo"
-            width={120}
-            height={64}
-            className="object-contain drop-shadow-xl"
-            priority
-          />
-        </div>
-        <div className="transition-transform hover:scale-105">
-          <Image
-            src="/assets/logo-light.png"
-            alt="ORCS Logo"
-            width={64}
-            height={64}
-            className="object-contain drop-shadow-xl"
-            priority
-          />
-        </div>
-      </div>
-    </>
   );
 }

@@ -25,7 +25,7 @@ export async function updateStudentProfile(data: {
     // Normalize and validate Student ID
     const normalizedStudentId = data.studentId.trim().toUpperCase();
     if (!STUDENT_ID_REGEX.test(normalizedStudentId)) {
-      return { success: false, error: "Invalid student ID format. Must be 2 uppercase letters followed by 7 digits (e.g. SW0108123)." };
+      return { success: false, error: "Invalid Student/Staff ID format. Must be 2 uppercase letters followed by 7 digits (e.g. SW0108123)." };
     }
 
     // Validate empty string requirements
@@ -81,10 +81,10 @@ export async function updateStudentProfile(data: {
 
     revalidatePath("/profile");
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Profile update error:", error);
-    if (error.code === "P2002") {
-      return { success: false, error: "This Student ID is already registered to another account." };
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      return { success: false, error: "This Student/Staff ID is already registered to another account." };
     }
     return { success: false, error: "Failed to save profile changes." };
   }

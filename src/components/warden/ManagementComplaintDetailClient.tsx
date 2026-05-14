@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   addComplaintComment,
   assignComplaint,
@@ -75,11 +76,11 @@ function NoiseMeterBadge({ category, block }: { category: string; block: string 
   return (
     <div className="mt-4 space-y-3">
       {/* Glow badge */}
-      <div className="relative flex items-center gap-4 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 via-white to-rose-50 p-4 shadow-sm overflow-hidden">
+      <div className="relative flex items-center gap-4 rounded-2xl border border-red-200 bg-linear-to-r from-red-50 via-white to-rose-50 p-4 shadow-sm overflow-hidden">
         {/* Pulsing red glow ring */}
-        <div className="relative flex-shrink-0 flex h-14 w-14 items-center justify-center">
+        <div className="relative shrink-0 flex h-14 w-14 items-center justify-center">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-30" />
-          <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-300">
+          <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-red-500 to-rose-600 shadow-lg shadow-red-300">
             <span className="text-xl text-white">🔊</span>
           </span>
         </div>
@@ -88,7 +89,7 @@ function NoiseMeterBadge({ category, block }: { category: string; block: string 
           <p className="text-xs text-red-600 mt-0.5">Category matched: <span className="font-semibold">{category}</span></p>
           <p className="mt-1 text-[10px] text-slate-500 uppercase tracking-wider">Management Noise Intelligence · Block {blockLabel}</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700 ring-1 ring-red-300">
             &gt; 60 dB
           </span>
@@ -189,7 +190,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
 
   return (
     <>
-      {/* ── Injected Keyframes (button shimmer etc.) ── */}
       <style>{`
         @keyframes ai-btn-shimmer {
           0%   { background-position: -200% center; }
@@ -237,7 +237,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
         }
       `}</style>
 
-      {/* ── Page Header (replaces static server header) ── */}
       <header className="surface-hero p-4 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">
@@ -246,7 +245,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           <p className="text-sm text-slate-500">{detail.ticketId}</p>
         </div>
 
-        {/* ✨ AI Trigger Button */}
         <button
           id="ai-analysis-toggle"
           className={`ai-trigger-btn${aiOpen ? " open" : ""}`}
@@ -271,16 +269,14 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
         </button>
       </header>
 
-      {/* ── Main Content (full-width, no grid shift) ── */}
       <div className="space-y-4">
 
         <div className="grid gap-4 xl:grid-cols-2">
-          {/* Student Information */}
           <section className="surface-card p-4">
             <h2 className="mb-3 text-base font-semibold text-slate-900">Student Information</h2>
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Student name:</span> {detail.studentName}</p>
-              <p><span className="font-medium">Student ID:</span> {detail.studentIdentifier}</p>
+              <p><span className="font-medium">Student/Staff ID:</span> {detail.studentIdentifier}</p>
               <p><span className="font-medium">Hostel:</span> {detail.hostelName}</p>
               <p><span className="font-medium">Contact:</span> {detail.contact}</p>
               <p><span className="font-medium">Submission date:</span> {new Date(detail.submittedAt).toLocaleString()}</p>
@@ -299,7 +295,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
             </div>
           </section>
 
-          {/* Complaint Information */}
           <section className="surface-card p-4">
             <h2 className="mb-3 text-base font-semibold text-slate-900">Complaint Information</h2>
             <div className="grid gap-2 text-sm md:grid-cols-2">
@@ -335,7 +330,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                   ))}
                 </select>
                 <button
-                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                  className="rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
                   onClick={saveCategory}
                   disabled={isPending}
                 >
@@ -357,7 +352,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                   ))}
                 </select>
                 <button
-                  className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                  className="rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
                   onClick={saveAssignment}
                   disabled={isPending}
                 >
@@ -380,7 +375,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                 ))}
               </select>
               <button
-                className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+                className="rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
                 disabled={isPending}
                 onClick={() => applyStatusChange(status)}
               >
@@ -390,13 +385,11 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           </section>
         </div>
 
-        {/* Complaint Description */}
         <section className="surface-card p-4">
           <h3 className="mb-2 text-base font-semibold text-slate-900">Complaint description</h3>
           <p className="whitespace-pre-wrap text-sm text-slate-700">{detail.description}</p>
         </section>
 
-        {/* Evidence Files */}
         <section className="surface-card p-4">
           <h3 className="mb-3 text-base font-semibold text-slate-900">Evidence files</h3>
           {detail.evidence.length === 0 ? (
@@ -406,9 +399,11 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
               {detail.evidence.map((file) => (
                 <div key={file.id} className="rounded-lg border border-slate-200 bg-slate-50/80 p-3 text-sm">
                   {file.fileType.startsWith("image/") ? (
-                    <img src={file.fileUrl} alt="Evidence" className="mb-2 h-32 w-full rounded object-cover" />
+                    <div className="relative mb-2 h-32 w-full overflow-hidden rounded">
+                      <Image src={file.fileUrl} alt="Evidence" fill className="object-cover" />
+                    </div>
                   ) : (
-                    <a href={file.fileUrl} className="mb-2 inline-block text-sky-700 hover:text-sky-800" target="_blank">
+                    <a href={file.fileUrl} className="mb-2 inline-block text-sky-700 hover:text-sky-800" target="_blank" rel="noreferrer">
                       Download video
                     </a>
                   )}
@@ -420,7 +415,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           )}
         </section>
 
-        {/* Noise Meter — shown when category is noise-related */}
         <NoiseMeterBadge
           category={detail.category}
           block={detail.hostelName.split(" ")[0] ?? detail.hostelName}
@@ -453,7 +447,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
             </div>
           </div>
           <button
-            className="mt-3 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200 disabled:opacity-50"
+            className="mt-3 rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white shadow-md shadow-sky-200 disabled:opacity-50"
             disabled={isPending || proposedStatus.length === 0 || responseMessage.trim().length < 10}
             onClick={() => applyStatusChange(proposedStatus, responseMessage)}
           >
@@ -461,7 +455,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           </button>
         </section>
 
-        {/* Messages */}
         <section className="surface-card p-4">
           <h3 className="mb-3 text-base font-semibold text-slate-900">Messages</h3>
           <div className="space-y-2">
@@ -490,7 +483,7 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
             />
             <input type="file" className="text-sm" />
             <button
-              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
+              className="rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-3 py-2 text-sm font-medium text-white shadow-md shadow-sky-200"
               onClick={sendMessage}
               disabled={isPending}
             >
@@ -499,12 +492,11 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
           </div>
         </section>
 
-        {/* Actions Menu */}
         <section className="surface-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Link
               href={`/warden/complaints/${detail.id}/resolve`}
-              className="rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-sky-200 transition-transform hover:-translate-y-0.5 active:translate-y-0"
+              className="rounded-md bg-linear-to-r from-sky-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-sky-200 transition-transform hover:-translate-y-0.5 active:translate-y-0"
             >
               Open Resolution Form
             </Link>
@@ -532,7 +524,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                         role="menuitem"
                         onClick={() => {
                           setActionsOpen(false);
-                          // Handle escalate logic here
                           setFeedback("Escalated to management (placeholder)");
                         }}
                       >
@@ -543,7 +534,6 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                         role="menuitem"
                         onClick={() => {
                           setActionsOpen(false);
-                          // Handle note logic here
                           setFeedback("Note added (placeholder)");
                         }}
                       >
