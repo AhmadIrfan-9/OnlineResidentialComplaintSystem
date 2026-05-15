@@ -295,6 +295,46 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ─── RAG: Document Vault ──────────────────────────────────────────────────────
+
+// Metadata for every document uploaded to the knowledge vault.
+// File contents are stored in S3 under rag-documents/{id}/{uuid}.{ext}
+model RagDocument {
+  id           String   @id @default(cuid())
+  title        String
+  fileName     String   @map("file_name")
+  fileKey      String   @map("file_key")        // S3 / local storage key
+  mimeType     String   @map("mime_type")
+  fileSize     Int      @map("file_size")        // bytes
+  pageCount    Int?     @map("page_count")
+  status       String   @default("PROCESSING")  // PROCESSING | READY | ERROR
+  errorMessage String?  @map("error_message")
+  uploadedById String   @map("uploaded_by_id")
+  uploadedByRole String @map("uploaded_by_role")// MANAGEMENT | IT_STAFF_ADMIN
+  chunkCount   Int      @default(0) @map("chunk_count")
+
+  chunks       RagDocumentChunk[]
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt      @map("updated_at")
+
+  @@map("rag_documents")
+}
+
+// One text chunk extracted from a RagDocument.
+// The actual `embedding vector(1536)` column is added via raw SQL migration.
+model RagDocumentChunk {
+  id          String      @id @default(cuid())
+  document    RagDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId  String      @map("document_id")
+  chunkIndex  Int         @map("chunk_index")
+  content     String      @db.Text
+  embeddedAt  DateTime?   @map("embedded_at")
+
+  @@index([documentId])
+  @@map("rag_document_chunks")
+}
+
 // ─── RAG: Complaint Intelligence ──────────────────────────────────────────────
 
 // Stores metadata for each complaint that has been vectorised.

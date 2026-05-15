@@ -27,6 +27,7 @@ import {
   UserCog,
   Eye,
   EyeOff,
+  Bot,
 } from "lucide-react";
 import { logoutAndRedirect } from "@/lib/client/logout";
 import { cn } from "@/lib/utils";
@@ -50,10 +51,11 @@ const getNavItems = (role: string | undefined): NavItem[] => {
   }
   if (isManagementRole(role)) {
     return [
-      { label: "Dashboard",           href: "/warden/dashboard",  icon: LayoutDashboard },
-      { label: "Complaint Queue",     href: "/warden/queue",      icon: ClipboardList   },
-      { label: "Insights",             href: "/warden/analytics",  icon: Activity        },
-      { label: "Overview",             href: "/warden/table",      icon: FileText        },
+      { label: "Dashboard",       href: "/warden/dashboard",  icon: LayoutDashboard },
+      { label: "Complaint Queue", href: "/warden/queue",      icon: ClipboardList   },
+      { label: "Insights",        href: "/warden/analytics",  icon: Activity        },
+      { label: "Overview",        href: "/warden/table",      icon: FileText        },
+      { label: "Assistant",       href: "/warden/assistant",  icon: Bot             },
     ];
   }
   if (isStudentRole(role)) {
@@ -68,6 +70,13 @@ const getNavItems = (role: string | undefined): NavItem[] => {
 };
 
 const isActive = (pathname: string, href: string) => pathname === href;
+
+const getDashboardHref = (role: string | undefined): string => {
+  if (isAdminRole(role)) return "/admin";
+  if (isManagementRole(role)) return "/warden/dashboard";
+  if (isStudentRole(role)) return "/dashboard/student";
+  return "/";
+};
 
 // ─── Sign-out confirmation modal ──────────────────────────────────────────────
 function SignOutModal({
@@ -584,7 +593,7 @@ export function TopNavBar() {
         <div className="mx-auto flex h-full max-w-screen-2xl items-center gap-4 px-4 md:px-6">
 
           {/* Left: Logo + Brand */}
-          <Link href="/" className="flex flex-shrink-0 items-center gap-3">
+          <Link href={getDashboardHref(role)} className="flex flex-shrink-0 items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 p-1">
               <Image
                 src="/assets/logo-light.png"

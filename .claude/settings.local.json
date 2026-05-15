@@ -5,7 +5,10 @@
       "Bash(Select-Object Name, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
       "Bash(npx tsc *)",
-      "Bash(mkdir -p \"C:\\\\Users\\\\rxzal\\\\.claude\\\\projects\\\\d--ORCS-OnlineResidentialComplaintSystem\\\\memory\")"
+      "Bash(mkdir -p \"C:\\\\Users\\\\rxzal\\\\.claude\\\\projects\\\\d--ORCS-OnlineResidentialComplaintSystem\\\\memory\")",
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(findstr /i \"rag\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\rxzal\\.claude\\projects\\d--ORCS-OnlineResidentialComplaintSystem"
