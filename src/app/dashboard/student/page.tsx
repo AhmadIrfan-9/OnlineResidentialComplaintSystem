@@ -94,7 +94,7 @@ export default async function StudentDashboardPage() {
       </header>
 
       {/* ── Summary Cards ── */}
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
 
         {/* Active Complaints — Amber (#D97706) */}
         <Link href="/complaints?status=PENDING" className="group block">
@@ -131,26 +131,6 @@ export default async function StudentDashboardPage() {
               </p>
               <p className="mt-1 text-xs text-emerald-600 group-hover:underline">
                 View closed →
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        {/* New Messages — Blue (#1D4ED8) */}
-        <Link href="/complaints" className="group block">
-          <div className="flex h-full items-start gap-4 rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-blue-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-300">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100">
-              <Bell className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
-                Notifications
-              </p>
-              <p className="mt-1 text-3xl font-extrabold text-blue-900 tabular-nums">
-                {unreadMessages}
-              </p>
-              <p className="mt-1 text-xs text-blue-600 group-hover:underline">
-                View all →
               </p>
             </div>
           </div>

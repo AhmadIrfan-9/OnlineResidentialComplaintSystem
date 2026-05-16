@@ -207,12 +207,17 @@ export function EvidenceCapture({
   return (
     <div className="space-y-4">
       {/* ── Camera or Drop Zone ─────────────────────────── */}
-      {captured.length < maxFiles && (
-        isMobileCamera ? (
-          <MobileCameraView onCapture={addFiles} disabled={disabled} />
-        ) : (
-          <DesktopDropZone onFiles={addFiles} accept={accept} disabled={disabled} />
-        )
+      {isMobileCamera ? (
+        captured.length < maxFiles && <MobileCameraView onCapture={addFiles} disabled={disabled} />
+      ) : (
+        <DesktopDropZone 
+          files={captured} 
+          onRemove={removeFile} 
+          onFiles={addFiles} 
+          accept={accept} 
+          disabled={disabled} 
+          maxFiles={maxFiles} 
+        />
       )}
 
       {/* ── File Error ───────────────────────────────────── */}
@@ -224,7 +229,7 @@ export function EvidenceCapture({
       )}
 
       {/* ── Preview Grid ─────────────────────────────────── */}
-      {captured.length > 0 && (
+      {captured.length > 0 && isMobileCamera && (
         <CapturedPreview
           files={captured}
           onRemove={removeFile}
@@ -520,13 +525,19 @@ function MobileCameraView({
 // ─── Desktop Drop Zone ────────────────────────────────────────────────────────
 
 function DesktopDropZone({
+  files,
+  onRemove,
   onFiles,
   accept,
   disabled,
+  maxFiles,
 }: {
+  files: CapturedFile[];
+  onRemove: (id: string) => void;
   onFiles: (files: File[]) => void;
   accept: string[];
   disabled: boolean;
+  maxFiles: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -559,52 +570,110 @@ function DesktopDropZone({
       `}</style>
 
       <div
-        onDragOver={(e) => { e.preventDefault(); if (!disabled) setIsDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled && files.length < maxFiles) setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        onClick={() => !disabled && inputRef.current?.click()}
+        onClick={(e) => {
+          if (!disabled && files.length < maxFiles) inputRef.current?.click();
+        }}
         className={cn(
-          "group cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200",
+          "group relative cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200",
           isDragging
             ? "border-blue-400 bg-blue-50 shadow-lg shadow-blue-200/60"
             : "border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50/40 hover:shadow-md hover:shadow-blue-100/50",
-          disabled && "pointer-events-none opacity-50"
+          disabled && "pointer-events-none opacity-50",
+          files.length > 0 && "py-6",
+          files.length >= maxFiles && "cursor-default hover:border-slate-300 hover:bg-slate-50 hover:shadow-none"
         )}
       >
-        <div className={cn(
-          "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-200",
-          isDragging
-            ? "bg-blue-100 shadow-lg shadow-blue-300/40 ring-4 ring-blue-200/50"
-            : "bg-slate-100 group-hover:bg-blue-100 group-hover:shadow-md group-hover:shadow-blue-200/40"
-        )}>
-          <UploadCloud className={cn(
-            "h-8 w-8 transition-colors",
-            isDragging ? "text-blue-600" : "text-slate-400 group-hover:text-blue-600"
-          )} />
-        </div>
+        {files.length === 0 ? (
+          <>
+            <div className={cn(
+              "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-200",
+              isDragging
+                ? "bg-blue-100 shadow-lg shadow-blue-300/40 ring-4 ring-blue-200/50"
+                : "bg-slate-100 group-hover:bg-blue-100 group-hover:shadow-md group-hover:shadow-blue-200/40"
+            )}>
+              <UploadCloud className={cn(
+                "h-8 w-8 transition-colors",
+                isDragging ? "text-blue-600" : "text-slate-400 group-hover:text-blue-600"
+              )} />
+            </div>
 
-        <p className={cn(
-          "text-base font-semibold transition-colors",
-          isDragging ? "text-blue-700" : "text-slate-700 group-hover:text-blue-700"
-        )}>
-          {isDragging ? "Drop files here" : "Drag & drop evidence files"}
-        </p>
-        <p className="mt-1 text-sm text-slate-500">or click to browse your files</p>
+            <p className={cn(
+              "text-base font-semibold transition-colors",
+              isDragging ? "text-blue-700" : "text-slate-700 group-hover:text-blue-700"
+            )}>
+              {isDragging ? "Drop files here" : "Drag & drop evidence files"}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">or click to browse your files</p>
 
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {[
-            { icon: ImageIcon, label: "JPEG" },
-            { icon: ImageIcon, label: "PNG" },
-            { icon: Film, label: "MP4" },
-          ].map(({ icon: Icon, label }) => (
-            <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </span>
-          ))}
-        </div>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {[
+                { icon: ImageIcon, label: "JPEG" },
+                { icon: ImageIcon, label: "PNG" },
+                { icon: Film, label: "MP4" },
+              ].map(({ icon: Icon, label }) => (
+                <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm">
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </span>
+              ))}
+            </div>
 
-        <p className="mt-3 text-xs text-slate-400">Max 3 files · 10 MB each</p>
+            <p className="mt-3 text-xs text-slate-400">Max {maxFiles} files · 10 MB each</p>
+          </>
+        ) : (
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            {files.map((cf) => (
+              <div
+                key={cf.id}
+                className="group/thumb relative h-28 w-28 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition hover:shadow-md cursor-default"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {cf.isVideo ? (
+                  <div className="flex h-full w-full items-center justify-center bg-slate-800">
+                    <Film className="h-8 w-8 text-slate-400" />
+                    <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider">
+                      Video
+                    </span>
+                  </div>
+                ) : (
+                  <img
+                    src={cf.previewUrl}
+                    alt={cf.file.name}
+                    className="h-full w-full object-cover transition group-hover/thumb:scale-105"
+                  />
+                )}
+                
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(cf.id);
+                  }}
+                  aria-label={`Remove ${cf.file.name}`}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-all hover:bg-red-700 hover:scale-110 opacity-0 group-hover/thumb:opacity-100"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            
+            {files.length < maxFiles && (
+              <div 
+                className="flex h-28 w-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-500 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  inputRef.current?.click();
+                }}
+              >
+                <Plus className="h-6 w-6 mb-1" />
+                <span className="text-xs font-medium">Add more</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <input
           ref={inputRef}

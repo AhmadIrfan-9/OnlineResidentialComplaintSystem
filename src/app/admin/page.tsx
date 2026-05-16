@@ -21,8 +21,8 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-4">
       <section className="surface-hero p-4 md:p-5">
-        <h1 className="text-xl font-semibold text-slate-900">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="text-xl font-semibold text-white">Admin Dashboard</h1>
+        <p className="mt-1 text-sm text-blue-100">
           System administrators (IT staff) control panel.
         </p>
       </section>

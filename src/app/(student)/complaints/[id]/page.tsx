@@ -54,8 +54,8 @@ export default async function StudentComplaintDetailPage({
         <header className="surface-hero p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-slate-900">{complaint.title}</h1>
-              <p className="text-sm text-slate-600">Ticket #{complaint.id.slice(0, 8).toUpperCase()}</p>
+              <h1 className="text-lg font-semibold text-white">{complaint.title}</h1>
+              <p className="text-sm text-blue-100">Ticket #{complaint.id.slice(0, 8).toUpperCase()}</p>
             </div>
             <Link href="/complaints" className="nav-pill px-3 py-2">
               Back
@@ -84,7 +84,10 @@ export default async function StudentComplaintDetailPage({
               {new Date(complaint.createdAt).toLocaleString()}
             </p>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{complaint.description}</p>
+          <div className="mt-3 border-t border-gray-100 pt-3">
+            <span className="mb-1 block font-semibold text-gray-700">Description:</span>
+            <p className="whitespace-pre-wrap text-sm text-gray-600">{complaint.description}</p>
+          </div>
         </section>
 
         <section className="surface-card p-4">

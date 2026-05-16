@@ -67,7 +67,7 @@ export default function StudentComplaintsPage() {
       <header className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="surface-hero px-5 py-5">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-slate-900">My Complaints</h1>
+            <h1 className="text-3xl font-bold text-white">My Complaints</h1>
             <Link href="/complaints/new">
               <Button className="bg-gradient-to-r from-sky-600 to-blue-700 text-white hover:from-sky-700 hover:to-blue-800">
                 <Plus className="mr-2 h-4 w-4" />
@@ -75,7 +75,7 @@ export default function StudentComplaintsPage() {
               </Button>
             </Link>
           </div>
-          <p className="mt-2 text-sm text-slate-700">Track all submissions, responses, and progress in one place.</p>
+          <p className="mt-2 text-sm text-blue-100">Track all submissions, responses, and progress in one place.</p>
         </div>
       </header>
 
