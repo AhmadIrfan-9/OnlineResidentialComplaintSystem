@@ -1,3 +1,5 @@
+"use server";
+
 /**
  * src/lib/ai/rag-vault.ts
  *
@@ -48,12 +50,17 @@ export async function extractText(
 
   // PDF
   if (mime === "application/pdf" || mime.includes("pdf")) {
-    // pdf-parse ships both CJS and ESM; use require to avoid .default confusion
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
-      require("pdf-parse");
-    const result = await pdfParse(buffer);
-    return { text: result.text, pageCount: result.numpages };
+    try {
+      // pdf-parse ships both CJS and ESM; use require to avoid .default confusion
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
+        require("pdf-parse");
+      const result = await pdfParse(buffer);
+      return { text: result.text, pageCount: result.numpages };
+    } catch (error) {
+      console.error("[RAG-Vault] Failed to parse PDF:", error);
+      throw new Error("Failed to parse PDF document. The file might be corrupted or encrypted.");
+    }
   }
 
   // DOCX
