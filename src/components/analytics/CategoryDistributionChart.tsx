@@ -86,8 +86,8 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 function CustomLegend({ slices }: { slices: ProcessedSlice[] }) {
   return (
     <div className="flex flex-col justify-center gap-2 pl-4">
-      {slices.map((slice) => (
-        <div key={slice.name} className="flex items-center gap-2 min-w-0">
+      {slices.map((slice, index) => (
+        <div key={`${slice.name}-${index}`} className="flex items-center gap-2 min-w-0">
           <span
             className="flex-shrink-0 h-2.5 w-2.5 rounded-full"
             style={{ backgroundColor: slice.color }}
@@ -115,11 +115,23 @@ export function CategoryDistributionChart({
   const slices: ProcessedSlice[] = useMemo(() => {
     if (!categoryData.length || totalComplaints === 0) return [];
 
+    const aggregatedData = Object.values(
+      categoryData.reduce((acc, curr) => {
+        const name = curr.name.trim();
+        if (acc[name]) {
+          acc[name].count += curr.count;
+        } else {
+          acc[name] = { ...curr, name };
+        }
+        return acc;
+      }, {} as Record<string, CategoryData>)
+    ).sort((a, b) => b.count - a.count);
+
     const total = totalComplaints;
 
     // Already sorted descending by count from the server.
-    const top = categoryData.slice(0, MAX_SLICES);
-    const rest = categoryData.slice(MAX_SLICES);
+    const top = aggregatedData.slice(0, MAX_SLICES);
+    const rest = aggregatedData.slice(MAX_SLICES);
 
     const result: Array<Omit<ProcessedSlice, "color">> = top.map((c) => ({
       name: c.name,
@@ -272,9 +284,22 @@ export function CategoryDistributionChartStatic({
 }: Pick<CategoryDistributionChartProps, "categoryData" | "totalComplaints">) {
   const slices: ProcessedSlice[] = useMemo(() => {
     if (!categoryData.length || totalComplaints === 0) return [];
+    
+    const aggregatedData = Object.values(
+      categoryData.reduce((acc, curr) => {
+        const name = curr.name.trim();
+        if (acc[name]) {
+          acc[name].count += curr.count;
+        } else {
+          acc[name] = { ...curr, name };
+        }
+        return acc;
+      }, {} as Record<string, CategoryData>)
+    ).sort((a, b) => b.count - a.count);
+
     const total = totalComplaints;
-    const top = categoryData.slice(0, MAX_SLICES);
-    const rest = categoryData.slice(MAX_SLICES);
+    const top = aggregatedData.slice(0, MAX_SLICES);
+    const rest = aggregatedData.slice(MAX_SLICES);
     const result: Array<Omit<ProcessedSlice, "color">> = top.map((c) => ({
       name: c.name,
       count: c.count,
