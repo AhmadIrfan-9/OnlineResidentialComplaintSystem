@@ -17,10 +17,10 @@ export const authOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: {
-          label: "Email",
-          type: "email",
-          placeholder: "user@example.com",
+        identifier: {
+          label: "Email or Student ID",
+          type: "text",
+          placeholder: "Email or Student ID",
         },
         password: {
           label: "Password",
@@ -28,25 +28,26 @@ export const authOptions = {
         },
       },
       async authorize(credentials) {
-        const identifier = credentials?.email;
+        const identifier = credentials?.identifier;
         const password = credentials?.password;
 
         if (typeof identifier !== "string" || typeof password !== "string") {
-          throw new Error("Invalid credentials");
+          throw new Error("Invalid credentials or password");
         }
 
         const emailCandidates = buildLoginIdentifierCandidates(identifier);
 
         if (!emailCandidates.length) {
-          throw new Error("Invalid credentials");
+          throw new Error("Invalid credentials or password");
         }
 
         // Find user in database
         const user = await db.user.findFirst({
           where: {
-            email: {
-              in: emailCandidates,
-            },
+            OR: [
+              { email: { in: emailCandidates } },
+              { studentProfile: { studentId: identifier } },
+            ],
           },
           select: {
             id: true,
@@ -60,7 +61,7 @@ export const authOptions = {
         });
 
         if (!user) {
-          throw new Error("User not found");
+          throw new Error("Invalid credentials or password");
         }
 
         if (!user.isActive) {
@@ -71,7 +72,7 @@ export const authOptions = {
         const isPasswordValid = await compare(password, user.password);
 
         if (!isPasswordValid) {
-          throw new Error("Invalid password");
+          throw new Error("Invalid credentials or password");
         }
 
         await db.user.update({

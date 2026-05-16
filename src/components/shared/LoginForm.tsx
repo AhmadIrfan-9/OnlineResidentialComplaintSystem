@@ -22,7 +22,7 @@ import {
 const loginSchema = z.object({
   identifier: z
     .string()
-    .min(3, "Please enter your Student/Staff email."),
+    .min(3, "Please enter your Email or Student ID."),
   password: z.string().min(6, "Password must be at least 6 characters."),
 });
 
@@ -71,7 +71,7 @@ export function LoginForm() {
 
     try {
       const result = await signIn("credentials", {
-        email: data.identifier.trim(),
+        identifier: data.identifier.trim(),
         password: data.password,
         redirect: false,
       });
@@ -151,15 +151,15 @@ export function LoginForm() {
             {/* Email / ID Field */}
             <div className="space-y-2">
               <label htmlFor="identifier" className="block text-sm font-bold text-white ml-1">
-                Student/Staff Email
+                Email or Student ID
               </label>
               <div className="relative">
                 <input
                   id="identifier"
                   type="text"
                   autoComplete="username"
-                  placeholder="e.g. ID@uniten.edu.my"
-                  aria-label="Student/Staff Email"
+                  placeholder="Email or Student ID"
+                  aria-label="Email or Student ID"
                   disabled={isLoading}
                   className={`block h-12 w-full rounded-xl border border-white/20 bg-white pl-11 pr-4 text-sm text-gray-900 transition-all placeholder:text-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                     form.formState.errors.identifier
