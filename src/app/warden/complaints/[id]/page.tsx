@@ -122,6 +122,7 @@ export default async function ManagementComplaintDetailPage({
     updatedAt: complaint.updatedAt.toISOString(),
     description: complaint.description,
     isAnonymous: complaint.isAnonymous,
+    satisfactionRating: complaint.satisfactionRating ?? null,
     evidence: evidenceWithAccess,
     updates: complaint.complaintUpdates.map((u) => ({
       id: u.id,

@@ -469,15 +469,6 @@ export function AssistantClient() {
                   disabled={uploading}
                 />
               </div>
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="btn-primary mt-3 w-full flex items-center justify-center gap-2 py-2 text-sm disabled:opacity-50"
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Uploading…" : "Choose Files"}
-              </button>
             </div>
 
             {/* Document list */}

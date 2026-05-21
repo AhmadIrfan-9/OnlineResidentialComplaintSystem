@@ -117,13 +117,14 @@ export const resolveComplaintMessagingContext = async (complaintId: string) => {
     },
   });
 
-  if (!complaint || !complaint.studentProfile?.userId) {
+  if (!complaint) {
     return null;
   }
 
   return {
     complaintId: complaint.id,
-    studentId: complaint.studentProfile.userId,
+    // null when the complaint was filed anonymously (no linked student profile)
+    studentId: complaint.studentProfile?.userId ?? null,
     managementRecipientId: complaint.hostel.wardenId,
     complaint,
   };

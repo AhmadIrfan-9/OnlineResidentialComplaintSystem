@@ -58,6 +58,14 @@ export async function DELETE(
   const before = await db.adminCategory.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ message: "Category not found" }, { status: 404 });
 
+  const complaintCount = await db.complaint.count({ where: { category: before.name } });
+  if (complaintCount > 0) {
+    return NextResponse.json(
+      { message: `Cannot delete: ${complaintCount} complaint(s) still use this category. Reassign them first.` },
+      { status: 409 }
+    );
+  }
+
   await db.adminCategory.delete({ where: { id } });
 
   await logAudit({

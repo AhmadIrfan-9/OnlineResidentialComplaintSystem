@@ -43,6 +43,35 @@ const isFileLike = (value: unknown): value is File =>
   "size" in value &&
   "name" in value;
 
+// Allowed evidence file types with their magic byte signatures.
+const ALLOWED_TYPES: { ext: string; mimeType: string; magic: number[] }[] = [
+  { ext: "jpg",  mimeType: "image/jpeg",       magic: [0xff, 0xd8, 0xff] },
+  { ext: "jpeg", mimeType: "image/jpeg",       magic: [0xff, 0xd8, 0xff] },
+  { ext: "png",  mimeType: "image/png",        magic: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { ext: "webp", mimeType: "image/webp",       magic: [0x52, 0x49, 0x46, 0x46] },   // RIFF header; WebP verified below
+  { ext: "gif",  mimeType: "image/gif",        magic: [0x47, 0x49, 0x46, 0x38] },   // GIF8
+  { ext: "pdf",  mimeType: "application/pdf",  magic: [0x25, 0x50, 0x44, 0x46] },   // %PDF
+];
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function detectMimeType(buf: Buffer): string | null {
+  for (const { mimeType, magic } of ALLOWED_TYPES) {
+    if (magic.every((byte, i) => buf[i] === byte)) {
+      // Extra check: RIFF files must have "WEBP" at bytes 8-11
+      if (mimeType === "image/webp") {
+        if (buf.slice(8, 12).toString("ascii") !== "WEBP") continue;
+      }
+      return mimeType;
+    }
+  }
+  return null;
+}
+
+function isAllowedExtension(ext: string): boolean {
+  return ALLOWED_TYPES.some((t) => t.ext === ext.toLowerCase());
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -75,13 +104,36 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    if (!isAllowedExtension(extension)) {
+      return NextResponse.json(
+        { message: "File type not allowed. Accepted: JPG, PNG, WebP, GIF, PDF." },
+        { status: 415 }
+      );
+    }
+
+    if (fileData.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { message: `File too large. Maximum size is ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.` },
+        { status: 413 }
+      );
+    }
+
     const fileBuffer = Buffer.from(await fileData.arrayBuffer());
+
+    const detectedMime = detectMimeType(fileBuffer);
+    if (!detectedMime) {
+      return NextResponse.json(
+        { message: "File content does not match an allowed type. Accepted: JPG, PNG, WebP, GIF, PDF." },
+        { status: 415 }
+      );
+    }
+
     const uploaded = await storageService.putObject({
       complaintId,
       fileUuid,
       extension,
       body: fileBuffer,
-      contentType: fileData.type || "application/octet-stream",
+      contentType: detectedMime,
       fileSize: fileData.size,
       uploaderId,
       virusScanStatus:

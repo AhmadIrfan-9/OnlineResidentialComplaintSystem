@@ -10,14 +10,15 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, phone, currentPassword, newPassword } = body as {
+  const { name, phone, currentPassword, newPassword, forceChange } = body as {
     name?: string;
     phone?: string;
     currentPassword?: string;
     newPassword?: string;
+    forceChange?: boolean;
   };
 
-  const updateData: { name?: string; phone?: string; password?: string } = {};
+  const updateData: { name?: string; phone?: string; password?: string; mustChangePassword?: boolean } = {};
 
   if (name !== undefined) {
     const trimmed = name.trim();
@@ -30,22 +31,29 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (newPassword) {
-    if (!currentPassword) {
-      return NextResponse.json({ error: "Current password is required" }, { status: 400 });
+    if (newPassword.length < 8) {
+      return NextResponse.json({ error: "New password must be at least 8 characters" }, { status: 400 });
     }
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "New password must be at least 6 characters" }, { status: 400 });
+    if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return NextResponse.json({ error: "Password must contain at least one letter and one number" }, { status: 400 });
     }
 
-    const user = await db.user.findUnique({ where: { id: session.user.id }, select: { password: true } });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-    const valid = await compare(currentPassword, user.password);
-    if (!valid) {
-      return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+    // forceChange = true means the user is on the mandatory change-password screen
+    // and no current password check is needed (they only have the temp "123456")
+    if (!forceChange) {
+      if (!currentPassword) {
+        return NextResponse.json({ error: "Current password is required" }, { status: 400 });
+      }
+      const user = await db.user.findUnique({ where: { id: session.user.id }, select: { password: true } });
+      if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+      const valid = await compare(currentPassword, user.password);
+      if (!valid) {
+        return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
+      }
     }
 
     updateData.password = await hash(newPassword, 10);
+    updateData.mustChangePassword = false;
   }
 
   if (Object.keys(updateData).length === 0) {

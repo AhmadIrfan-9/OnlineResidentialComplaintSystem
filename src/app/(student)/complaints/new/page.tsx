@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -60,10 +61,25 @@ export default async function NewComplaintPage() {
   }
 
   return (
-    <StudentComplaintForm
-      categories={categories}
-      hostelName={hostelName}
-      roomId={studentProfile.roomId!}
-    />
+    <div className="space-y-4">
+      <section className="surface-hero px-5 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Student Portal</p>
+          <h1 className="text-xl font-black text-white">Submit Complaint</h1>
+          <p className="mt-0.5 text-sm text-blue-200">Describe your issue clearly so management can respond faster.</p>
+        </div>
+        <Link
+          href="/dashboard/student"
+          className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+        >
+          Back
+        </Link>
+      </section>
+      <StudentComplaintForm
+        categories={categories}
+        hostelName={hostelName}
+        roomId={studentProfile.roomId!}
+      />
+    </div>
   );
 }

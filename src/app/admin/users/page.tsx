@@ -20,9 +20,10 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-4">
-      <section className="surface-hero p-4">
-        <h1 className="text-xl font-semibold text-white">User Management</h1>
-        <p className="mt-1 text-sm text-blue-100">
+      <section className="surface-hero px-5 py-4">
+        <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Admin Portal</p>
+        <h1 className="text-xl font-black text-white">User Management</h1>
+        <p className="mt-0.5 text-sm text-blue-200">
           Manage user accounts, roles, hostel mappings, and account status.
         </p>
       </section>

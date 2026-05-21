@@ -16,6 +16,7 @@ import { db } from "@/lib/db";
 import { isManagementRole, isAdminRole, normalizeRoleKey } from "@/lib/roles";
 import { generateComplaintInsight } from "@/lib/ai/insight";
 import { toPendingDays } from "@/lib/complaints";
+import { rateLimit } from "@/lib/rate-limit";
 
 // ─── Request Validation ────────────────────────────────────────────────────────
 
@@ -34,6 +35,9 @@ function isValidBody(
 // ─── Route Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, { prefix: "ai-insight", limit: 10, windowSecs: 60 });
+  if (limited) return limited;
+
   // 1. Auth check
   const session = await auth();
   if (!session?.user) {

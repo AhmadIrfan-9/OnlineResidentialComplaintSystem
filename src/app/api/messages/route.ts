@@ -37,6 +37,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
+    if (!context.studentId) {
+      return NextResponse.json({ messages: [], anonymous: true });
+    }
+
     const rows = await db.supportMessage.findMany({
       where: { complaintId: context.complaintId },
       orderBy: { timestamp: "desc" },
@@ -83,6 +87,13 @@ export async function POST(request: NextRequest) {
 
     if (!canAccessComplaint(session.user.role, session.user.id, context.complaint)) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
+
+    if (!context.studentId) {
+      return NextResponse.json(
+        { message: "Messaging is not available for anonymous complaints" },
+        { status: 422 }
+      );
     }
 
     const senderRole = toChatRole(session.user.role);

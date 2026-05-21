@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus } from "lucide-react";
+import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus, Copy, KeyRound } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
 type UserRow = {
@@ -71,6 +71,8 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [notice,      setNotice]      = useState("");
   const [toast,       setToast]       = useState("");
   const [showCreate,  setShowCreate]  = useState(false);
+  const [mounted,     setMounted]     = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [newUser, setNewUser] = useState({
     name: "", email: "", role: "STUDENT" as Role,
     roomLabel: "", hostelId: "", isActive: true,
@@ -128,6 +130,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
     } finally { setLoading(false); }
   }, []);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
   const createUser = async () => {
@@ -152,13 +155,14 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
       const data = await res.json();
       if (!res.ok) { setNotice(data.message ?? "Failed to create user"); return; }
 
-      const assignedRoom = newUser.roomLabel || "N/A";
-      setToast(`User created and assigned to ${assignedRoom} successfully.`);
       setShowCreate(false);
       setNewUser({ name: "", email: "", role: "STUDENT", roomLabel: "", hostelId: "", isActive: true });
-      setRoomBlock("");
-      setRoomFloor("");
-      setRoomUnit("");
+      setRoomBlock(""); setRoomFloor(""); setRoomUnit("");
+      if (data.tempPassword) {
+        setTempPassword(data.tempPassword);
+      } else {
+        setToast("User created successfully.");
+      }
       await loadUsers();
     } finally { setSaving(false); }
   };
@@ -192,8 +196,48 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
         </div>
       )}
 
+      {/* ── Temp password reveal modal ───────────────────────────────────── */}
+      {mounted && tempPassword && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
+                <KeyRound className="h-5 w-5 text-amber-600" />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">User Created</h3>
+                <p className="text-xs text-slate-500">Share this temporary password with the user</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+              <span className="font-mono text-lg font-bold text-amber-800 tracking-widest">{tempPassword}</span>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(tempPassword); setToast("Password copied!"); }}
+                className="shrink-0 rounded-lg border border-amber-200 bg-white p-1.5 hover:bg-amber-100 transition-colors"
+                title="Copy to clipboard"
+              >
+                <Copy className="h-4 w-4 text-amber-600" />
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              The user will be required to change this password on first login.
+              This message will not appear again.
+            </p>
+            <button
+              type="button"
+              onClick={() => setTempPassword(null)}
+              className="mt-4 w-full rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              Got it
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* ── Add User modal ───────────────────────────────────────────────── */}
-      {showCreate && typeof document !== "undefined" && createPortal(
+      {mounted && showCreate && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="mx-4 w-full max-w-2xl rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             {/* Modal header */}
@@ -268,7 +312,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
           </div>
         </div>,
         document.body
-      )}
+      ) /* end add-user portal */}
 
       <section className="surface-card p-5">
         {/* ── Filters ──────────────────────────────────────────────────── */}

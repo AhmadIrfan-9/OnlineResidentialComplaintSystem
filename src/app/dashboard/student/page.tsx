@@ -8,6 +8,9 @@ import {
   Plus,
   ExternalLink,
   FileText,
+  ClipboardList,
+  ChevronRight,
+  SendHorizontal,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -81,79 +84,137 @@ export default async function StudentDashboardPage() {
   const studentName = session.user.name ?? "Student";
   const firstName = studentName.split(" ")[0];
 
+  const metrics = [
+    {
+      label: "Active Complaints",
+      value: activeCount,
+      icon: AlertCircle,
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-600",
+      valueCls: activeCount > 0 ? "text-amber-600" : "text-slate-900",
+      borderCls: "border-t-4 border-t-amber-500",
+      href: "/complaints?status=PENDING",
+      sub: "pending & in progress",
+    },
+    {
+      label: "Resolved",
+      value: resolvedCount,
+      icon: CheckCircle2,
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
+      valueCls: "text-emerald-600",
+      borderCls: "border-t-4 border-t-emerald-500",
+      href: "/complaints?status=RESOLVED",
+      sub: "resolved & closed",
+    },
+    {
+      label: "Notifications",
+      value: unreadMessages,
+      icon: Bell,
+      iconBg: unreadMessages > 0 ? "bg-blue-100" : "bg-slate-100",
+      iconColor: unreadMessages > 0 ? "text-blue-600" : "text-slate-500",
+      valueCls: unreadMessages > 0 ? "text-blue-600" : "text-slate-900",
+      borderCls: unreadMessages > 0 ? "border-t-4 border-t-blue-500" : "border-t-4 border-t-slate-300",
+      href: "/complaints",
+      sub: "unread messages",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* ── Page Header ── */}
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Good day, {firstName} 👋
-        </h1>
-        <p className="text-sm text-slate-500">
-          Here&apos;s an overview of your complaint activity.
-        </p>
-      </header>
+    <div className="space-y-6 pb-12">
 
-      {/* ── Summary Cards ── */}
-      <section className="grid gap-4 sm:grid-cols-2">
+      {/* ── Page header banner ── */}
+      <div className="surface-hero px-6 py-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
+            Student Portal
+          </p>
+          <h1 className="text-2xl font-black text-white">Welcome, {firstName}</h1>
+          <p className="text-sm text-blue-200 mt-0.5">Track and manage your residential complaints.</p>
+        </div>
+        <div className="hidden md:flex items-center gap-3">
+          <Link
+            href="/complaints/new"
+            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+          >
+            <Plus className="h-4 w-4" /> New Complaint
+          </Link>
+          <Link
+            href="/complaints"
+            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+          >
+            <ClipboardList className="h-4 w-4" /> My History
+          </Link>
+        </div>
+      </div>
 
-        {/* Active Complaints — Amber (#D97706) */}
-        <Link href="/complaints?status=PENDING" className="group block">
-          <div className="flex h-full items-start gap-4 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-amber-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-amber-300">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-amber-700">
-                Active Complaints
-              </p>
-              <p className="mt-1 text-3xl font-extrabold text-amber-900 tabular-nums">
-                {activeCount}
-              </p>
-              <p className="mt-1 text-xs text-amber-600 group-hover:underline">
-                View pending →
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        {/* Resolved — Emerald (#15803D) */}
-        <Link href="/complaints?status=RESOLVED" className="group block">
-          <div className="flex h-full items-start gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 p-5 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
-                Resolved
-              </p>
-              <p className="mt-1 text-3xl font-extrabold text-emerald-900 tabular-nums">
-                {resolvedCount}
-              </p>
-              <p className="mt-1 text-xs text-emerald-600 group-hover:underline">
-                View closed →
-              </p>
-            </div>
-          </div>
-        </Link>
+      {/* ── Metric cards ── */}
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {metrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <Link key={m.label} href={m.href} className="block">
+              <div className={`surface-card p-5 transition-all hover:-translate-y-0.5 hover:shadow-md ${m.borderCls}`}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                      {m.label}
+                    </p>
+                    <p className={`text-4xl font-black tracking-tight ${m.valueCls}`}>
+                      {m.value}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">{m.sub}</p>
+                  </div>
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.iconBg}`}>
+                    <Icon className={`h-5 w-5 ${m.iconColor}`} />
+                  </span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </section>
 
-      {/* ── Submit CTA ── */}
-      <div className="flex items-center gap-4">
+      {/* ── Quick Actions ── */}
+      <section className="grid gap-4 sm:grid-cols-2">
         <Link
           href="/complaints/new"
-          className="group relative inline-flex origin-center items-center gap-2 rounded-xl bg-gradient-to-br from-[#003087] to-[#1d4ed8] px-6 py-3 text-sm font-semibold text-[#ffffff] shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:from-[#2563eb] hover:to-[#1e40af] hover:shadow-[0_0_20px_rgba(29,78,216,0.6)] active:scale-95"
+          className="surface-card group flex flex-col p-5 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all"
         >
-          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
-          Submit New Complaint
+          <div className="flex items-center justify-between mb-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-600 transition-colors">
+              <SendHorizontal className="h-4 w-4 text-blue-700 group-hover:text-white transition-colors" />
+            </span>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
+            Submit New Complaint
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Report a residential issue for review by management.
+          </p>
+          <div className="mt-3 h-1 w-10 rounded-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
         </Link>
+
         <Link
           href="/complaints"
-          className="group inline-flex origin-center items-center gap-2 rounded-xl border border-slate-200 bg-[#ffffff] px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:scale-105 hover:border-slate-300 hover:bg-gradient-to-br hover:from-[#f8fafc] hover:to-[#f1f5f9] hover:shadow-[0_0_20px_rgba(148,163,184,0.4)] active:scale-95"
+          className="surface-card group flex flex-col p-5 hover:border-emerald-300 hover:shadow-md cursor-pointer transition-all"
         >
-          <FileText className="h-4 w-4 text-slate-500 transition-colors duration-300 group-hover:text-slate-700" />
-          View All
+          <div className="flex items-center justify-between mb-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 group-hover:bg-emerald-600 transition-colors">
+              <ClipboardList className="h-4 w-4 text-emerald-700 group-hover:text-white transition-colors" />
+            </span>
+            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+            View All Complaints
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">
+            Browse your full complaint history and check statuses.
+          </p>
+          <div className="mt-3 h-1 w-10 rounded-full bg-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
         </Link>
-      </div>
+      </section>
 
       {/* ── Recent Complaints Table ── */}
       <section className="surface-card overflow-hidden">

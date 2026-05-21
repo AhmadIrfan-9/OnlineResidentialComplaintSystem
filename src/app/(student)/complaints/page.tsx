@@ -65,17 +65,18 @@ export default function StudentComplaintsPage() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="surface-hero px-5 py-5">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-white">My Complaints</h1>
-            <Link href="/complaints/new">
-              <Button className="bg-gradient-to-r from-sky-600 to-blue-700 text-white hover:from-sky-700 hover:to-blue-800">
-                <Plus className="mr-2 h-4 w-4" />
-                New Complaint
-              </Button>
-            </Link>
+        <div className="surface-hero px-5 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Student Portal</p>
+            <h1 className="text-xl font-black text-white">My Complaints</h1>
+            <p className="mt-0.5 text-sm text-blue-200">Track all submissions, responses, and progress in one place.</p>
           </div>
-          <p className="mt-2 text-sm text-blue-100">Track all submissions, responses, and progress in one place.</p>
+          <Link href="/complaints/new">
+            <Button className="bg-white/15 hover:bg-white/25 text-white border-0 shadow-none font-semibold text-sm">
+              <Plus className="mr-2 h-4 w-4" />
+              New Complaint
+            </Button>
+          </Link>
         </div>
       </header>
 

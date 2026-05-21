@@ -21,7 +21,7 @@ const complaintScopeWhere = async (userId: string, role: string) => {
       select: { id: true },
     });
     if (!studentProfile) return null;
-    return { studentProfileId: studentProfile.id };
+    return { studentProfileId: studentProfile.id, deletedAt: null };
   }
   if (role === "MANAGEMENT") {
     return { hostel: { wardenId: userId } };
@@ -66,11 +66,19 @@ export async function GET(
 
     const resolvedEvidences = await resolveEvidenceListUrls(complaint.evidences);
 
+    // For anonymous complaints, mask student identity from non-student callers
+    const canSeeIdentity = role === "STUDENT" || role === "IT_STAFF_ADMIN";
+    const studentData =
+      complaint.isAnonymous && !canSeeIdentity
+        ? null
+        : (complaint.studentProfile?.user ?? null);
+
     return NextResponse.json({
       complaint: {
         ...complaint,
         evidences: resolvedEvidences,
-        student: complaint.studentProfile?.user ?? null,
+        student: studentData,
+        studentProfile: complaint.isAnonymous && !canSeeIdentity ? null : complaint.studentProfile,
         attachments: resolvedEvidences.map((evidence) => evidence.fileUrl),
       },
     });
@@ -171,6 +179,21 @@ export async function DELETE(
     if (role === "IT_STAFF_ADMIN") {
       await db.complaint.delete({ where: { id } });
       return NextResponse.json({ message: "Complaint deleted by admin" });
+    }
+
+    if (role === "MANAGEMENT") {
+      const complaint = await db.complaint.findFirst({
+        where: { id, hostel: { wardenId: session.user.id } },
+        select: { id: true },
+      });
+      if (!complaint) {
+        return NextResponse.json(
+          { message: "Complaint not found or not in your hostel" },
+          { status: 404 }
+        );
+      }
+      await db.complaint.delete({ where: { id: complaint.id } });
+      return NextResponse.json({ message: "Complaint deleted" });
     }
 
     if (role !== "STUDENT") {

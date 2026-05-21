@@ -51,14 +51,15 @@ export default async function StudentComplaintDetailPage({
   return (
     <main className="min-h-screen p-4 md:p-6">
       <div className="mx-auto max-w-5xl space-y-4">
-        <header className="surface-hero p-4">
+        <header className="surface-hero px-5 py-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold text-white">{complaint.title}</h1>
-              <p className="text-sm text-blue-100">Ticket #{complaint.id.slice(0, 8).toUpperCase()}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Student Portal</p>
+              <h1 className="text-lg font-black text-white">{complaint.title}</h1>
+              <p className="text-sm text-blue-200">Ticket #{complaint.id.slice(0, 8).toUpperCase()}</p>
             </div>
-            <Link href="/complaints" className="nav-pill px-3 py-2">
-              Back
+            <Link href="/complaints" className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors">
+              Back to My Complaints
             </Link>
           </div>
         </header>

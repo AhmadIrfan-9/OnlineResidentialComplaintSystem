@@ -107,12 +107,14 @@ model Complaint {
   isAnonymous      Boolean           @default(false)
   resolvedAt       DateTime?
   closedAt         DateTime?
+  deletedAt        DateTime?
   studentProfileId String?
   roomId           String
   hostelId         String
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
-  priority         Priority          @default(ROUTINE)
+  priority             Priority          @default(ROUTINE)
+  satisfactionRating   Int?              @map("satisfaction_rating")
   complaintUpdates ComplaintUpdate[]
   hostel           Hostel            @relation(fields: [hostelId], references: [id], onDelete: Cascade)
   room             Room              @relation(fields: [roomId], references: [id])

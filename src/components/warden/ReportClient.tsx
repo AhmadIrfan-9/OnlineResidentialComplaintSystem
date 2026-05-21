@@ -31,12 +31,14 @@ export function ReportClient(props: ReportClientProps) {
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const handlePrint = () => window.print();
 
   const handlePDF = async () => {
     if (!reportRef.current) return;
     setExporting(true);
+    setExportError(null);
     try {
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
@@ -52,6 +54,7 @@ export function ReportClient(props: ReportClientProps) {
       pdf.save(`ORCS_Management_Report_${new Date().toISOString().split("T")[0]}.pdf`);
     } catch (err) {
       console.error("PDF export failed:", err);
+      setExportError("PDF export failed. Please try using Print instead.");
     } finally {
       setExporting(false);
     }
@@ -83,6 +86,11 @@ export function ReportClient(props: ReportClientProps) {
             {exporting ? "Generating…" : "Download PDF"}
           </button>
         </div>
+        {exportError && (
+          <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600">
+            {exportError}
+          </p>
+        )}
       </div>
 
       {/* Report body — captured for PDF and printed */}

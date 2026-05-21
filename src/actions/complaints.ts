@@ -32,7 +32,7 @@ const createComplaintSubmissionSchema = z
     category: z.string().min(1),
     locationBlock: z
       .string()
-      .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
+      .regex(/^C[1-3]-(?:0[1-9]|10)-0[1-8]$/, "Invalid location format")
       .optional(),
     roomId: z.string().min(1),
     studentId: z.string().min(1).optional().nullable(),
@@ -290,7 +290,8 @@ interface UpdateComplaintCategoryResult {
 
 export async function updateComplaintStatus(
   complaintId: string,
-  newStatus: string
+  newStatus: string,
+  closureNote?: string
 ): Promise<UpdateComplaintStatusResult> {
   try {
     const session = await auth();
@@ -327,6 +328,21 @@ export async function updateComplaintStatus(
       return { success: false, error: "Complaint not found" };
     }
 
+    // Status state machine — define which transitions are allowed
+    const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+      PENDING:     ["IN_PROGRESS", "CLOSED"],
+      IN_PROGRESS: ["RESOLVED", "PENDING", "CLOSED"],
+      RESOLVED:    ["CLOSED", "IN_PROGRESS"],
+      CLOSED:      [],
+    };
+    const allowedNext = ALLOWED_TRANSITIONS[complaint.status] ?? [];
+    if (!allowedNext.includes(validatedStatus)) {
+      return {
+        success: false,
+        error: `Cannot transition from ${complaint.status} to ${validatedStatus}`,
+      };
+    }
+
     // Check if user is a direct warden or has global management access (no specific hostel assignment)
     const isDirectWarden = complaint.hostel.wardenId === session.user.id;
     const assignedHostelCount = await db.hostel.count({
@@ -343,6 +359,10 @@ export async function updateComplaintStatus(
         success: false,
         error: "You can only update complaints from your assigned hostel",
       };
+    }
+
+    if (validatedStatus === "CLOSED" && !closureNote?.trim()) {
+      return { success: false, error: "A closure reason is required when closing a complaint" };
     }
 
     const resolvedAt = validatedStatus === "RESOLVED" ? new Date() : complaint.resolvedAt;
@@ -369,6 +389,16 @@ export async function updateComplaintStatus(
         updatedById: session.user.id,
       },
     });
+
+    if (validatedStatus === "CLOSED" && closureNote?.trim()) {
+      await db.complaintUpdate.create({
+        data: {
+          complaintId,
+          content: `Closure reason: ${closureNote.trim()}`,
+          updatedById: session.user.id,
+        },
+      });
+    }
 
     // Auto-assign to whoever moves the complaint to IN_PROGRESS
     if (validatedStatus === "IN_PROGRESS") {
@@ -464,6 +494,14 @@ export async function updateComplaintCategory(
     }
 
     const validatedCategory = z.string().min(1).parse(newCategory);
+
+    const categoryRecord = await db.adminCategory.findFirst({
+      where: { name: validatedCategory, isActive: true },
+      select: { id: true },
+    });
+    if (!categoryRecord) {
+      return { success: false, error: "Invalid or inactive category" };
+    }
 
     const complaint = await db.complaint.findUnique({
       where: { id: complaintId },
@@ -996,11 +1034,12 @@ export async function deleteComplaint(
     const studentName = session.user.name || "Student";
     
     await db.$transaction(async (tx) => {
-      // Soft delete: hide from student, close ticket, but keep evidence
+      // Soft delete: mark as deleted to hide from student while preserving all relations
+      // (studentProfileId is intentionally kept so messaging and audit context remain intact)
       await tx.complaint.update({
         where: { id: complaint.id },
         data: {
-          studentProfileId: null,
+          deletedAt: new Date(),
           status: "CLOSED",
           closedAt: new Date(),
         },

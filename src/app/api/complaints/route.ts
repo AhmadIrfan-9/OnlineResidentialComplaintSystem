@@ -5,6 +5,7 @@ import { complaintSubmissionSchema } from "@/lib/validations";
 import { normalizeRoleKey } from "@/lib/roles";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { createInAppNotification } from "@/lib/notifications";
+import { rateLimit } from "@/lib/rate-limit";
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -16,6 +17,9 @@ const inferFileTypeFromUrl = (fileUrl: string): string => {
 };
 
 export async function POST(request: NextRequest) {
+  const limited = rateLimit(request, { prefix: "complaint", limit: 10, windowSecs: 60 });
+  if (limited) return limited;
+
   try {
     const session = await auth();
     if (!session?.user) {
@@ -155,7 +159,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const category = searchParams.get("category");
-    const hostelId = searchParams.get("hostelId");
+    const hostelId = searchParams.get("hostelId"); // used by MANAGEMENT/ADMIN scope only
     const studentId = searchParams.get("studentId");
     const query = searchParams.get("q")?.trim();
     const limitParam = searchParams.get("limit");
@@ -181,6 +185,7 @@ export async function GET(request: NextRequest) {
       }
 
       where.studentProfileId = studentProfile.id;
+      where.deletedAt = null; // hide soft-deleted complaints from student
     } else if (role === "MANAGEMENT") {
       where.hostel = { wardenId: session.user.id };
     }

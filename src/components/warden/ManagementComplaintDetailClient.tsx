@@ -28,6 +28,7 @@ import {
   Zap,
   Printer,
   Sparkles,
+  EyeOff,
 } from "lucide-react";
 
 interface DetailData {
@@ -50,6 +51,7 @@ interface DetailData {
   updatedAt: string;
   description: string;
   isAnonymous: boolean;
+  satisfactionRating: number | null;
   evidence: Array<{ id: string; fileUrl: string; fileType: string }>;
   updates: Array<{ id: string; createdAt: string; content: string; role: string; name: string }>;
 }
@@ -127,9 +129,13 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
 
   const applyStatusChange = (targetStatus: string, message?: string) => {
     startTransition(async () => {
-      const statusRes = await updateComplaintStatus(detail.id, targetStatus);
+      const closureNote = targetStatus === "CLOSED" ? message : undefined;
+      const statusRes = await updateComplaintStatus(detail.id, targetStatus, closureNote);
       if (!statusRes.success) { showFeedback(statusRes.error ?? "Failed to update status", "error"); return; }
-      if (message && message.trim().length > 0) await addComplaintComment(detail.id, message.trim());
+      // Only add a separate comment if NOT CLOSED (closure note already recorded as ComplaintUpdate)
+      if (targetStatus !== "CLOSED" && message && message.trim().length > 0) {
+        await addComplaintComment(detail.id, message.trim());
+      }
       showFeedback(`Status updated to ${pretty(targetStatus)}`);
       router.refresh();
     });
@@ -239,6 +245,12 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
               <h2 className="text-sm font-bold text-blue-900">Student Information</h2>
             </div>
             <div className="p-5 space-y-2.5 text-sm">
+              {detail.isAnonymous && (
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                  Student identity is hidden — submitted anonymously.
+                </div>
+              )}
               {[
                 { label: "Student Name",     value: detail.studentName },
                 { label: "Student/Staff ID", value: detail.studentIdentifier },
@@ -400,14 +412,15 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                    Response Note <span className="text-red-500">*</span>
+                    {proposedStatus === "CLOSED" ? "Closure Reason" : "Response Note"}{" "}
+                    <span className="text-red-500">*</span>
                     <span className="ml-1 font-normal normal-case text-slate-400">(min 10 chars)</span>
                   </label>
                   <textarea
                     className="min-h-20 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
                     value={responseMessage}
                     onChange={(e) => setResponseMessage(e.target.value)}
-                    placeholder="Describe the action taken…"
+                    placeholder={proposedStatus === "CLOSED" ? "State the reason for closing this complaint…" : "Describe the action taken…"}
                   />
                 </div>
               </div>
@@ -424,6 +437,33 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
             )}
           </div>
         </div>
+
+        {/* ── Student Satisfaction Rating ──────────────────────────────── */}
+        {detail.satisfactionRating !== null && (
+          <div className="surface-card overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
+              <span className="text-base leading-none">⭐</span>
+              <h3 className="text-sm font-bold text-slate-800">Student Satisfaction</h3>
+            </div>
+            <div className="flex items-center gap-4 p-5">
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span key={star} className={`text-2xl leading-none ${star <= (detail.satisfactionRating ?? 0) ? "text-amber-400" : "text-slate-200"}`}>
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-sm font-semibold text-slate-700">
+                {detail.satisfactionRating}/5 — {
+                  detail.satisfactionRating >= 5 ? "Excellent" :
+                  detail.satisfactionRating >= 4 ? "Good" :
+                  detail.satisfactionRating >= 3 ? "Average" :
+                  detail.satisfactionRating >= 2 ? "Poor" : "Very Poor"
+                }
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* ── Messages ─────────────────────────────────────────────────── */}
         <div className="surface-card overflow-hidden">
@@ -471,19 +511,49 @@ export function ManagementComplaintDetailClient({ detail }: { detail: DetailData
 
             {/* Reply box */}
             <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                Reply to Student
-              </label>
-              <textarea
-                className="min-h-20 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type your message to the student…"
-              />
-              <button className="btn-primary" onClick={sendMessage} disabled={isPending}>
-                <MessageSquare className="h-4 w-4" />
-                {isPending ? "Sending…" : "Send Message"}
-              </button>
+              {detail.isAnonymous ? (
+                <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  <EyeOff className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+                  <span>
+                    <span className="font-semibold text-slate-700">Messaging unavailable.</span>{" "}
+                    This complaint was submitted anonymously — the student&apos;s identity is hidden and replies cannot be delivered.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <label className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                    Reply to Student
+                  </label>
+                  {/* Quick-reply templates */}
+                  <div className="flex flex-wrap gap-1.5 pb-1">
+                    {[
+                      { label: "Under Review", text: "Your complaint has been received and is currently under review. We will update you as soon as possible." },
+                      { label: "Technician Dispatched", text: "A technician has been assigned and will attend to this issue shortly. Please ensure access to the room is available." },
+                      { label: "Resolved — Please Confirm", text: "The reported issue has been addressed. Please confirm whether the problem has been resolved to your satisfaction." },
+                      { label: "Need More Details", text: "To help us address your complaint, please provide additional information or clear photos showing the issue." },
+                    ].map((t) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        onClick={() => setNewMessage(t.text)}
+                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    className="min-h-20 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none resize-none"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type your message to the student…"
+                  />
+                  <button className="btn-primary" onClick={sendMessage} disabled={isPending}>
+                    <MessageSquare className="h-4 w-4" />
+                    {isPending ? "Sending…" : "Send Message"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

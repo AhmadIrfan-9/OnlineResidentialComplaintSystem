@@ -12,6 +12,8 @@ import {
   Clock,
   AlertTriangle,
   Tag,
+  ListChecks,
+  Loader2,
 } from "lucide-react";
 import { updateComplaintStatus } from "@/actions/complaints";
 import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
@@ -47,6 +49,13 @@ const PRIORITY_BADGE: Record<QueueItem["priority"], string> = {
   EMERGENCY: "bg-red-100 text-red-700 border border-red-200",
   URGENT:    "bg-amber-100 text-amber-700 border border-amber-200",
   ROUTINE:   "bg-slate-100 text-slate-600",
+};
+
+const VALID_NEXT: Record<QueueItem["statusCode"], QueueItem["statusCode"][]> = {
+  PENDING:     ["IN_PROGRESS"],
+  IN_PROGRESS: ["RESOLVED", "PENDING"],
+  RESOLVED:    ["CLOSED"],
+  CLOSED:      [],
 };
 
 const STATUS_BTN: Record<QueueItem["statusCode"], { active: string; inactive: string }> = {
@@ -119,12 +128,18 @@ const KanbanCard = memo(function KanbanCard({
   onStatusChange,
   onCardClick,
   onDragStart,
+  selectable,
+  isSelected,
+  onSelect,
 }: {
   item: QueueItem;
   disabled: boolean;
   onStatusChange: (id: string, next: QueueItem["statusCode"]) => void;
   onCardClick: (item: QueueItem) => void;
   onDragStart: (id: string) => void;
+  selectable?: boolean;
+  isSelected?: boolean;
+  onSelect?: (id: string) => void;
 }) {
   const meta = STATUS_META[item.statusCode];
   const priCls = PRIORITY_BORDER[item.priority];
@@ -132,11 +147,24 @@ const KanbanCard = memo(function KanbanCard({
 
   return (
     <article
-      draggable
-      onDragStart={() => onDragStart(item.complaintId)}
-      onClick={() => onCardClick(item)}
-      className={`group cursor-pointer rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${priCls}`}
+      draggable={!selectable}
+      onDragStart={() => !selectable && onDragStart(item.complaintId)}
+      onClick={() => !selectable && onCardClick(item)}
+      className={`group relative cursor-pointer rounded-xl border bg-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${priCls} ${isSelected ? "border-blue-400 ring-2 ring-blue-200" : "border-slate-200"}`}
     >
+      {selectable && (
+        <div
+          className="absolute top-3 right-3 z-10"
+          onClick={(e) => { e.stopPropagation(); onSelect?.(item.complaintId); }}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected ?? false}
+            onChange={() => {}}
+            className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-blue-600"
+          />
+        </div>
+      )}
       {/* Card Header */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -226,10 +254,34 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<QueueItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<QueueItem["statusCode"] | null>("PENDING");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState(false);
 
   const handleFilterClick = (s: QueueItem["statusCode"]) => {
     setActiveFilter(prev => prev === s ? null : s);
+    setSelectedIds(new Set());
   };
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback((ids: string[]) => {
+    setSelectedIds(prev => prev.size === ids.length ? new Set() : new Set(ids));
+  }, []);
+
+  const handleBulkStatusChange = useCallback(async (nextStatus: QueueItem["statusCode"]) => {
+    if (selectedIds.size === 0 || bulkPending) return;
+    setBulkPending(true);
+    await Promise.all([...selectedIds].map(id => updateComplaintStatus(id, nextStatus)));
+    setBulkPending(false);
+    setSelectedIds(new Set());
+    router.refresh();
+  }, [selectedIds, bulkPending, router]);
 
   const grouped = useMemo(
     () =>
@@ -318,13 +370,56 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
       {activeFilter !== null ? (
         <div className="px-4 md:px-6 pb-6">
           {/* Column header banner */}
-          <div className={`rounded-xl border px-5 py-3 mb-4 flex items-center justify-between ${STATUS_META[activeFilter].header}`}>
-            <div className="flex items-center gap-2">
+          <div className={`rounded-xl border px-5 py-3 mb-3 flex items-center justify-between ${STATUS_META[activeFilter].header}`}>
+            <div className="flex items-center gap-3">
               <span className={`h-3 w-3 rounded-full ${STATUS_META[activeFilter].dot}`} />
               <span className="text-sm font-bold">{STATUS_META[activeFilter].label} Complaints</span>
             </div>
-            <span className="text-xs font-bold opacity-70">{filteredCards.length} ticket{filteredCards.length !== 1 ? "s" : ""}</span>
+            <div className="flex items-center gap-3">
+              {filteredCards.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => toggleSelectAll(filteredCards.map(c => c.complaintId))}
+                  className="flex items-center gap-1.5 text-xs font-semibold opacity-70 hover:opacity-100 transition-opacity"
+                >
+                  <ListChecks className="h-3.5 w-3.5" />
+                  {selectedIds.size === filteredCards.length ? "Deselect All" : "Select All"}
+                </button>
+              )}
+              <span className="text-xs font-bold opacity-70">{filteredCards.length} ticket{filteredCards.length !== 1 ? "s" : ""}</span>
+            </div>
           </div>
+
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 mb-4">
+              <ListChecks className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="text-sm font-semibold text-blue-800">
+                {selectedIds.size} complaint{selectedIds.size !== 1 ? "s" : ""} selected
+              </span>
+              <div className="flex flex-wrap gap-2 ml-auto items-center">
+                {VALID_NEXT[activeFilter].map(nextStatus => (
+                  <button
+                    key={nextStatus}
+                    type="button"
+                    disabled={bulkPending}
+                    onClick={() => handleBulkStatusChange(nextStatus)}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${STATUS_BTN[nextStatus].inactive}`}
+                  >
+                    {bulkPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                    {bulkPending ? "Updating…" : `Move to ${STATUS_META[nextStatus].label}`}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-xs font-semibold text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
 
           {filteredCards.length === 0 ? (
             <EmptyColumn status={activeFilter} />
@@ -338,6 +433,9 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                   onStatusChange={handleStatusChange}
                   onCardClick={setSelectedCard}
                   onDragStart={setDraggingId}
+                  selectable
+                  isSelected={selectedIds.has(item.complaintId)}
+                  onSelect={toggleSelect}
                 />
               ))}
             </div>

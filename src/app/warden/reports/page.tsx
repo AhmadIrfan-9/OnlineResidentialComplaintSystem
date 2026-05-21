@@ -6,6 +6,7 @@ import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { getUnitenSemester } from "@/lib/semester";
 import { ReportClient } from "@/components/warden/ReportClient";
 import { BarChart2 } from "lucide-react";
+import { formatReportTimestampMYT } from "@/lib/format-date";
 
 const asDays = (ms: number) => ms / (1000 * 60 * 60 * 24);
 
@@ -111,9 +112,7 @@ export default async function ManagementReportsPage() {
   );
   const priorityBreakdown = Object.entries(priorityMap).map(([priority, count]) => ({ priority, count }));
 
-  const generatedAt = now.toLocaleDateString("en-MY", {
-    day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
+  const generatedAt = formatReportTimestampMYT(now);
 
   return (
     <div className="space-y-6 pb-10">

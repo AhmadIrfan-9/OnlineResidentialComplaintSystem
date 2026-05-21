@@ -28,6 +28,7 @@ import {
   Eye,
   EyeOff,
   Bot,
+  Zap,
 } from "lucide-react";
 import { logoutAndRedirect } from "@/lib/client/logout";
 import { cn } from "@/lib/utils";
@@ -42,11 +43,9 @@ type NavItem = { label: string; href: string; icon: React.ElementType };
 const getNavItems = (role: string | undefined): NavItem[] => {
   if (isAdminRole(role)) {
     return [
-      { label: "User Management",  href: "/admin/users",          icon: Users          },
-      { label: "Insights",         href: "/admin/reports",        icon: BarChart3      },
-      { label: "Audit Logs",       href: "/admin/audit-logs",     icon: FileText       },
-      { label: "Configuration",    href: "/admin/configuration",  icon: Settings       },
-      { label: "System Health",    href: "/admin",                icon: Activity       },
+      { label: "Users",      href: "/admin/users",      icon: Users    },
+      { label: "System",     href: "/admin/system",     icon: Settings },
+      { label: "Analytics",  href: "/admin/analytics",  icon: BarChart3 },
     ];
   }
   if (isManagementRole(role)) {
@@ -85,12 +84,14 @@ function SignOutModal({
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const handleConfirm = () => {
     setBusy(true);
     logoutAndRedirect("manual");
   };
 
-  if (typeof document === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -172,14 +173,15 @@ function NavNotificationBell({ session }: { session: any }) {
   // Socket.io live updates
   useEffect(() => {
     if (!session?.user?.id) return;
+    let alive = true;
     const socket: Socket = io(socketBaseUrl, {
       transports: ["websocket", "polling"],
       auth: { userId: session.user.id, role: session.user.role },
     });
     socket.on("notification:new", (n: NotificationItem) => {
-      setItems((prev) => prev.some((i) => i.id === n.id) ? prev : [n, ...prev]);
+      if (alive) setItems((prev) => prev.some((i) => i.id === n.id) ? prev : [n, ...prev]);
     });
-    return () => { socket.disconnect(); };
+    return () => { alive = false; socket.disconnect(); };
   }, [session?.user?.id, session?.user?.role, socketBaseUrl]);
 
   // Close on outside click
@@ -264,6 +266,8 @@ function ProfileSettingsModal({
 }) {
   const { update } = useSession();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   // Profile fields
   const [name, setName] = useState<string>(session?.user?.name ?? "");
   const [phone, setPhone] = useState<string>(session?.user?.phone ?? "");
@@ -338,7 +342,7 @@ function ProfileSettingsModal({
     }
   };
 
-  if (typeof document === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -556,6 +560,14 @@ function ProfileDropdown({ session }: { session: any }) {
               <LogOut className="h-4 w-4" />
               Sign Out
             </button>
+            {/* Emergency sign-out — bypasses React state; use when UI is frozen */}
+            <a
+              href="/api/auth/emergency-signout"
+              className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Emergency Sign-Out
+            </a>
           </div>
         )}
       </div>

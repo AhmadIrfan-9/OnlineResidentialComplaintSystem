@@ -10,8 +10,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { normalizeRoleKey } from "@/lib/roles";
 import { answerQuestion } from "@/lib/ai/rag-chat";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, { prefix: "rag-chat", limit: 20, windowSecs: 60 });
+  if (limited) return limited;
+
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
