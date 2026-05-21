@@ -14,7 +14,7 @@
 import { Pool } from "pg";
 import { randomUUID } from "crypto";
 import OpenAI from "openai";
-import { getEmbedding, formatVectorLiteral } from "./embeddings";
+import { getBatchEmbeddings, getEmbedding, formatVectorLiteral } from "./embeddings";
 
 // ─── DB Pool (shared with retrieval.ts) ──────────────────────────────────────
 
@@ -158,20 +158,28 @@ export async function embedAndStoreChunks(
 ): Promise<void> {
   const pool = getPool();
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const id = randomUUID();
-    const embedding = await getEmbedding(chunk);
-    const vectorLiteral = formatVectorLiteral(embedding);
+  // Single batched API call for all chunks instead of N sequential calls
+  const embeddings = await getBatchEmbeddings(chunks);
 
-    await pool.query(
-      `INSERT INTO rag_document_chunks
-         (id, document_id, chunk_index, content, embedded_at, embedding)
-       VALUES ($1, $2, $3, $4, NOW(), $5::vector)
-       ON CONFLICT (id) DO NOTHING`,
-      [id, documentId, i, chunk, vectorLiteral]
-    );
-  }
+  // Build one bulk INSERT for all chunks
+  const ids = chunks.map(() => randomUUID());
+  const values = chunks
+    .map((_, i) => `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, NOW(), $${i * 5 + 5}::vector)`)
+    .join(", ");
+  const params = chunks.flatMap((chunk, i) => [
+    ids[i],
+    documentId,
+    i,
+    chunk,
+    formatVectorLiteral(embeddings[i]),
+  ]);
+
+  await pool.query(
+    `INSERT INTO rag_document_chunks (id, document_id, chunk_index, content, embedded_at, embedding)
+     VALUES ${values}
+     ON CONFLICT (id) DO NOTHING`,
+    params
+  );
 }
 
 // ─── 4. Vector Search ─────────────────────────────────────────────────────────

@@ -46,11 +46,23 @@ export async function getEmbedding(text: string): Promise<number[]> {
 
   const response = await client.embeddings.create({
     model: "text-embedding-3-small",
-    input: text.trim().slice(0, 8000), // guard against edge-case oversized inputs
+    input: text.trim().slice(0, 8000),
     encoding_format: "float",
   });
 
   return response.data[0].embedding;
+}
+
+export async function getBatchEmbeddings(texts: string[]): Promise<number[][]> {
+  const client = getClient();
+
+  const response = await client.embeddings.create({
+    model: "text-embedding-3-small",
+    input: texts.map((t) => t.trim().slice(0, 8000)),
+    encoding_format: "float",
+  });
+
+  return response.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
 }
 
 /**

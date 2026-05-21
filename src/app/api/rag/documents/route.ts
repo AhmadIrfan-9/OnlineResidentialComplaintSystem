@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
   let fileKey: string;
   try {
     const stored = await storageService.putObject({
-      complaintId: `rag-documents/${doc.id}`,
+      complaintId: doc.id,
       fileUuid,
       extension: ext,
       body: buffer,
