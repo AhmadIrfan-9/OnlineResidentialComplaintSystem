@@ -42,11 +42,11 @@ type NavItem = { label: string; href: string; icon: React.ElementType };
 const getNavItems = (role: string | undefined): NavItem[] => {
   if (isAdminRole(role)) {
     return [
-      { label: "System Health",    href: "/admin",                icon: Activity       },
-      { label: "Configuration",    href: "/admin/configuration",  icon: Settings       },
       { label: "User Management",  href: "/admin/users",          icon: Users          },
+      { label: "Insights",         href: "/admin/reports",        icon: BarChart3      },
       { label: "Audit Logs",       href: "/admin/audit-logs",     icon: FileText       },
-      { label: "Reports",          href: "/admin/reports",        icon: BarChart3      },
+      { label: "Configuration",    href: "/admin/configuration",  icon: Settings       },
+      { label: "System Health",    href: "/admin",                icon: Activity       },
     ];
   }
   if (isManagementRole(role)) {

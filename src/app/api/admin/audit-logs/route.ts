@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
 
   const logs = await db.auditLog.findMany({
     where: {
+      action: { notIn: ["Login", "View"] },
       ...(user && user !== "All" ? { userName: user } : {}),
       ...(action && action !== "All" ? { action } : {}),
       ...(from || to

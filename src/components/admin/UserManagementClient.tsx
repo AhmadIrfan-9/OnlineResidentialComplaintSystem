@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Pencil, Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
 type UserRow = {
@@ -63,9 +64,8 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [statusFilter,  setStatusFilter]  = useState("All");
   const [searchQuery,   setSearchQuery]   = useState("");
   const [currentPage,   setCurrentPage]   = useState(1);
-  const ITEMS_PER_PAGE = 8;
+  const ITEMS_PER_PAGE = 10;
   const [users,       setUsers]       = useState<UserRow[]>([]);
-  const [selectedId,  setSelectedId]  = useState("");
   const [loading,     setLoading]     = useState(true);
   const [saving,      setSaving]      = useState(false);
   const [notice,      setNotice]      = useState("");
@@ -86,8 +86,6 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
       setNewUser(p => ({ ...p, roomLabel: "" }));
     }
   }, [roomBlock, roomFloor, roomUnit]);
-
-  const selectedUser = users.find(u => u.id === selectedId) ?? null;
 
   const filtered = useMemo(() =>
     users
@@ -113,10 +111,10 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
     setLoading(true);
     try {
       const res  = await fetch("/api/admin/users", { cache: "no-store" });
-      
-      if (!res.ok) { 
-        setNotice(`Failed to load users: ${res.statusText}`); 
-        return; 
+
+      if (!res.ok) {
+        setNotice(`Failed to load users: ${res.statusText}`);
+        return;
       }
 
       const text = await res.text();
@@ -124,19 +122,13 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
 
       const next = (data.users ?? []).map(mapApiUser);
       setUsers(next);
-      if (!selectedId && next.length > 0) setSelectedId(next[0].id);
     } catch (error) {
       console.error("Fetch Error:", error);
       setNotice("A network error occurred while loading users.");
     } finally { setLoading(false); }
-  }, [selectedId]);
+  }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
-
-  const updateSelected = (patch: Partial<UserRow>) => {
-    if (!selectedUser) return;
-    setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...patch } : u));
-  };
 
   const createUser = async () => {
     if (!newUser.name || !newUser.email) { setNotice("Name and email are required."); return; }
@@ -171,42 +163,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
     } finally { setSaving(false); }
   };
 
-  const saveSelected = async () => {
-    if (!selectedUser) return;
-    setSaving(true);
-    try {
-      const res  = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: selectedUser.name, email: selectedUser.email,
-          role: selectedUser.role, isActive: selectedUser.status === "Active",
-          hostelId: selectedUser.role === "MANAGEMENT" ? selectedUser.hostelId || null : null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setNotice(data.message ?? "Failed to save user"); return; }
-      setNotice("User updated."); await loadUsers();
-    } finally { setSaving(false); }
-  };
-
-  const resetPassword = async () => {
-    if (!selectedUser) return;
-    setSaving(true);
-    try {
-      const res  = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resetPassword: true }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setNotice(data.message ?? "Failed to reset password"); return; }
-      setNotice("Password reset to ChangeMe123!");
-    } finally { setSaving(false); }
-  };
-
-  const deleteSelected = async (idToDelete?: string) => {
-    const id = idToDelete ?? selectedUser?.id;
-    if (!id) return;
+  const deleteUser = async (id: string) => {
     const uName = users.find(u => u.id === id)?.name ?? "user";
     if (!window.confirm(`Delete user ${uName}?`)) return;
     setSaving(true);
@@ -221,7 +178,6 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   // Button styles
   const btnPrimary = "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-200 hover:shadow-lg hover:shadow-sky-300 hover:-translate-y-px transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60";
   const btnGhost   = "inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50 hover:-translate-y-px transition-all duration-150 disabled:opacity-60";
-  const btnDanger  = "inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 hover:border-red-300 hover:-translate-y-px transition-all duration-150 disabled:opacity-60";
 
   return (
     <div className="space-y-4">
@@ -236,34 +192,34 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-        {/* ── Left: Users table ───────────────────────────────────────────── */}
-        <section className="surface-card p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-base font-bold text-slate-900">Users</h2>
-            <button className={showCreate ? btnGhost : btnPrimary} onClick={() => setShowCreate(v => !v)}>
-              {showCreate ? "Close" : "Add User"}
-            </button>
-          </div>
-
-          {/* ── Create form ──────────────────────────────────────────────── */}
-          {showCreate && (
-            <div className="mb-5 rounded-2xl border border-slate-200 bg-linear-to-br from-sky-50/60 to-white p-5 shadow-inner">
-              <h3 className="mb-4 text-sm font-bold text-slate-700 uppercase tracking-wider">New User</h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {/* Name */}
+      {/* ── Add User modal ───────────────────────────────────────────────── */}
+      {showCreate && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="mx-4 w-full max-w-2xl rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-bold text-slate-900">New User</h2>
+              </div>
+              <button type="button" onClick={() => setShowCreate(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Modal body */}
+            <div className="px-6 py-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelCls}>Full Name *</label>
                   <input className={fieldCls} placeholder="e.g. Ahmad Razali" value={newUser.name}
                     onChange={e => setNewUser(p => ({ ...p, name: e.target.value }))} />
                 </div>
-                {/* Email */}
                 <div>
-                  <label className={labelCls}>Email / Student/Staff ID *</label>
-                  <input className={fieldCls} placeholder="e.g. SW01084131" value={newUser.email}
+                  <label className={labelCls}>Student/Staff Email *</label>
+                  <input className={fieldCls} placeholder="e.g. SW01084216@student.uniten.edu.my" value={newUser.email}
                     onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))} />
                 </div>
-                {/* Role */}
                 <div>
                   <label className={labelCls}>Role *</label>
                   <select className={fieldCls} value={newUser.role}
@@ -273,223 +229,159 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                     <option value="IT_STAFF_ADMIN">Admin</option>
                   </select>
                 </div>
-                {/* Hostel */}
                 <div>
-                  <label className={labelCls}>Hostel {newUser.role === "IT_STAFF_ADMIN" ? "(N/A)" : "*"}</label>
+                  <label className={labelCls}>Residency {newUser.role === "IT_STAFF_ADMIN" ? "(N/A)" : "*"}</label>
                   <select className={fieldCls} value={newUser.hostelId} disabled={newUser.role === "IT_STAFF_ADMIN"}
                     onChange={e => setNewUser(p => ({ ...p, hostelId: e.target.value }))}>
                     <option value="">{newUser.role === "IT_STAFF_ADMIN" ? "Not required" : "Select hostel"}</option>
                     {hostels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                   </select>
                 </div>
-                {/* Room — triple dropdown, full width */}
                 {newUser.role === "STUDENT" && (
                   <div className="md:col-span-2">
                     <label className={labelCls}>Room Assignment * <span className="text-slate-400 font-normal normal-case">(Block-Floor-Unit)</span></label>
                     <div className="flex flex-row gap-2">
-                      <select 
-                        className={fieldCls} 
-                        value={roomBlock} 
-                        onChange={e => setRoomBlock(e.target.value)}
-                      >
+                      <select className={fieldCls} value={roomBlock} onChange={e => setRoomBlock(e.target.value)}>
                         <option value="">Block</option>
                         {BLOCKS.map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
-                      <select 
-                        className={fieldCls} 
-                        value={roomFloor} 
-                        onChange={e => setRoomFloor(e.target.value)}
-                      >
+                      <select className={fieldCls} value={roomFloor} onChange={e => setRoomFloor(e.target.value)}>
                         <option value="">Floor</option>
                         {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
-                      <select 
-                        className={fieldCls} 
-                        value={roomUnit} 
-                        onChange={e => setRoomUnit(e.target.value)}
-                      >
+                      <select className={fieldCls} value={roomUnit} onChange={e => setRoomUnit(e.target.value)}>
                         <option value="">Unit</option>
                         {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
                   </div>
                 )}
-                {/* Actions */}
                 <div className="flex items-center gap-3 pt-1 md:col-span-2">
-                  <button className={btnPrimary} onClick={createUser} disabled={saving || (newUser.role === "STUDENT" && (!roomBlock || !roomFloor || !roomUnit))}>
+                  <button className={btnPrimary} onClick={createUser}
+                    disabled={saving || (newUser.role === "STUDENT" && (!roomBlock || !roomFloor || !roomUnit))}>
                     {saving ? "Creating…" : "Create User"}
                   </button>
                   <button className={btnGhost} onClick={() => setShowCreate(false)}>Cancel</button>
                 </div>
               </div>
             </div>
-          )}
-
-          {/* ── Filters ──────────────────────────────────────────────────── */}
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="Search users…"
-                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-            </div>
-            <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-              <option>All</option><option>Student</option><option>Management</option><option>Admin</option>
-            </select>
-            <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option>All</option><option>Active</option><option>Inactive</option>
-            </select>
           </div>
+        </div>,
+        document.body
+      )}
 
-          {/* ── Table ────────────────────────────────────────────────────── */}
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">User ID</th>
-                  <th className="py-3 px-4">Profile</th>
-                  <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4">Hostel</th>
-                  <th className="py-3 px-4">Room</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
+      <section className="surface-card p-5">
+        {/* ── Filters ──────────────────────────────────────────────────── */}
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input type="text" placeholder="Search users…"
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+            <option>All</option><option>Student</option><option>Management</option><option>Admin</option>
+          </select>
+          <select className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option>All</option><option>Active</option><option>Inactive</option>
+          </select>
+          <div className="ml-auto">
+            <button className={btnPrimary} onClick={() => setShowCreate(true)}>
+              Add User
+            </button>
+          </div>
+        </div>
+
+        {/* ── Table ────────────────────────────────────────────────────── */}
+        <div className="rounded-xl border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4">Profile</th>
+                <th className="py-3 px-4">Role</th>
+                <th className="py-3 px-4">Hostel</th>
+                <th className="py-3 px-4">Room</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="h-4 w-32 bg-slate-200 rounded"></div>
+                        <div className="h-3 w-40 bg-slate-200 rounded"></div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4"><div className="h-4 w-20 bg-slate-200 rounded"></div></td>
+                    <td className="py-3 px-4"><div className="h-4 w-24 bg-slate-200 rounded"></div></td>
+                    <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
+                    <td className="py-3 px-4"><div className="h-6 w-16 bg-slate-200 rounded-full"></div></td>
+                    <td className="py-3 px-4 text-right"><div className="inline-block h-6 w-16 bg-slate-200 rounded"></div></td>
+                  </tr>
+                ))
+              ) : (
+                paginatedUsers.map(u => {
+                  const hostelName = hostels.find(h => h.id === u.hostelId)?.name ?? "—";
+                  return (
+                    <tr key={u.id} className="group relative border-t border-slate-100 transition-colors hover:bg-slate-50">
                       <td className="py-3 px-4">
-                        <div className="flex flex-col gap-1.5">
-                          <div className="h-4 w-32 bg-slate-200 rounded"></div>
-                          <div className="h-3 w-40 bg-slate-200 rounded"></div>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-slate-900">{u.name}</span>
+                          <span className="text-xs text-slate-500">{u.email}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4"><div className="h-4 w-20 bg-slate-200 rounded"></div></td>
-                      <td className="py-3 px-4"><div className="h-4 w-24 bg-slate-200 rounded"></div></td>
-                      <td className="py-3 px-4"><div className="h-4 w-16 bg-slate-200 rounded"></div></td>
-                      <td className="py-3 px-4"><div className="h-6 w-16 bg-slate-200 rounded-full"></div></td>
-                      <td className="py-3 px-4 text-right"><div className="inline-block h-6 w-16 bg-slate-200 rounded"></div></td>
+                      <td className="py-3 px-4 text-slate-700">{prettyRole(u.role)}</td>
+                      <td className="py-3 px-4 text-slate-600">{hostelName}</td>
+                      <td className="py-3 px-4">
+                        {u.roomLabel
+                          ? <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">{u.roomLabel}</span>
+                          : <span className="text-slate-400 text-xs">—</span>}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${u.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="relative inline-flex items-center justify-end gap-1">
+                          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                            onClick={e => { e.stopPropagation(); deleteUser(u.id); }} title="Delete">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <div className="absolute top-full right-0 mt-1 z-10 hidden group-hover:block w-48 rounded-lg bg-slate-800 p-2 text-xs font-medium text-white shadow-xl">
+                            <span className="mb-1 block text-slate-400">Last Login</span>{u.lastLogin}
+                          </div>
+                        </div>
+                      </td>
                     </tr>
-                  ))
-                ) : (
-                  paginatedUsers.map(u => {
-                    const hostelName = hostels.find(h => h.id === u.hostelId)?.name ?? "—";
-                    return (
-                      <tr key={u.id}
-                        className={`group relative border-t border-slate-100 transition-colors cursor-pointer ${u.id === selectedId ? "bg-sky-50" : "hover:bg-slate-50"}`}
-                        onClick={e => { if ((e.target as HTMLElement).closest("button")) return; setSelectedId(u.id); }}>
-                        <td className="py-3 px-4 font-mono text-xs font-bold text-slate-500">{u.id.slice(0, 8)}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-slate-900">{u.name}</span>
-                            <span className="text-xs text-slate-500">{u.email}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-slate-700">{prettyRole(u.role)}</td>
-                        <td className="py-3 px-4 text-slate-600">{hostelName}</td>
-                        <td className="py-3 px-4">
-                          {u.roomLabel
-                            ? <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">{u.roomLabel}</span>
-                            : <span className="text-slate-400 text-xs">—</span>}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${u.status === "Active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-                            {u.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="relative inline-flex items-center justify-end gap-1">
-                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-blue-600 hover:shadow-sm transition-all"
-                              onClick={e => { e.stopPropagation(); setSelectedId(u.id); }} title="Edit">
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
-                              onClick={e => { e.stopPropagation(); deleteSelected(u.id); }} title="Delete">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                            <div className="absolute top-full right-0 mt-1 z-10 hidden group-hover:block w-48 rounded-lg bg-slate-800 p-2 text-xs font-medium text-white shadow-xl">
-                              <span className="mb-1 block text-slate-400">Last Login</span>{u.lastLogin}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-                {paginatedUsers.length === 0 && !loading && (
-                  <tr><td colSpan={7} className="py-10 text-center text-slate-400 italic">No users match the current filters.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-            <p>Page {currentPage} of {totalPages}</p>
-            <div className="flex items-center gap-2">
-              <button className="rounded-lg border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50"
-                disabled={currentPage <= 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button className="rounded-lg border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50"
-                disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Right: Edit panel ────────────────────────────────────────────── */}
-        <section className="h-fit surface-card p-5 sticky top-20">
-          <h2 className="mb-4 text-base font-bold text-slate-900">User Detail / Edit</h2>
-          {!selectedUser ? (
-            <p className="text-sm text-slate-500 italic">Select a user from the table to edit.</p>
-          ) : (
-            <div className="space-y-3 text-sm">
-              <div><label className={labelCls}>User ID</label>
-                <input className={`${fieldCls} bg-slate-50`} value={selectedUser.id} readOnly /></div>
-              <div><label className={labelCls}>Name</label>
-                <input className={fieldCls} value={selectedUser.name}
-                  onChange={e => updateSelected({ name: e.target.value })} /></div>
-              <div><label className={labelCls}>Email</label>
-                <input className={fieldCls} value={selectedUser.email}
-                  onChange={e => updateSelected({ email: e.target.value })} /></div>
-              <div><label className={labelCls}>Role</label>
-                <select className={fieldCls} value={selectedUser.role}
-                  onChange={e => updateSelected({ role: e.target.value as Role, hostelId: "" })}>
-                  <option value="STUDENT">Student</option>
-                  <option value="MANAGEMENT">Management</option>
-                  <option value="IT_STAFF_ADMIN">Admin</option>
-                </select></div>
-              {selectedUser.role === "MANAGEMENT" && (
-                <div><label className={labelCls}>Hostel</label>
-                  <select className={fieldCls} value={selectedUser.hostelId}
-                    onChange={e => updateSelected({ hostelId: e.target.value })}>
-                    <option value="">Select hostel</option>
-                    {hostels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-                  </select></div>
+                  );
+                })
               )}
-              {selectedUser.roomLabel && (
-                <div><label className={labelCls}>Assigned Room</label>
-                  <input className={`${fieldCls} bg-slate-50 font-mono font-bold`} value={selectedUser.roomLabel} readOnly /></div>
+              {paginatedUsers.length === 0 && !loading && (
+                <tr><td colSpan={6} className="py-10 text-center text-slate-400 italic">No users match the current filters.</td></tr>
               )}
-              <div><label className={labelCls}>Status</label>
-                <select className={fieldCls} value={selectedUser.status}
-                  onChange={e => updateSelected({ status: e.target.value as "Active" | "Inactive" })}>
-                  <option>Active</option><option>Inactive</option>
-                </select></div>
-              <div><label className={labelCls}>Last Login</label>
-                <input className={`${fieldCls} bg-slate-50`} value={selectedUser.lastLogin} readOnly /></div>
-              <div className="flex flex-wrap gap-2 pt-1">
-                <button className={btnPrimary} onClick={saveSelected} disabled={saving}>Save</button>
-                <button className={btnGhost}   onClick={resetPassword} disabled={saving}>Reset Password</button>
-                <button className={btnDanger}  onClick={() => deleteSelected()} disabled={saving}>Delete</button>
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+          <p>Page {currentPage} of {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <button className="rounded-lg border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50"
+              disabled={currentPage <= 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button className="rounded-lg border border-slate-200 bg-white p-1.5 hover:bg-slate-50 disabled:opacity-50"
+              disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

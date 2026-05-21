@@ -457,13 +457,13 @@ export function AssistantClient() {
                   <p className="text-sm font-semibold text-slate-700">
                     {uploading ? "Uploading…" : isDragging ? "Drop files here" : "Upload documents"}
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">PDF, DOCX, TXT · max 20 MB</p>
+                  <p className="text-xs text-slate-400 mt-0.5">PDF, DOCX, TXT, PNG, JPEG · max 20 MB</p>
                 </div>
                 <input
                   ref={fileRef}
                   type="file"
                   multiple
-                  accept=".pdf,.docx,.txt,.md"
+                  accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg"
                   className="hidden"
                   onChange={(e) => handleFilePick(e.target.files)}
                   disabled={uploading}

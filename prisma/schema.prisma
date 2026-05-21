@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,15 +8,249 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model User {
+  id                      String            @id @default(cuid())
+  email                   String            @unique
+  name                    String
+  password                String
+  role                    UserRole
+  phone                   String?
+  avatar                  String?
+  isActive                Boolean           @default(true)
+  lastLoginAt             DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  mustChangePassword      Boolean           @default(true) @map("must_change_password")
+  auditLogs               AuditLog[]
+  complaintUpdates        ComplaintUpdate[]
+  wardenHostels           Hostel[]          @relation("WardenToHostel")
+  notifications           Notification[]
+  studentProfile          StudentProfile?
+  supportMessagesReceived SupportMessage[]  @relation("SupportMessagesReceived")
+  supportMessagesSent     SupportMessage[]  @relation("SupportMessagesSent")
 
-
-enum Status {
-  PENDING      // New / Assigned — awaiting action (replaces SUBMITTED + ACKNOWLEDGED)
-  IN_PROGRESS  // Work on-site underway (replaces UNDER_REVIEW + IN_PROGRESS)
-  RESOLVED     // Fix done, awaiting student verification
-  CLOSED       // Finalized / archived
+  @@map("users")
 }
 
+model SupportMessage {
+  messageId   String         @id @default(uuid()) @map("message_id")
+  complaintId String         @map("complaint_id")
+  studentId   String         @map("student_id")
+  senderId    String         @map("sender_id")
+  senderRole  ChatSenderRole @map("sender_role")
+  recipientId String         @map("recipient_id")
+  content     String
+  contentType String         @default("TEXT") @map("content_type")
+  timestamp   DateTime       @default(now())
+  readStatus  Boolean        @default(false) @map("read_status")
+  complaint   Complaint      @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  recipient   User           @relation("SupportMessagesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+  sender      User           @relation("SupportMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId, timestamp(sort: Desc)])
+  @@index([studentId, timestamp(sort: Desc)])
+  @@index([recipientId, readStatus])
+  @@map("support_messages")
+}
+
+model StudentProfile {
+  id              String      @id @default(cuid())
+  userId          String      @unique
+  studentId       String      @unique
+  academicProgram String?
+  roomId          String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  assignedRoom    String?     @map("assigned_room")
+  complaints      Complaint[]
+  room            Room?       @relation(fields: [roomId], references: [id])
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model Hostel {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  wardenId   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  complaints Complaint[]
+  warden     User        @relation("WardenToHostel", fields: [wardenId], references: [id])
+  rooms      Room[]
+
+  @@map("hostels")
+}
+
+model Room {
+  id              String           @id @default(cuid())
+  roomNumber      String
+  floor           Int
+  hostelId        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  complaints      Complaint[]
+  hostel          Hostel           @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  studentProfiles StudentProfile[]
+
+  @@unique([roomNumber, hostelId])
+  @@map("rooms")
+}
+
+model Complaint {
+  id               String            @id @default(cuid())
+  title            String
+  description      String
+  locationBlock    String?
+  category         String
+  status           Status            @default(PENDING)
+  isAnonymous      Boolean           @default(false)
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  studentProfileId String?
+  roomId           String
+  hostelId         String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  priority         Priority          @default(ROUTINE)
+  complaintUpdates ComplaintUpdate[]
+  hostel           Hostel            @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  room             Room              @relation(fields: [roomId], references: [id])
+  studentProfile   StudentProfile?   @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  evidences        Evidence[]
+  notifications    Notification[]
+  supportMessages  SupportMessage[]
+
+  @@map("complaints")
+}
+
+model ComplaintUpdate {
+  id          String    @id @default(cuid())
+  content     String
+  complaintId String
+  updatedById String
+  createdAt   DateTime  @default(now())
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  updatedBy   User      @relation(fields: [updatedById], references: [id])
+
+  @@map("complaint_updates")
+}
+
+model Evidence {
+  id                   String    @id @default(cuid())
+  fileUrl              String
+  fileType             String
+  complaintId          String
+  aiVerified           Boolean   @default(true) @map("ai_verified")
+  manualReviewRequired Boolean   @default(false) @map("manual_review_required")
+  complaint            Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@map("evidences")
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  message     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  userId      String
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AdminCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admin_categories")
+}
+
+model AdminDepartment {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  email     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_departments")
+}
+
+model AdminSlaSetting {
+  id                    String   @id @default("default")
+  updatedAt             DateTime @updatedAt
+  reminderFrequencyDays Int      @default(14)
+  safeThresholdDays     Int      @default(14)
+  warningThresholdDays  Int      @default(30)
+  emergencyTargetHours  Int      @default(4)
+  routineTargetHours    Int      @default(72)
+  urgentTargetHours     Int      @default(24)
+
+  @@map("admin_sla_settings")
+}
+
+model AdminEmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  name      String
+  subject   String
+  html      String
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_email_templates")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  action    String
+  resource  String
+  before    String?
+  after     String?
+  ipAddress String?
+  userName  String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model ComplaintEmbedding {
+  id              String   @id @default(cuid())
+  complaintId     String   @unique @map("complaint_id")
+  category        String
+  hostelBlock     String?  @map("hostel_block")
+  hostelName      String   @map("hostel_name")
+  descriptionSnap String   @map("description_snap")
+  resolutionSnap  String?  @map("resolution_snap")
+  embeddedAt      DateTime @default(now()) @map("embedded_at")
+
+  @@map("complaint_embeddings")
+}
+
+model PolicyChunk {
+  id         String   @id @default(cuid())
+  sectionRef String   @map("section_ref")
+  category   String?
+  title      String
+  content    String
+  embeddedAt DateTime @default(now()) @map("embedded_at")
+
+  @@map("policy_chunks")
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
 
 enum UserRole {
   STUDENT
@@ -38,291 +269,28 @@ enum ChatSenderRole {
   MANAGEMENT
 }
 
-// User model - represents all user types (Students, Wardens, Staff)
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      UserRole
-  phone     String?
-  avatar    String?
-  isActive  Boolean  @default(true)
-  mustChangePassword Boolean @default(true) @map("must_change_password")
-  lastLoginAt DateTime?
-
-  // Relations
-  studentProfile   StudentProfile?
-  wardenHostels    Hostel[]  @relation("WardenToHostel")
-  complaintUpdates ComplaintUpdate[]
-  notifications    Notification[]
-  auditLogs        AuditLog[]
-  supportMessagesSent     SupportMessage[] @relation("SupportMessagesSent")
-  supportMessagesReceived SupportMessage[] @relation("SupportMessagesReceived")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
-}
-
-model SupportMessage {
-  messageId   String         @id @default(uuid()) @map("message_id")
-  complaintId String         @map("complaint_id")
-  studentId   String         @map("student_id")
-  senderId    String         @map("sender_id")
-  senderRole  ChatSenderRole @map("sender_role")
-  recipientId String         @map("recipient_id")
-  content     String         @db.Text
-  contentType String         @default("TEXT") @map("content_type")
-  timestamp   DateTime       @default(now())
-  readStatus  Boolean        @default(false) @map("read_status")
-
-  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  sender    User      @relation("SupportMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient User      @relation("SupportMessagesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
-
-  @@index([complaintId, timestamp(sort: Desc)])
-  @@index([studentId, timestamp(sort: Desc)])
-  @@index([recipientId, readStatus])
-  @@map("support_messages")
-}
-
-// StudentProfile model - extends User with student-specific data
-model StudentProfile {
-  id              String  @id @default(cuid())
-  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String  @unique
-
-  studentId       String  @unique
-  academicProgram String?
-
-  // Student's current room assignment
-  room            Room?   @relation(fields: [roomId], references: [id])
-  roomId          String?
-
-  // Human-readable room label e.g. "C1-04-02" (Block-Floor-Unit)
-  assignedRoom    String? @map("assigned_room")
-
-  // Relations
-  complaints      Complaint[]
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@map("student_profiles")
-}
-
-// Hostel model - represents a student residence
-model Hostel {
-  id   String @id @default(cuid())
-  name String @unique
-
-  // Warden managing this hostel
-  warden   User   @relation("WardenToHostel", fields: [wardenId], references: [id])
-  wardenId String
-
-  // Relations
-  rooms      Room[]
-  complaints Complaint[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("hostels")
-}
-
-// Room model - represents a room within a hostel
-model Room {
-  id         String @id @default(cuid())
-  roomNumber String
-  floor      Int
-
-  // Links to hostel
-  hostel   Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
-  hostelId String
-
-  // Relations
-  studentProfiles StudentProfile[]
-  complaints      Complaint[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([roomNumber, hostelId])
-  @@map("rooms")
-}
-
-// Complaint model - represents a student complaint
-model Complaint {
-  id          String   @id @default(cuid())
-  title       String
-  description String   @db.Text
-  locationBlock String?
-  category    String
-  status      Status   @default(PENDING)
-  priority    Priority @default(ROUTINE)
-  isAnonymous Boolean  @default(false)
-  resolvedAt  DateTime?
-  closedAt    DateTime?
-
-  // Relations
-  studentProfile   StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  studentProfileId String?
-
-  room   Room   @relation(fields: [roomId], references: [id])
-  roomId String
-
-  hostel   Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
-  hostelId String
-
-  complaintUpdates ComplaintUpdate[]
-  evidences        Evidence[]
-  notifications    Notification[]
-  supportMessages  SupportMessage[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("complaints")
-}
-
-// ComplaintUpdate model - tracks comments and status changes
-model ComplaintUpdate {
-  id      String @id @default(cuid())
-  content String @db.Text
-
-  // Relations
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  complaintId String
-
-  updatedBy   User   @relation(fields: [updatedById], references: [id])
-  updatedById String
-
-  createdAt DateTime @default(now())
-
-  @@map("complaint_updates")
-}
-
-model Evidence {
-  id       String @id @default(cuid())
-  fileUrl  String
-  fileType String
-
-  aiVerified           Boolean @default(true)  @map("ai_verified")
-  manualReviewRequired Boolean @default(false) @map("manual_review_required")
-
-  // Relations
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  complaintId String
-
-  @@map("evidences")
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  message   String   @db.Text
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  // Relations
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-  complaint   Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  complaintId String
-
-  @@map("notifications")
-}
-
-model AdminCategory {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("admin_categories")
-}
-
-model AdminDepartment {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  email             String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  @@map("admin_departments")
-}
-
-model AdminSlaSetting {
-  id                    String   @id @default("default")
-  safeThresholdDays     Int      @default(14)
-  warningThresholdDays  Int      @default(30)
-  reminderFrequencyDays Int      @default(14)
-  routineTargetHours    Int      @default(72)
-  urgentTargetHours     Int      @default(24)
-  emergencyTargetHours  Int      @default(4)
-  updatedAt           DateTime @updatedAt
-
-  @@map("admin_sla_settings")
-}
-
-model AdminEmailTemplate {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  name      String
-  subject   String
-  html      String   @db.Text
-  updatedAt DateTime @updatedAt
-
-  @@map("admin_email_templates")
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  timestamp DateTime @default(now())
-  action    String
-  resource  String
-  before    String?  @db.Text
-  after     String?  @db.Text
-  ipAddress String?
-  userName  String
-
-  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  userId String?
-
-  @@map("audit_logs")
-}
-
 // ─── RAG: Document Vault ──────────────────────────────────────────────────────
 
-// Metadata for every document uploaded to the knowledge vault.
-// File contents are stored in S3 under rag-documents/{id}/{uuid}.{ext}
 model RagDocument {
-  id           String   @id @default(cuid())
-  title        String
-  fileName     String   @map("file_name")
-  fileKey      String   @map("file_key")        // S3 / local storage key
-  mimeType     String   @map("mime_type")
-  fileSize     Int      @map("file_size")        // bytes
-  pageCount    Int?     @map("page_count")
-  status       String   @default("PROCESSING")  // PROCESSING | READY | ERROR
-  errorMessage String?  @map("error_message")
-  uploadedById String   @map("uploaded_by_id")
-  uploadedByRole String @map("uploaded_by_role")// MANAGEMENT | IT_STAFF_ADMIN
-  chunkCount   Int      @default(0) @map("chunk_count")
-
-  chunks       RagDocumentChunk[]
-
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt      @map("updated_at")
+  id             String             @id @default(cuid())
+  title          String
+  fileName       String             @map("file_name")
+  fileKey        String             @map("file_key")
+  mimeType       String             @map("mime_type")
+  fileSize       Int                @map("file_size")
+  pageCount      Int?               @map("page_count")
+  status         String             @default("PROCESSING")
+  errorMessage   String?            @map("error_message")
+  uploadedById   String             @map("uploaded_by_id")
+  uploadedByRole String             @map("uploaded_by_role")
+  chunkCount     Int                @default(0) @map("chunk_count")
+  chunks         RagDocumentChunk[]
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   @@map("rag_documents")
 }
 
-// One text chunk extracted from a RagDocument.
-// The actual `embedding vector(1536)` column is added via raw SQL migration.
 model RagDocumentChunk {
   id          String      @id @default(cuid())
   document    RagDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -333,36 +301,4 @@ model RagDocumentChunk {
 
   @@index([documentId])
   @@map("rag_document_chunks")
-}
-
-// ─── RAG: Complaint Intelligence ──────────────────────────────────────────────
-
-// Stores metadata for each complaint that has been vectorised.
-// The actual `embedding vector(1536)` column is created by raw SQL migration
-// (pgvector is not representable in Prisma SDL) and managed outside Prisma.
-model ComplaintEmbedding {
-  id               String            @id @default(cuid())
-  complaintId      String            @unique @map("complaint_id")
-  category         String
-  hostelBlock      String?           @map("hostel_block")
-  hostelName       String            @map("hostel_name")
-  // Plain-text snapshot used for display in AI context window
-  descriptionSnap  String            @db.Text  @map("description_snap")
-  resolutionSnap   String?           @db.Text  @map("resolution_snap")
-  embeddedAt       DateTime          @default(now()) @map("embedded_at")
-
-  @@map("complaint_embeddings")
-}
-
-// Stores pre-chunked UNITEN Residential Policy segments.
-// The actual `embedding vector(1536)` column is added by raw SQL migration.
-model PolicyChunk {
-  id          String   @id @default(cuid())
-  sectionRef  String   @map("section_ref")   // e.g. "Section 4.2"
-  category    String?                          // matches ComplaintCategory or NULL for general
-  title       String
-  content     String   @db.Text
-  embeddedAt  DateTime @default(now()) @map("embedded_at")
-
-  @@map("policy_chunks")
 }

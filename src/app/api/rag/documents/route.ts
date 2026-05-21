@@ -29,6 +29,9 @@ const ALLOWED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
   "text/markdown",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
 ];
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
   }
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: "Unsupported file type. Use PDF, DOCX, or TXT." },
+      { error: "Unsupported file type. Use PDF, DOCX, TXT, PNG, or JPEG." },
       { status: 415 }
     );
   }
@@ -70,21 +73,34 @@ export async function POST(req: NextRequest) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
 
   // 1. Create DB row (PROCESSING)
-  const doc = await db.ragDocument.create({
-    data: {
-      title,
-      fileName: file.name,
-      fileKey: "",          // filled in after upload
-      mimeType: file.type,
-      fileSize: file.size,
-      status: "PROCESSING",
-      uploadedById: session.user.id,
-      uploadedByRole: role,
-    },
-  });
+  let doc: Awaited<ReturnType<typeof db.ragDocument.create>>;
+  try {
+    doc = await db.ragDocument.create({
+      data: {
+        title,
+        fileName: file.name,
+        fileKey: "",
+        mimeType: file.type,
+        fileSize: file.size,
+        status: "PROCESSING",
+        uploadedById: session.user.id,
+        uploadedByRole: role,
+      },
+    });
+  } catch (err) {
+    console.error("[RAG] DB create failed:", err);
+    return NextResponse.json({ error: "Failed to create document record" }, { status: 500 });
+  }
 
   // 2. Store raw file in S3 (rag-documents/{docId}/{uuid}.{ext})
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(await file.arrayBuffer());
+  } catch (err) {
+    console.error("[RAG] Buffer read failed:", err);
+    await db.ragDocument.update({ where: { id: doc.id }, data: { status: "ERROR", errorMessage: "Failed to read file" } });
+    return NextResponse.json({ error: "Failed to read uploaded file" }, { status: 500 });
+  }
   let fileKey: string;
   try {
     const stored = await storageService.putObject({
@@ -136,7 +152,7 @@ async function processDocumentAsync(
 ): Promise<void> {
   try {
     const { text, pageCount } = await extractText(buffer, mimeType);
-    const chunks = chunkText(text);
+    const chunks = await chunkText(text);
 
     if (chunks.length === 0) {
       await updateDocumentChunkCount(documentId, 0, "ERROR", "No extractable text found");

@@ -13,6 +13,7 @@
 
 import { Pool } from "pg";
 import { randomUUID } from "crypto";
+import OpenAI from "openai";
 import { getEmbedding, formatVectorLiteral } from "./embeddings";
 
 // ─── DB Pool (shared with retrieval.ts) ──────────────────────────────────────
@@ -79,6 +80,33 @@ export async function extractText(
     return { text: buffer.toString("utf-8"), pageCount: 0 };
   }
 
+  // Images — use GPT-4o vision to extract text content
+  if (mime === "image/png" || mime === "image/jpeg" || mime === "image/jpg") {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("[RAG-Vault] OPENAI_API_KEY not set.");
+    const client = new OpenAI({ apiKey });
+    const base64 = buffer.toString("base64");
+    const mediaType = mime === "image/png" ? "image/png" : "image/jpeg";
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract and transcribe all readable text from this image. If the image contains a document, form, notice, or written content, output the full text faithfully. If it is a photo with no text, describe the scene in detail instead.",
+            },
+            { type: "image_url", image_url: { url: `data:${mediaType};base64,${base64}` } },
+          ],
+        },
+      ],
+    });
+    const extracted = response.choices[0]?.message?.content ?? "";
+    return { text: extracted, pageCount: 1 };
+  }
+
   throw new Error(`Unsupported file type: ${mimeType}`);
 }
 
@@ -87,7 +115,7 @@ export async function extractText(
 const CHUNK_SIZE = 1400;  // chars (~350 tokens) — fits well in 8k context
 const CHUNK_OVERLAP = 200; // chars kept from previous chunk for continuity
 
-export function chunkText(text: string): string[] {
+export async function chunkText(text: string): Promise<string[]> {
   // Normalise whitespace
   const clean = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   if (clean.length === 0) return [];
