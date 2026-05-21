@@ -63,8 +63,10 @@ const NEXT_STATUS: Record<string, string[]> = {
   CLOSED: [],
 };
 
-const pretty = (value: string): string =>
-  value.toLowerCase().split("_").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+const pretty = (value: string): string => {
+  if (value.toUpperCase() === "OTHER") return "Others";
+  return value.toLowerCase().split("_").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+};
 
 const ageBandConfig = {
   RED: { bg: "bg-red-100", text: "text-red-700", border: "border-red-200", label: "Overdue" },

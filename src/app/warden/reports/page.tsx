@@ -98,16 +98,40 @@ export default async function ManagementReportsPage() {
   }).length;
   const slaCompliance = totalComplaints ? (slaCompliantCount / totalComplaints) * 100 : 100;
 
+  const normalizeCategory = (cat: string): string => {
+    if (!cat) return "Others";
+    const lower = cat.trim().toLowerCase();
+    if (lower === "plumbing") return "Plumbing";
+    if (lower === "wifi" || lower === "wi-fi" || lower === "internet") return "WiFi";
+    if (lower === "electrical" || lower === "electric" || lower === "electricity") return "Electrical";
+    if (lower === "furniture") return "Furniture";
+    if (lower === "water") return "Water";
+    if (lower === "noise") return "Noise";
+    if (lower === "security") return "Security";
+    return "Others";
+  };
+
   const categoryMap = complaints.reduce(
-    (acc, c) => { acc[c.category] = (acc[c.category] || 0) + 1; return acc; },
+    (acc, c) => {
+      const norm = normalizeCategory(c.category);
+      acc[norm] = (acc[norm] || 0) + 1;
+      return acc;
+    },
     {} as Record<string, number>
   );
   const categoryBreakdown = Object.entries(categoryMap)
-    .map(([name, count]) => ({ name: name.charAt(0) + name.slice(1).toLowerCase(), count }))
+    .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
 
   const priorityMap = complaints.reduce(
-    (acc, c) => { acc[c.priority] = (acc[c.priority] || 0) + 1; return acc; },
+    (acc, c) => {
+      const raw = c.priority || "ROUTINE";
+      let norm = "Routine";
+      if (raw.toUpperCase() === "URGENT") norm = "Urgent";
+      if (raw.toUpperCase() === "EMERGENCY") norm = "Emergency";
+      acc[norm] = (acc[norm] || 0) + 1;
+      return acc;
+    },
     {} as Record<string, number>
   );
   const priorityBreakdown = Object.entries(priorityMap).map(([priority, count]) => ({ priority, count }));

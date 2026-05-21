@@ -1,10 +1,23 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { addComplaintComment, updateComplaint, deleteComplaint } from "@/actions/complaints";
 
 import { Loader2 } from "lucide-react";
+
+interface CategoryOption {
+  value: string;
+  label: string;
+}
 
 interface Props {
   complaintId: string;
@@ -40,6 +53,66 @@ export function StudentComplaintDetailClient({
   const [feedback, setFeedback] = useState("");
   const [isPending, startTransition] = useTransition();
   const canEdit = EDITABLE_STATUSES.has(status);
+
+  const [categoriesList, setCategoriesList] = useState<CategoryOption[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch("/api/categories/active");
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        
+        let fetchedCategories = data.categories?.map((c: any) => ({
+          value: c.name,
+          label: c.name,
+        })) || [];
+        
+        if (fetchedCategories.length === 0) {
+          fetchedCategories = [
+            { value: "Plumbing", label: "Plumbing" },
+            { value: "WiFi", label: "WiFi" },
+            { value: "Electrical", label: "Electrical" },
+            { value: "Furniture", label: "Furniture" },
+            { value: "Water", label: "Water" },
+            { value: "Noise", label: "Noise" },
+            { value: "Security", label: "Security" },
+            { value: "Others", label: "Others" },
+          ];
+        }
+        setCategoriesList(fetchedCategories);
+      } catch (error) {
+        console.error("[Category Fetch Error]", error);
+        const fallbacks = [
+          { value: "Plumbing", label: "Plumbing" },
+          { value: "WiFi", label: "WiFi" },
+          { value: "Electrical", label: "Electrical" },
+          { value: "Furniture", label: "Furniture" },
+          { value: "Water", label: "Water" },
+          { value: "Noise", label: "Noise" },
+          { value: "Security", label: "Security" },
+          { value: "Others", label: "Others" },
+        ];
+        setCategoriesList(fallbacks);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const normalizedCategoryValue = useMemo(() => {
+    if (!category) return "";
+    const catLower = category.toLowerCase().trim();
+    if (catLower === "other" || catLower === "others") {
+      return "Others";
+    }
+    const matched = categoriesList.find(
+      (c) => c.value.toLowerCase() === catLower
+    );
+    return matched ? matched.value : category;
+  }, [category, categoriesList]);
 
   const sendMessage = () => {
     if (message.trim().length < 2) {
@@ -184,37 +257,39 @@ export function StudentComplaintDetailClient({
               onChange={(e) => setAttachmentUrls(e.target.value)}
               placeholder="https://example.com/image.jpg (comma-separated for multiple)"
             />
-            <div className="grid gap-2 md:grid-cols-3">
-              <select
-                className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {[
-                  "PLUMBING",
-                  "WIFI",
-                  "ELECTRIC",
-                  "CLEANING",
-                  "FURNITURE",
-                  "MAINTENANCE",
-                  "NOISE",
-                  "SECURITY",
-                  "OTHER",
-                ].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700">Category / Kategori</Label>
+                <Select
+                  value={normalizedCategoryValue}
+                  onValueChange={(value) => setCategory(value)}
+                  disabled={isLoadingCategories}
+                >
+                  <SelectTrigger className="border-slate-300 bg-slate-50 text-slate-900 focus-visible:ring-1 focus-visible:ring-sky-500">
+                    <SelectValue placeholder={isLoadingCategories ? "Loading..." : "-Please select-"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-950">
+                    {categoriesList.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <label className="flex items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                />
-                Anonymous
-              </label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700">Visibility / Kebolehlihatan</Label>
+                <label className="flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 cursor-pointer select-none hover:bg-slate-100 transition-colors">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                  />
+                  Anonymous / Tanpa Nama
+                </label>
+              </div>
             </div>
             <button
               className="w-fit flex items-center gap-2 rounded-md bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"

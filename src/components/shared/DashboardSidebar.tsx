@@ -19,6 +19,7 @@ import {
   Settings,
   Users,
   FileText,
+  Bot,
 } from "lucide-react";
 import { logoutAndRedirect } from "@/lib/client/logout";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const getNavItems = (role: string | undefined) => {
       { label: "User Management", href: "/admin/users", icon: Users },
       { label: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
       { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+      { label: "AI Assistant", href: "/admin/assistant", icon: Bot },
     ];
   }
   if (isManagementRole(role)) {
@@ -40,6 +42,7 @@ const getNavItems = (role: string | undefined) => {
       { label: "Complaint Queue", href: "/warden/queue", icon: ClipboardList },
       { label: "Insights", href: "/warden/analytics", icon: Activity },
       { label: "Overview", href: "/warden/table", icon: FileText },
+      { label: "AI Assistant", href: "/warden/assistant", icon: Bot },
     ];
   }
   if (isStudentRole(role)) {
@@ -47,7 +50,7 @@ const getNavItems = (role: string | undefined) => {
       { label: "Overview", href: "/dashboard/student", icon: LayoutDashboard },
       { label: "Submit Complaint", href: "/complaints/new", icon: SendHorizontal },
       { label: "My History", href: "/complaints", icon: History },
-      { label: "Profile", href: "/profile", icon: UserCircle2 },
+      { label: "AI Assistant", href: "/dashboard/student/assistant", icon: Bot },
     ];
   }
   return [];

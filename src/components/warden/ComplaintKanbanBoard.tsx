@@ -15,7 +15,7 @@ import {
   ListChecks,
   Loader2,
 } from "lucide-react";
-import { updateComplaintStatus } from "@/actions/complaints";
+import { updateComplaintStatus, addComplaintComment } from "@/actions/complaints";
 import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
 import {
   Dialog,
@@ -256,6 +256,8 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
   const [activeFilter, setActiveFilter] = useState<QueueItem["statusCode"] | null>("PENDING");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPending, setBulkPending] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
 
   const handleFilterClick = (s: QueueItem["statusCode"]) => {
     setActiveFilter(prev => prev === s ? null : s);
@@ -597,6 +599,40 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                         ))
                       )}
                     </div>
+                    {/* Add reply input */}
+                    <form
+                      className="border-t border-slate-100 p-3 bg-slate-50/50 flex gap-2"
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const msg = replyText.trim();
+                        if (!msg) return;
+                        setIsReplying(true);
+                        try {
+                          await addComplaintComment(selectedCard.complaintId, msg);
+                          setReplyText("");
+                          router.refresh();
+                        } finally {
+                          setIsReplying(false);
+                        }
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Add a reply..."
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        disabled={isReplying}
+                        className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                        autoComplete="off"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isReplying || !replyText.trim()}
+                        className="shrink-0 flex items-center justify-center rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-w-[70px]"
+                      >
+                        {isReplying ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reply"}
+                      </button>
+                    </form>
                   </div>
                 </div>
 

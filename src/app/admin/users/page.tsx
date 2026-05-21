@@ -8,16 +8,6 @@ export default async function AdminUsersPage() {
     select: { id: true, name: true },
   });
 
-  const rooms = await db.room.findMany({
-    orderBy: [{ hostel: { name: "asc" } }, { roomNumber: "asc" }],
-    select: {
-      id: true,
-      roomNumber: true,
-      floor: true,
-      hostel: { select: { id: true, name: true } },
-    },
-  });
-
   return (
     <div className="space-y-4">
       <section className="surface-hero px-5 py-4">
@@ -27,7 +17,7 @@ export default async function AdminUsersPage() {
           Manage user accounts, roles, hostel mappings, and account status.
         </p>
       </section>
-      <UserManagementClient hostels={hostels} rooms={rooms} />
+      <UserManagementClient hostels={hostels} />
     </div>
   );
 }

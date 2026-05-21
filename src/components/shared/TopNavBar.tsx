@@ -46,6 +46,7 @@ const getNavItems = (role: string | undefined): NavItem[] => {
       { label: "Users",      href: "/admin/users",      icon: Users    },
       { label: "System",     href: "/admin/system",     icon: Settings },
       { label: "Analytics",  href: "/admin/analytics",  icon: BarChart3 },
+      { label: "Assistant",  href: "/admin/assistant",  icon: Bot      },
     ];
   }
   if (isManagementRole(role)) {
@@ -62,7 +63,7 @@ const getNavItems = (role: string | undefined): NavItem[] => {
       { label: "Home",             href: "/dashboard/student",   icon: LayoutDashboard },
       { label: "Submit Complaint", href: "/complaints/new",      icon: SendHorizontal  },
       { label: "My History",       href: "/complaints",          icon: History         },
-      { label: "Profile",          href: "/profile",             icon: UserCircle2     },
+      { label: "Assistant",        href: "/dashboard/student/assistant", icon: Bot      },
     ];
   }
   return [];
@@ -560,14 +561,6 @@ function ProfileDropdown({ session }: { session: any }) {
               <LogOut className="h-4 w-4" />
               Sign Out
             </button>
-            {/* Emergency sign-out — bypasses React state; use when UI is frozen */}
-            <a
-              href="/api/auth/emergency-signout"
-              className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-2.5 text-xs font-semibold text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Emergency Sign-Out
-            </a>
           </div>
         )}
       </div>

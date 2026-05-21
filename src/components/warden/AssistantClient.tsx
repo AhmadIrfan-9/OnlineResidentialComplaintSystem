@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Fragment } from "react";
 import {
   Bot,
   Upload,
@@ -27,6 +27,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { useSession } from "next-auth/react";
+import { isAdminRole, isManagementRole, isStudentRole } from "@/lib/roles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,6 +152,22 @@ function ChatBubble({ msg }: { msg: Message }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AssistantClient() {
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+  const isStudent = isStudentRole(role);
+  const isAdmin = isAdminRole(role);
+  const isManagement = isManagementRole(role);
+
+  const portalLabel = isStudent
+    ? "Student Portal · AI Tools"
+    : isAdmin
+    ? "Admin Portal · AI Tools"
+    : "Management Portal · AI Tools";
+
+  const portalDesc = isStudent
+    ? "Ask questions about hostel policies and regulations — powered by AI"
+    : "Upload hostel documents and ask questions — powered by RAG";
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [docs, setDocs] = useState<VaultDoc[]>([]);
   const [input, setInput] = useState("");
@@ -316,13 +334,13 @@ export function AssistantClient() {
       <div className="surface-hero px-6 py-5 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-            Management Portal · AI Tools
+            {portalLabel}
           </p>
           <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <Bot className="h-6 w-6 text-blue-200" /> AI Assistant
           </h1>
           <p className="text-sm text-blue-200 mt-0.5">
-            Upload hostel documents and ask questions — powered by RAG
+            {portalDesc}
           </p>
         </div>
         <button
@@ -356,8 +374,8 @@ export function AssistantClient() {
               {PIPELINE_STEPS.map((step, idx) => {
                 const Icon = step.icon;
                 return (
-                  <>
-                    <div key={step.label} className={`flex flex-col items-center gap-2 rounded-xl border ${step.border} ${step.bg} px-3 py-4`}>
+                  <Fragment key={step.label}>
+                    <div className={`flex flex-col items-center gap-2 rounded-xl border ${step.border} ${step.bg} px-3 py-4`}>
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-sm flex-shrink-0">
                         <Icon className={`h-4 w-4 ${step.color}`} />
                       </div>
@@ -369,7 +387,7 @@ export function AssistantClient() {
                         <ChevronRight className="h-4 w-4 text-slate-300" />
                       </div>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </div>
@@ -382,38 +400,41 @@ export function AssistantClient() {
       </Dialog>
 
       {/* ── Mobile Tab Toggle ─────────────────────────────────────────────── */}
-      <div className="flex lg:hidden gap-1 p-1 bg-slate-100 rounded-xl">
-        <button
-          type="button"
-          onClick={() => setActivePanel("chat")}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activePanel === "chat" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          <MessageSquare className="h-4 w-4" /> Chat
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePanel("docs")}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-            activePanel === "docs" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          <Database className="h-4 w-4" /> Knowledge Base
-          {docs.length > 0 && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">
-              {docs.length}
-            </span>
-          )}
-        </button>
-      </div>
+      {!isStudent && (
+        <div className="flex lg:hidden gap-1 p-1 bg-slate-100 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setActivePanel("chat")}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              activePanel === "chat" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <MessageSquare className="h-4 w-4" /> Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePanel("docs")}
+            className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+              activePanel === "docs" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <Database className="h-4 w-4" /> Knowledge Base
+            {docs.length > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-black text-white">
+                {docs.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* ── Main Two-Column Layout ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* LEFT: Knowledge Base */}
-        <div className={`lg:col-span-1 ${activePanel === "docs" ? "block" : "hidden lg:block"}`}>
-          <div className="surface-card flex flex-col h-[600px] overflow-hidden">
+        {!isStudent && (
+          <div className={`lg:col-span-1 ${activePanel === "docs" ? "block" : "hidden lg:block"}`}>
+            <div className="surface-card flex flex-col h-[600px] overflow-hidden">
 
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50">
               <div className="flex items-center gap-2">
@@ -438,38 +459,52 @@ export function AssistantClient() {
             </div>
 
             {/* Upload area */}
-            <div className="p-4 border-b border-slate-100">
-              <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFilePick(e.dataTransfer.files); }}
-                className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors cursor-pointer ${
-                  isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-400 hover:bg-blue-50/50"
-                }`}
-                onClick={() => fileRef.current?.click()}
-              >
-                {uploading ? (
-                  <Loader2 className="h-7 w-7 text-blue-500 animate-spin" />
-                ) : (
-                  <Upload className={`h-7 w-7 ${isDragging ? "text-blue-500" : "text-slate-400"}`} />
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">
-                    {uploading ? "Uploading…" : isDragging ? "Drop files here" : "Upload documents"}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">PDF, DOCX, TXT, PNG, JPEG · max 20 MB</p>
+            {!isStudent ? (
+              <div className="p-4 border-b border-slate-100">
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFilePick(e.dataTransfer.files); }}
+                  className={`relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors cursor-pointer ${
+                    isDragging ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-400 hover:bg-blue-50/50"
+                  }`}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-7 w-7 text-blue-500 animate-spin" />
+                  ) : (
+                    <Upload className={`h-7 w-7 ${isDragging ? "text-blue-500" : "text-slate-400"}`} />
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">
+                      {uploading ? "Uploading…" : isDragging ? "Drop files here" : "Upload documents"}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">PDF, DOCX, TXT, PNG, JPEG · max 20 MB</p>
+                  </div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={(e) => handleFilePick(e.target.files)}
+                    disabled={uploading}
+                  />
                 </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg"
-                  className="hidden"
-                  onChange={(e) => handleFilePick(e.target.files)}
-                  disabled={uploading}
-                />
               </div>
-            </div>
+            ) : (
+              <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex gap-2.5 items-start rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-xs text-blue-800">
+                  <Info className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Knowledge Base Vault</p>
+                    <p className="mt-0.5 text-blue-700 leading-relaxed">
+                      This repository contains official university regulations and guidelines. Students can search and query these documents, but uploads/deletions are restricted to administrators.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Document list */}
             <div className="flex-1 overflow-y-auto">
@@ -506,15 +541,17 @@ export function AssistantClient() {
                           </span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDoc(doc.id)}
-                        disabled={doc.status === "PROCESSING"}
-                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:pointer-events-none"
-                        aria-label="Remove document"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {!isStudent && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDoc(doc.id)}
+                          disabled={doc.status === "PROCESSING"}
+                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 rounded-md p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:pointer-events-none"
+                          aria-label="Remove document"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -528,11 +565,12 @@ export function AssistantClient() {
                 </span>
               </div>
             )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* RIGHT: Chat Interface */}
-        <div className={`lg:col-span-2 ${activePanel === "chat" ? "block" : "hidden lg:block"}`}>
+        <div className={`${isStudent ? "lg:col-span-3 block" : `lg:col-span-2 ${activePanel === "chat" ? "block" : "hidden lg:block"}`}`}>
           <div className="surface-card flex flex-col h-[600px] overflow-hidden">
 
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-gradient-to-r from-[#1e3a8a]/5 to-[#2563eb]/5">

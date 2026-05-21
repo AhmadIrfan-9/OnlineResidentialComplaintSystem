@@ -6,12 +6,14 @@ import { ManagementComplaintDetailClient } from "@/components/warden/ManagementC
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 
-const pretty = (value: string): string =>
-  value
+const pretty = (value: string): string => {
+  if (value.toUpperCase() === "OTHER") return "Others";
+  return value
     .toLowerCase()
     .split("_")
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
+};
 
 const ticketId = (id: string, createdAt: Date): string => {
   const y = createdAt.getFullYear();

@@ -19,10 +19,20 @@ const PALETTE = [
   "#0d9488", // teal-600
   "#3b82f6", // blue-500
   "#14b8a6", // teal-500
-  "#64748b", // slate-500 — Miscellaneous
+  "#8b5cf6", // violet-500
+  "#64748b", // slate-500
 ];
 
-const MAX_SLICES = 6;
+const STANDARD_CATEGORIES = [
+  "Plumbing",
+  "WiFi",
+  "Electrical",
+  "Furniture",
+  "Water",
+  "Noise",
+  "Security",
+  "Others",
+];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -111,54 +121,36 @@ export function CategoryDistributionChart({
   totalComplaints,
   className,
 }: CategoryDistributionChartProps) {
-  // ── AI-driven grouping logic: merge smallest into Miscellaneous ─────────
   const slices: ProcessedSlice[] = useMemo(() => {
-    if (!categoryData.length || totalComplaints === 0) return [];
+    const base: Record<string, CategoryData> = {};
+    STANDARD_CATEGORIES.forEach((cat) => {
+      base[cat] = { name: cat, count: 0 };
+    });
 
-    const aggregatedData = Object.values(
-      categoryData.reduce((acc, curr) => {
-        const name = curr.name.trim();
-        if (acc[name]) {
-          acc[name].count += curr.count;
-        } else {
-          acc[name] = { ...curr, name };
-        }
-        return acc;
-      }, {} as Record<string, CategoryData>)
-    ).sort((a, b) => b.count - a.count);
+    categoryData.forEach((curr) => {
+      let name = curr.name.trim();
+      if (name.toLowerCase() === "other" || name.toLowerCase() === "others") name = "Others";
+      else if (name.toLowerCase() === "electric" || name.toLowerCase() === "electricity") name = "Electrical";
+      else if (name.toLowerCase() === "wi-fi" || name.toLowerCase() === "internet") name = "WiFi";
 
-    const total = totalComplaints;
+      if (!base[name]) {
+        const matched = STANDARD_CATEGORIES.find(c => c.toLowerCase() === name.toLowerCase());
+        name = matched || "Others";
+      }
+      base[name].count += curr.count;
+    });
 
-    // Already sorted descending by count from the server.
-    const top = aggregatedData.slice(0, MAX_SLICES);
-    const rest = aggregatedData.slice(MAX_SLICES);
+    const aggregatedData = Object.values(base).sort((a, b) => b.count - a.count);
 
-    const result: Array<Omit<ProcessedSlice, "color">> = top.map((c) => ({
-      name: c.name,
-      count: c.count,
-      percentage: (c.count / total) * 100,
-    }));
-
-    if (rest.length > 0) {
-      const miscCount = rest.reduce((s, c) => s + c.count, 0);
-      result.push({
-        name: "Miscellaneous",
-        count: miscCount,
-        percentage: (miscCount / total) * 100,
-      });
-    }
-
-    // Assign colours — Miscellaneous always gets the last palette colour
-    return result.map((item, i) => ({
-      ...item,
-      color:
-        item.name === "Miscellaneous"
-          ? PALETTE[PALETTE.length - 1]
-          : PALETTE[i % (PALETTE.length - 1)],
+    return aggregatedData.map((item, i) => ({
+      name: item.name,
+      count: item.count,
+      percentage: totalComplaints > 0 ? (item.count / totalComplaints) * 100 : 0,
+      color: PALETTE[i % PALETTE.length],
     }));
   }, [categoryData, totalComplaints]);
 
-  const isEmpty = slices.length === 0;
+  const isEmpty = false;
 
   return (
     <div
@@ -283,42 +275,31 @@ export function CategoryDistributionChartStatic({
   totalComplaints,
 }: Pick<CategoryDistributionChartProps, "categoryData" | "totalComplaints">) {
   const slices: ProcessedSlice[] = useMemo(() => {
-    if (!categoryData.length || totalComplaints === 0) return [];
-    
-    const aggregatedData = Object.values(
-      categoryData.reduce((acc, curr) => {
-        const name = curr.name.trim();
-        if (acc[name]) {
-          acc[name].count += curr.count;
-        } else {
-          acc[name] = { ...curr, name };
-        }
-        return acc;
-      }, {} as Record<string, CategoryData>)
-    ).sort((a, b) => b.count - a.count);
+    const base: Record<string, CategoryData> = {};
+    STANDARD_CATEGORIES.forEach((cat) => {
+      base[cat] = { name: cat, count: 0 };
+    });
 
-    const total = totalComplaints;
-    const top = aggregatedData.slice(0, MAX_SLICES);
-    const rest = aggregatedData.slice(MAX_SLICES);
-    const result: Array<Omit<ProcessedSlice, "color">> = top.map((c) => ({
-      name: c.name,
-      count: c.count,
-      percentage: (c.count / total) * 100,
-    }));
-    if (rest.length > 0) {
-      const miscCount = rest.reduce((s, c) => s + c.count, 0);
-      result.push({
-        name: "Miscellaneous",
-        count: miscCount,
-        percentage: (miscCount / total) * 100,
-      });
-    }
-    return result.map((item, i) => ({
-      ...item,
-      color:
-        item.name === "Miscellaneous"
-          ? PALETTE[PALETTE.length - 1]
-          : PALETTE[i % (PALETTE.length - 1)],
+    categoryData.forEach((curr) => {
+      let name = curr.name.trim();
+      if (name.toLowerCase() === "other" || name.toLowerCase() === "others") name = "Others";
+      else if (name.toLowerCase() === "electric" || name.toLowerCase() === "electricity") name = "Electrical";
+      else if (name.toLowerCase() === "wi-fi" || name.toLowerCase() === "internet") name = "WiFi";
+
+      if (!base[name]) {
+        const matched = STANDARD_CATEGORIES.find(c => c.toLowerCase() === name.toLowerCase());
+        name = matched || "Others";
+      }
+      base[name].count += curr.count;
+    });
+
+    const aggregatedData = Object.values(base).sort((a, b) => b.count - a.count);
+
+    return aggregatedData.map((item, i) => ({
+      name: item.name,
+      count: item.count,
+      percentage: totalComplaints > 0 ? (item.count / totalComplaints) * 100 : 0,
+      color: PALETTE[i % PALETTE.length],
     }));
   }, [categoryData, totalComplaints]);
 

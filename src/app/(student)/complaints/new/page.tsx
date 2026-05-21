@@ -40,7 +40,7 @@ export default async function NewComplaintPage() {
   });
 
   if (!studentProfile?.roomId || !studentProfile.room) {
-    redirect("/profile");
+    redirect("/dashboard/student");
   }
 
   const hostelName = studentProfile.room!.hostel.name;

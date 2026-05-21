@@ -35,6 +35,13 @@ interface Props {
 
 const ticketId = (id: string): string => `#${id.slice(0, 8).toUpperCase()}`;
 
+const formatCategory = (cat: string): string => {
+  if (!cat) return "";
+  const lower = cat.toLowerCase().trim();
+  if (lower === "other" || lower === "others") return "Others";
+  return cat.toLowerCase().replace("_", " ");
+};
+
 const relativeDate = (date: Date): string => {
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (diff < 60) return "Just now";
@@ -156,7 +163,7 @@ export function RecentComplaintsTableClient({ complaints }: Props) {
                       {item.title || "—"}
                     </p>
                     <p className="mt-0.5 text-xs capitalize text-slate-400">
-                      {item.category?.toLowerCase().replace("_", " ")}
+                      {formatCategory(item.category)}
                       {item.priority && item.priority !== "ROUTINE" && (
                         <span
                           className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${

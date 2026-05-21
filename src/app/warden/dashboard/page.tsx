@@ -164,7 +164,12 @@ export default async function ManagementDashboardPage() {
   });
 
   const highPriorityLatest = monthComplaints
-    .filter((c) => STATUS_OPEN.includes(c.status) && (c.priority === "EMERGENCY" || c.priority === "URGENT"))
+    .filter((c) => {
+      if (!STATUS_OPEN.includes(c.status)) return false;
+      if (c.priority === "EMERGENCY" || c.priority === "URGENT") return true;
+      const daysOpen = asDays(now.getTime() - c.createdAt.getTime());
+      return daysOpen >= 8;
+    })
     .sort((a, b) => {
       if (a.priority === "EMERGENCY" && b.priority !== "EMERGENCY") return -1;
       if (a.priority !== "EMERGENCY" && b.priority === "EMERGENCY") return 1;

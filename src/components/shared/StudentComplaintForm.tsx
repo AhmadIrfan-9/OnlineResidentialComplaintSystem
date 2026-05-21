@@ -154,7 +154,7 @@ export function StudentComplaintForm({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<string>(categories[0]?.value ?? "");
+  const [category, setCategory] = useState<string>("");
   const [categoriesList, setCategoriesList] = useState<CategoryOption[]>(categories && categories.length > 0 ? categories : []);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
@@ -173,28 +173,41 @@ export function StudentComplaintForm({
         if (fetchedCategories.length === 0) {
           fetchedCategories = [
             { value: "Plumbing", label: "Plumbing" },
+            { value: "WiFi", label: "WiFi" },
             { value: "Electrical", label: "Electrical" },
             { value: "Furniture", label: "Furniture" },
-            { value: "WIFI", label: "WIFI" },
+            { value: "Water", label: "Water" },
+            { value: "Noise", label: "Noise" },
+            { value: "Security", label: "Security" },
+            { value: "Others", label: "Others" },
           ];
         }
         setCategoriesList(fetchedCategories);
         setCategory((prev) => {
-            if (!prev || !fetchedCategories.find((c: any) => c.value === prev)) {
-                return fetchedCategories[0].value;
+            if (prev && fetchedCategories.find((c: any) => c.value === prev)) {
+                return prev;
             }
-            return prev;
+            return "";
         });
       } catch (error) {
         console.error("[Category Fetch Error]", error);
         const fallbacks = [
           { value: "Plumbing", label: "Plumbing" },
+          { value: "WiFi", label: "WiFi" },
           { value: "Electrical", label: "Electrical" },
           { value: "Furniture", label: "Furniture" },
-          { value: "WIFI", label: "WIFI" },
+          { value: "Water", label: "Water" },
+          { value: "Noise", label: "Noise" },
+          { value: "Security", label: "Security" },
+          { value: "Others", label: "Others" },
         ];
         setCategoriesList(fallbacks);
-        setCategory((prev) => prev || fallbacks[0].value);
+        setCategory((prev) => {
+            if (prev && fallbacks.find((c: any) => c.value === prev)) {
+                return prev;
+            }
+            return "";
+        });
       } finally {
         setIsLoadingCategories(false);
       }
@@ -203,6 +216,7 @@ export function StudentComplaintForm({
   }, []);
 
   const [locationBlock, setLocationBlock] = useState<string>("");
+  const [roomNumber, setRoomNumber] = useState<string>("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<Mode>("IDENTIFIED");
   const [files, setFiles] = useState<File[]>([]);
@@ -217,10 +231,6 @@ export function StudentComplaintForm({
     location: false,
     description: false,
   });
-
-  // ── AI Evidence Validation State ──────────────────────────────────────────
-  const [validations, setValidations] = useState<EvidenceValidation[]>([]);
-  const validationInFlight = useRef<Set<string>>(new Set());
 
   const titleValid = title.trim().length >= 5;
   const descriptionCount = description.length;
@@ -240,144 +250,7 @@ export function StudentComplaintForm({
     descriptionRequiredValid &&
     !descriptionValid;
 
-  // True if any image evidence was REJECTED by the AI
-  const hasRejectedEvidence = validations.some(
-    (v) => v.status === "done" && v.result?.decision === "REJECTED"
-  );
-  // True if any validation is still running
-  const isValidating = validations.some((v) => v.status === "validating");
 
-  // ── File → base64 data URI converter ──────────────────────────────────────
-  const fileToBase64 = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  }, []);
-
-  // ── Image Compressor ────────────────────────────────────────────────────────
-  const compressImage = useCallback((file: File, maxWidth = 1024, maxHeight = 1024): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > height && width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        } else if (height >= width && height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-           URL.revokeObjectURL(img.src);
-           return resolve(file);
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          URL.revokeObjectURL(img.src);
-          if (!blob) return resolve(file);
-          resolve(new File([blob], file.name, { type: "image/jpeg", lastModified: Date.now() }));
-        }, "image/jpeg", 0.8);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        resolve(file);
-      };
-    });
-  }, []);
-
-  // ── Trigger AI validation for a single image file ─────────────────────────
-  const validateFile = useCallback(
-    async (file: File) => {
-      // Skip videos — only validate images
-      if (!file.type.startsWith("image/")) return;
-      // Skip if already validating this file
-      if (validationInFlight.current.has(file.name)) return;
-      // Skip if title or description aren't ready
-      if (title.trim().length < 5 || description.trim().length < 20) return;
-
-      validationInFlight.current.add(file.name);
-
-      setValidations((prev) => {
-        const existing = prev.find((v) => v.fileName === file.name);
-        if (existing) {
-          return prev.map((v) =>
-            v.fileName === file.name
-              ? { ...v, status: "validating" as const, result: null }
-              : v
-          );
-        }
-        return [...prev, { fileName: file.name, status: "validating", result: null }];
-      });
-
-      try {
-        const compressedFile = await compressImage(file);
-        const base64Url = await fileToBase64(compressedFile);
-
-        const response = await fetch("/api/ai/vision-validate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageUrl: base64Url,
-            title: title.trim(),
-            description: description.trim(),
-            location: hostelName,
-            category: category || undefined,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[Evidence Validation] HTTP ${response.status}: ${errorText}`);
-          throw new Error(`Validation request failed: HTTP ${response.status} - ${errorText}`);
-        }
-
-        const result: BilingualVisionResult = await response.json();
-
-        setValidations((prev) =>
-          prev.map((v) =>
-            v.fileName === file.name
-              ? { ...v, status: "done" as const, result }
-              : v
-          )
-        );
-      } catch (error) {
-        console.error("[Evidence Validation]", error);
-        setValidations((prev) =>
-          prev.map((v) =>
-            v.fileName === file.name
-              ? { ...v, status: "error" as const, result: null }
-              : v
-          )
-        );
-      } finally {
-        validationInFlight.current.delete(file.name);
-      }
-    },
-    [title, description, category, hostelName, fileToBase64, compressImage]
-  );
-
-  // ── Auto-trigger validation when files change and form is ready ───────────
-  useEffect(() => {
-    if (title.trim().length < 5 || description.trim().length < 20) return;
-
-    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
-    for (const file of imageFiles) {
-      const existing = validations.find((v) => v.fileName === file.name);
-      // Only validate if not already validated or validating
-      if (!existing || existing.status === "idle") {
-        validateFile(file);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, title, description]);
 
   const applyFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -406,13 +279,6 @@ export function StudentComplaintForm({
     }
 
     setFiles(combined);
-
-    // Clear validations for removed files
-    setValidations((prev) =>
-      prev.filter((v) =>
-        combined.some((f) => f.name === v.fileName)
-      )
-    );
   };
 
   const handleDrop: React.DragEventHandler<HTMLDivElement> = (event) => {
@@ -441,7 +307,7 @@ export function StudentComplaintForm({
           title: title.trim(),
           description: description.trim(),
           category,
-          locationBlock,
+          locationBlock: roomNumber && roomNumber !== "none" ? `${locationBlock} (Room ${roomNumber})` : locationBlock,
           roomId,
           attachments: [],
           isAnonymous: mode === "ANONYMOUS",
@@ -489,18 +355,14 @@ export function StudentComplaintForm({
         }
 
         for (const evidence of uploadedEvidence) {
-            const validation = validations.find((v) => v.fileName === evidence.fileName);
-            const aiVerified = validation?.status === "error" ? false : true;
-            const manualReviewRequired = validation?.status === "error" ? true : false;
-
             const linkResponse = await fetch(`/api/complaints/${complaintId}/evidence`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 key: evidence.key,
                 fileType: evidence.fileType,
-                aiVerified,
-                manualReviewRequired,
+                aiVerified: false,
+                manualReviewRequired: false,
               }),
             });
 
@@ -614,7 +476,7 @@ export function StudentComplaintForm({
                     categoryValid && "border-emerald-500"
                   )}
                 >
-                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select category"} />
+                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "-Please select-"} />
                 </SelectTrigger>
                 <SelectContent>
                   {categoriesList.map((item) => (
@@ -631,28 +493,60 @@ export function StudentComplaintForm({
 
             <div className="space-y-2">
               <Label>Hostel</Label>
-              <Input value={hostelName} readOnly disabled />
+              <Select value={hostelName}>
+                <SelectTrigger className="border-slate-300">
+                  <SelectValue placeholder="Select hostel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={hostelName}>{hostelName}</SelectItem>
+                  {["Cendikiawan", "Ilmu", "Murni", "Amanah"]
+                    .filter((h) => h.toLowerCase() !== hostelName.toLowerCase())
+                    .map((h) => (
+                      <SelectItem key={h} value={h} disabled>
+                        {h} (Coming Soon)
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center justify-between">
-              <Label>Location / Block</Label>
-              {locationValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+            <div className="grid grid-cols-[2fr_1fr] gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Unit</Label>
+                  {locationValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                </div>
+                <RoomCombobox 
+                  value={locationBlock} 
+                  onChange={(v) => {
+                    setLocationBlock(v);
+                    setTouched((prev) => ({ ...prev, location: true }));
+                  }}
+                  isError={showLocationError}
+                />
+                {showLocationError && (
+                  <p className="text-xs text-red-600 mt-1">Please select a valid unit assignment</p>
+                )}
+              </div>
+              
+              <div>
+                <Label className="mb-2 block">Room (Optional)</Label>
+                <Select value={roomNumber} onValueChange={setRoomNumber}>
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="1">1</SelectItem>
+                    <SelectItem value="2">2</SelectItem>
+                    <SelectItem value="3">3</SelectItem>
+                    <SelectItem value="4">4</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="mt-2">
-              <RoomCombobox 
-                value={locationBlock} 
-                onChange={(v) => {
-                  setLocationBlock(v);
-                  setTouched((prev) => ({ ...prev, location: true }));
-                }}
-                isError={showLocationError}
-              />
-            </div>
-            {showLocationError && (
-              <p className="text-xs text-red-600">Please select a valid room assignment</p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -702,10 +596,6 @@ export function StudentComplaintForm({
               onFilesChange={(newFiles) => {
                 setFiles(newFiles);
                 setFileError("");
-                // Clean up validations for removed files
-                setValidations((prev) =>
-                  prev.filter((v) => newFiles.some((f) => f.name === v.fileName))
-                );
               }}
             />
 
@@ -725,7 +615,6 @@ export function StudentComplaintForm({
                       type="button"
                       onClick={() => {
                         setFiles((prev) => prev.filter((f) => f.name !== file.name));
-                        setValidations((prev) => prev.filter((v) => v.fileName !== file.name));
                       }}
                       className="ml-2 flex-shrink-0 rounded p-0.5 text-slate-400 hover:text-red-600 transition"
                       aria-label={`Remove ${file.name}`}
@@ -737,43 +626,7 @@ export function StudentComplaintForm({
               </ul>
             )}
 
-            {/* ── AI Evidence Verification Cards ─────────────────────────── */}
-            {validations.length > 0 && (
-              <div className="space-y-3">
-                {validations.map((validation) => (
-                  <EvidenceVerificationCard
-                    key={validation.fileName}
-                    validation={validation}
-                    onRetry={() => {
-                      const file = files.find((f) => f.name === validation.fileName);
-                      if (file) {
-                        setValidations((prev) =>
-                          prev.map((v) =>
-                            v.fileName === file.name
-                              ? { ...v, status: "idle" as const, result: null }
-                              : v
-                          )
-                        );
-                        validateFile(file);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            )}
 
-            {/* Bilingual rejection warning */}
-            {hasRejectedEvidence && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-1">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-red-800">
-                  <ShieldAlert className="h-4 w-4" />
-                  Evidence rejected — please upload a new photo.
-                </p>
-                <p className="text-xs text-red-700">
-                  Bukti ditolak — sila muat naik gambar baharu.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -834,20 +687,13 @@ export function StudentComplaintForm({
                 type="submit"
                 size="lg"
                 className="w-full md:w-auto md:min-w-44"
-                disabled={isSubmitting || hasRejectedEvidence || isValidating}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Submitting...
                   </>
-                ) : isValidating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Validating Evidence...
-                  </>
-                ) : hasRejectedEvidence ? (
-                  "Fix Rejected Evidence"
                 ) : (
                   "Submit"
                 )}
@@ -860,217 +706,4 @@ export function StudentComplaintForm({
   );
 }
 
-// ─── Evidence Verification Card Component ─────────────────────────────────────
 
-function EvidenceVerificationCard({
-  validation,
-  onRetry,
-}: {
-  validation: EvidenceValidation;
-  onRetry: () => void;
-}) {
-  const { fileName, status, result } = validation;
-
-  // ── Validating State ──────────────────────────────────────────────────────
-  if (status === "validating") {
-    return (
-      <div className="rounded-xl border border-sky-200 bg-gradient-to-r from-sky-50 via-white to-indigo-50 p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-sky-100">
-            <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-ping rounded-full bg-sky-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              AI Evidence Guard — Verifying...
-            </p>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Analyzing <span className="font-medium">{fileName}</span> against your complaint description
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-sky-100">
-          <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-sky-400 to-indigo-400" />
-        </div>
-      </div>
-    );
-  }
-
-  // ── Error State ───────────────────────────────────────────────────────────
-  if (status === "error") {
-    return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-amber-900">
-                Validation Error — {fileName}
-              </p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                AI validation could not be completed. Your evidence will be reviewed manually.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Done State — Show Results ─────────────────────────────────────────────
-  if (status !== "done" || !result) return null;
-
-  const isApproved = result.decision === "APPROVED";
-  const confidencePercent = Math.min(100, Math.max(0, result.confidence));
-
-  const confidenceColor =
-    confidencePercent >= 75
-      ? "bg-emerald-500"
-      : confidencePercent >= 50
-        ? "bg-amber-500"
-        : "bg-red-500";
-
-  const languageBadge: Record<string, { bg: string; text: string }> = {
-    English: { bg: "bg-blue-100", text: "text-blue-800" },
-    Malay: { bg: "bg-purple-100", text: "text-purple-800" },
-    Mixed: { bg: "bg-teal-100", text: "text-teal-800" },
-  };
-
-  const langStyle = languageBadge[result.detected_language] ?? languageBadge.English;
-
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-4 shadow-sm transition-all duration-300",
-        isApproved
-          ? "border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-green-50"
-          : "border-red-200 bg-gradient-to-r from-red-50 via-white to-rose-50"
-      )}
-    >
-      {/* Header Row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-full",
-              isApproved ? "bg-emerald-100" : "bg-red-100"
-            )}
-          >
-            {isApproved ? (
-              <ShieldCheck className="h-5 w-5 text-emerald-600" />
-            ) : (
-              <ShieldAlert className="h-5 w-5 text-red-600" />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <p
-                className={cn(
-                  "text-sm font-bold",
-                  isApproved ? "text-emerald-800" : "text-red-800"
-                )}
-              >
-                {isApproved ? "APPROVED" : "REJECTED"}
-              </p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                <Sparkles className="h-2.5 w-2.5" />
-                AI Verified
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-slate-500 truncate max-w-[260px]">
-              {fileName}
-            </p>
-          </div>
-        </div>
-
-        {/* Confidence Badge */}
-        <div className="text-right flex-shrink-0">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
-            Confidence
-          </p>
-          <p
-            className={cn(
-              "text-lg font-bold tabular-nums",
-              confidencePercent >= 75
-                ? "text-emerald-700"
-                : confidencePercent >= 50
-                  ? "text-amber-700"
-                  : "text-red-700"
-            )}
-          >
-            {confidencePercent}%
-          </p>
-        </div>
-      </div>
-
-      {/* Confidence Progress Bar */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-        <div
-          className={cn("h-full rounded-full transition-all duration-500", confidenceColor)}
-          style={{ width: `${confidencePercent}%` }}
-        />
-      </div>
-
-      {/* Tags Row */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
-            langStyle.bg,
-            langStyle.text
-          )}
-        >
-          <Globe2 className="h-3 w-3" />
-          {result.detected_language}
-        </span>
-        {result.visual_keyword && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700">
-            🔍 {result.visual_keyword}
-          </span>
-        )}
-      </div>
-
-      {/* Bilingual Explanations */}
-      <div className="mt-3 space-y-2">
-        <div className="rounded-lg bg-white/80 border border-slate-200/60 p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
-            English
-          </p>
-          <p className="text-xs text-slate-700 leading-relaxed">
-            {result.explanation_en}
-          </p>
-        </div>
-        <div className="rounded-lg bg-white/80 border border-slate-200/60 p-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">
-            Bahasa Melayu
-          </p>
-          <p className="text-xs text-slate-700 leading-relaxed">
-            {result.explanation_ms}
-          </p>
-        </div>
-      </div>
-
-      {/* Retry Button for Rejected */}
-      {!isApproved && (
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50"
-          >
-            Re-validate
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}

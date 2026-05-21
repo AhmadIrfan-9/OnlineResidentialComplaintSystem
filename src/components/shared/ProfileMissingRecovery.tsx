@@ -36,19 +36,9 @@ export function ProfileMissingRecovery({ userName }: ProfileMissingRecoveryProps
           <div className="px-6 py-5 space-y-4">
             <p className="text-sm text-slate-700 leading-relaxed">
               Your account does not have a linked student profile. This is
-              required before you can access the portal. You can either set up
-              your profile now, or sign out and contact management.
+              required before you can access the portal. Please contact management 
+              to assign your room/hostel and complete your student account setup.
             </p>
-
-            {/* Primary CTA */}
-            <Link
-              href="/profile"
-              id="setup-profile-link"
-              className="flex w-full items-center justify-between rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 active:scale-[0.98]"
-            >
-              <span>Set Up My Student Profile</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
 
             {/* Divider */}
             <div className="relative">

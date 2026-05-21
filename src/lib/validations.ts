@@ -36,7 +36,7 @@ export const complaintSubmissionSchema = z.object({
   category: z.string().min(1, "Please select a category"),
   locationBlock: z
     .string()
-    .regex(/^C[1-3]-(0[1-9]|10)-0[1-8]$/, "Invalid location format")
+    .min(1, "Location is required")
     .optional(),
   roomId: z.string().min(1, "Room is required"),
   priority: PriorityEnum.optional().default("ROUTINE"),

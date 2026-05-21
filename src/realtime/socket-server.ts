@@ -116,7 +116,9 @@ io.on("connection", (socket) => {
         return;
       }
 
-      socket.join(roomNameForStudent(context.studentId));
+      if (context.studentId) {
+        socket.join(roomNameForStudent(context.studentId));
+      }
       socket.join(roomNameForComplaint(context.complaintId));
       const recentMessages = await db.supportMessage.findMany({
         where: { complaintId: context.complaintId },
@@ -158,15 +160,21 @@ io.on("connection", (socket) => {
         return;
       }
 
+      const studentId = context.studentId;
+      if (!studentId) {
+        ack?.({ ok: false, message: "Messaging is not available for anonymous complaints" });
+        return;
+      }
+
       const recipientId =
         senderRole === "STUDENT"
           ? context.managementRecipientId
-          : context.studentId;
+          : studentId;
 
       const created = await db.supportMessage.create({
         data: {
           complaintId: context.complaintId,
-          studentId: context.studentId,
+          studentId: studentId,
           senderId: identity.userId,
           senderRole,
           recipientId,
@@ -177,7 +185,7 @@ io.on("connection", (socket) => {
 
       if (senderRole === "MANAGEMENT") {
         await createInAppNotification({
-          userId: context.studentId,
+          userId: studentId,
           complaintId: context.complaintId,
           message: "Management sent you a new support message.",
         });
@@ -192,7 +200,7 @@ io.on("connection", (socket) => {
       const serialized = serializeMessage(created);
       await publishWsEvent(REDIS_CHANNEL_WS_MESSAGE_NEW, serialized);
       await publishWsEvent(REDIS_CHANNEL_WS_CHAT_ACTIVE_REFRESH, {
-        studentId: context.studentId,
+        studentId: studentId,
         complaintId: context.complaintId,
       });
       ack?.({ ok: true, message: serialized });
@@ -221,6 +229,12 @@ io.on("connection", (socket) => {
         return;
       }
 
+      const studentId = context.studentId;
+      if (!studentId) {
+        ack?.({ ok: false, message: "Messaging not available for anonymous complaints" });
+        return;
+      }
+
       const result = await db.supportMessage.updateMany({
         where: {
           complaintId: context.complaintId,
@@ -232,7 +246,7 @@ io.on("connection", (socket) => {
 
       await publishWsEvent(REDIS_CHANNEL_WS_MESSAGE_READ, {
         complaintId: context.complaintId,
-        studentId: context.studentId,
+        studentId: studentId,
         readerId: identity.userId,
         updated: result.count,
       });

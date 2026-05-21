@@ -9,12 +9,14 @@ import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints"
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { storageService } from "@/lib/storage/StorageService";
 
-const categoryLabel = (value: string): string =>
-  value
+const categoryLabel = (value: string): string => {
+  if (value.toUpperCase() === "OTHER") return "Others";
+  return value
     .toLowerCase()
     .split("_")
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
+};
 
 const statusLabel = categoryLabel;
 

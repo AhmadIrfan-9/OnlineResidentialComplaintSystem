@@ -15,6 +15,7 @@ export default async function AdminAnalyticsPage() {
     recentComplaints,
     activityCount,
     resolvedComplaints,
+    allComplaints,
   ] = await Promise.all([
     db.complaint.groupBy({ by: ["status"],   _count: { id: true } }),
     db.complaint.groupBy({ by: ["priority"], _count: { id: true } }),
@@ -29,6 +30,17 @@ export default async function AdminAnalyticsPage() {
     }),
     db.auditLog.count({ where: { action: { notIn: ["Login", "View"] } } }),
     db.complaint.count({ where: { status: { in: ["RESOLVED", "CLOSED"] } } }),
+    db.complaint.findMany({
+      select: {
+        status: true,
+        category: true,
+        hostel: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
   ]);
 
   const totalComplaints = complaintsByStatus.reduce((s, r) => s + r._count.id, 0);
@@ -73,7 +85,18 @@ export default async function AdminAnalyticsPage() {
         statusData={complaintsByStatus.map((r) => ({ name: STATUS_LABELS[r.status] ?? r.status, value: r._count.id }))}
         priorityData={complaintsByPriority.map((r) => ({ name: PRIORITY_LABELS[r.priority] ?? r.priority, value: r._count.id }))}
         categoryData={complaintsByCategory.map((r) => ({ name: r.category, value: r._count.id }))}
-        hostelData={hostelStats.map((h) => ({ name: h.name, value: h._count.complaints }))}
+        hostelData={[
+          "Cendikiawan",
+          "Ilmu",
+          "Murni",
+          "Amanah",
+        ].map((name) => {
+          const stat = hostelStats.find((h) => h.name.toLowerCase() === name.toLowerCase());
+          return {
+            name,
+            value: stat?._count.complaints ?? 0,
+          };
+        })}
         roleData={[
           ...usersByRole.map((r) => ({ name: ROLE_LABELS[r.role] ?? r.role, value: r._count.id })),
           { name: "Inactive", value: totalInactive },
@@ -81,6 +104,7 @@ export default async function AdminAnalyticsPage() {
         monthlyTrend={monthlyTrend}
         activeUsers={totalActive}
         inactiveUsers={totalInactive}
+        allComplaints={allComplaints}
       />
     </div>
   );

@@ -730,12 +730,17 @@ export async function addComplaintComment(
     }
 
     const normalizedRole = normalizeRoleKey(session.user.role);
+    const assignedHostelCount = await db.hostel.count({
+      where: { wardenId: session.user.id },
+    });
+    const isGlobalManagement = assignedHostelCount === 0;
     const isWardenOwner =
-      normalizedRole === "MANAGEMENT" && complaint.hostel.wardenId === session.user.id;
+      normalizedRole === "MANAGEMENT" &&
+      (complaint.hostel.wardenId === session.user.id || isGlobalManagement);
     const isStudentOwner =
       normalizedRole === "STUDENT" && complaint.studentProfile?.userId === session.user.id;
 
-    if (!isWardenOwner && !isStudentOwner) {
+    if (!isWardenOwner && !isStudentOwner && normalizedRole !== "ADMIN") {
       return {
         success: false,
         error: "You are not allowed to comment on this complaint",

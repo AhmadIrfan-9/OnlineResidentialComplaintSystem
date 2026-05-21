@@ -7,8 +7,7 @@ import { logAudit, requireAdminUser } from "@/lib/admin";
 import { normalizeLoginIdentifier } from "@/lib/identity";
 import { ROOM_LABEL_RE } from "@/lib/room-regex";
 
-const generateTempPassword = (): string =>
-  randomBytes(6).toString("base64url").slice(0, 10);
+const DEFAULT_PASSWORD = "uni10pass!";
 
 const createSchema = z
   .object({
@@ -72,8 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Email or identifier already exists" }, { status: 409 });
     }
 
-    const tempPassword = generateTempPassword();
-    const defaultPassword = await hash(tempPassword, 10);
+    const defaultPassword = await hash(DEFAULT_PASSWORD, 10);
 
     const created = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({
@@ -141,9 +139,8 @@ export async function POST(request: NextRequest) {
       ipAddress: request.headers.get("x-forwarded-for"),
     });
 
-    // Return the plain-text temp password ONCE so the admin can share it with the user.
-    // It is never stored in plain text — only the bcrypt hash is persisted.
-    return NextResponse.json({ user: created, tempPassword }, { status: 201 });
+    // Return the default password in the response message if desired, though it's static now.
+    return NextResponse.json({ user: created, tempPassword: DEFAULT_PASSWORD }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ message: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });

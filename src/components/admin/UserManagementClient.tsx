@@ -72,7 +72,6 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [toast,       setToast]       = useState("");
   const [showCreate,  setShowCreate]  = useState(false);
   const [mounted,     setMounted]     = useState(false);
-  const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [newUser, setNewUser] = useState({
     name: "", email: "", role: "STUDENT" as Role,
     roomLabel: "", hostelId: "", isActive: true,
@@ -158,11 +157,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
       setShowCreate(false);
       setNewUser({ name: "", email: "", role: "STUDENT", roomLabel: "", hostelId: "", isActive: true });
       setRoomBlock(""); setRoomFloor(""); setRoomUnit("");
-      if (data.tempPassword) {
-        setTempPassword(data.tempPassword);
-      } else {
-        setToast("User created successfully.");
-      }
+      setToast("User created successfully.");
       await loadUsers();
     } finally { setSaving(false); }
   };
@@ -194,46 +189,6 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
             <X className="h-4 w-4" />
           </button>
         </div>
-      )}
-
-      {/* ── Temp password reveal modal ───────────────────────────────────── */}
-      {mounted && tempPassword && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                <KeyRound className="h-5 w-5 text-amber-600" />
-              </span>
-              <div>
-                <h3 className="text-base font-bold text-slate-900">User Created</h3>
-                <p className="text-xs text-slate-500">Share this temporary password with the user</p>
-              </div>
-            </div>
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
-              <span className="font-mono text-lg font-bold text-amber-800 tracking-widest">{tempPassword}</span>
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(tempPassword); setToast("Password copied!"); }}
-                className="shrink-0 rounded-lg border border-amber-200 bg-white p-1.5 hover:bg-amber-100 transition-colors"
-                title="Copy to clipboard"
-              >
-                <Copy className="h-4 w-4 text-amber-600" />
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">
-              The user will be required to change this password on first login.
-              This message will not appear again.
-            </p>
-            <button
-              type="button"
-              onClick={() => setTempPassword(null)}
-              className="mt-4 w-full rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              Got it
-            </button>
-          </div>
-        </div>,
-        document.body
       )}
 
       {/* ── Add User modal ───────────────────────────────────────────────── */}

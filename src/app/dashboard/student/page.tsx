@@ -115,7 +115,6 @@ export default async function StudentDashboardPage() {
       iconColor: unreadMessages > 0 ? "text-blue-600" : "text-slate-500",
       valueCls: unreadMessages > 0 ? "text-blue-600" : "text-slate-900",
       borderCls: unreadMessages > 0 ? "border-t-4 border-t-blue-500" : "border-t-4 border-t-slate-300",
-      href: "/complaints",
       sub: "unread messages",
     },
   ];
@@ -132,89 +131,48 @@ export default async function StudentDashboardPage() {
           <h1 className="text-2xl font-black text-white">Welcome, {firstName}</h1>
           <p className="text-sm text-blue-200 mt-0.5">Track and manage your residential complaints.</p>
         </div>
-        <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/complaints/new"
-            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
-          >
-            <Plus className="h-4 w-4" /> New Complaint
-          </Link>
-          <Link
-            href="/complaints"
-            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
-          >
-            <ClipboardList className="h-4 w-4" /> My History
-          </Link>
-        </div>
       </div>
 
       {/* ── Metric cards ── */}
       <section className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         {metrics.map((m) => {
           const Icon = m.icon;
-          return (
-            <Link key={m.label} href={m.href} className="block">
-              <div className={`surface-card p-5 transition-all hover:-translate-y-0.5 hover:shadow-md ${m.borderCls}`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                      {m.label}
-                    </p>
-                    <p className={`text-4xl font-black tracking-tight ${m.valueCls}`}>
-                      {m.value}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">{m.sub}</p>
-                  </div>
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.iconBg}`}>
-                    <Icon className={`h-5 w-5 ${m.iconColor}`} />
-                  </span>
+          const cardContent = (
+            <div className={`surface-card p-5 ${m.href ? "transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer" : ""} ${m.borderCls}`}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    {m.label}
+                  </p>
+                  <p className={`text-4xl font-black tracking-tight ${m.valueCls}`}>
+                    {m.value}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">{m.sub}</p>
                 </div>
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${m.iconBg}`}>
+                  <Icon className={`h-5 w-5 ${m.iconColor}`} />
+                </span>
               </div>
-            </Link>
+            </div>
+          );
+
+          if (m.href) {
+            return (
+              <Link key={m.label} href={m.href} className="block">
+                {cardContent}
+              </Link>
+            );
+          }
+
+          return (
+            <div key={m.label} className="block">
+              {cardContent}
+            </div>
           );
         })}
       </section>
 
-      {/* ── Quick Actions ── */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/complaints/new"
-          className="surface-card group flex flex-col p-5 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-600 transition-colors">
-              <SendHorizontal className="h-4 w-4 text-blue-700 group-hover:text-white transition-colors" />
-            </span>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">
-            Submit New Complaint
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Report a residential issue for review by management.
-          </p>
-          <div className="mt-3 h-1 w-10 rounded-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </Link>
 
-        <Link
-          href="/complaints"
-          className="surface-card group flex flex-col p-5 hover:border-emerald-300 hover:shadow-md cursor-pointer transition-all"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 group-hover:bg-emerald-600 transition-colors">
-              <ClipboardList className="h-4 w-4 text-emerald-700 group-hover:text-white transition-colors" />
-            </span>
-            <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-500 transition-colors" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-            View All Complaints
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Browse your full complaint history and check statuses.
-          </p>
-          <div className="mt-3 h-1 w-10 rounded-full bg-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </Link>
-      </section>
 
       {/* ── Recent Complaints Table ── */}
       <section className="surface-card overflow-hidden">

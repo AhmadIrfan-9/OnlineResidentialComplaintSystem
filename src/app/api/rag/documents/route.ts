@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { isManagementRole, isAdminRole, normalizeRoleKey } from "@/lib/roles";
+import { isManagementRole, isAdminRole, isStudentRole, normalizeRoleKey } from "@/lib/roles";
 import { storageService } from "@/lib/storage/StorageService";
 import {
   extractText,
@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const role = normalizeRoleKey(session.user.role);
-  if (!isManagementRole(role) && !isAdminRole(role)) {
+  if (!isManagementRole(role) && !isAdminRole(role) && !isStudentRole(role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
