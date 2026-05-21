@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type TabKey = "categories" | "departments" | "sla" | "email";
 
@@ -464,11 +464,12 @@ export function ConfigurationManagementClient() {
 
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
         <DialogContent>
-          <DialogTitle>Confirm Delete</DialogTitle>
-          <p className="text-sm text-slate-700">
-            This will affect {targetDelete?.affectedComplaints ?? 0} complaints.
-          </p>
-          <div className="mt-3 flex justify-end gap-2">
+          <DialogTitle>Confirm Delete Category</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this category? This will affect <span className="font-semibold text-slate-800">{targetDelete?.affectedComplaints ?? 0}</span> complaints.
+            This action cannot be undone.
+          </DialogDescription>
+          <div className="mt-4 flex justify-end gap-2">
             <button className="rounded-md border border-slate-300 px-3 py-2 text-sm" onClick={() => setShowDelete(false)}>
               Cancel
             </button>

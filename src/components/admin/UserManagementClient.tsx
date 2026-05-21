@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus, Copy, KeyRound } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
@@ -70,6 +71,9 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [saving,      setSaving]      = useState(false);
   const [notice,      setNotice]      = useState("");
   const [toast,       setToast]       = useState("");
+  const [showDelete, setShowDelete] = useState(false);
+  const [targetDelete, setTargetDelete] = useState<UserRow | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
   const [showCreate,  setShowCreate]  = useState(false);
   const [mounted,     setMounted]     = useState(false);
   const [newUser, setNewUser] = useState({
@@ -162,15 +166,32 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
     } finally { setSaving(false); }
   };
 
-  const deleteUser = async (id: string) => {
-    const uName = users.find(u => u.id === id)?.name ?? "user";
-    if (!window.confirm(`Delete user ${uName}?`)) return;
+  const deleteUser = (id: string) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+    setTargetDelete(user);
+    setAdminPassword("");
+    setShowDelete(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!targetDelete) return;
+    if (!adminPassword) {
+      setNotice("Admin password is required.");
+      return;
+    }
     setSaving(true);
     try {
-      const res  = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/users/${targetDelete.id}`, {
+        method: "DELETE",
+        headers: { "X-Admin-Password": adminPassword }
+      });
       const data = await res.json();
       if (!res.ok) { setNotice(data.message ?? "Failed to delete user"); return; }
-      setNotice("User deleted."); await loadUsers();
+      setNotice("User deleted."); 
+      setShowDelete(false);
+      setTargetDelete(null);
+      await loadUsers();
     } finally { setSaving(false); }
   };
 
@@ -381,6 +402,43 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
           </div>
         </div>
       </section>
+      {/* ── Delete User Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent>
+          <DialogTitle>Confirm Delete User</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete the user <span className="font-semibold text-slate-800">{targetDelete?.name}</span>? This action is permanent and cannot be undone.
+          </DialogDescription>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-700">Admin Password to Verify</label>
+              <input
+                type="password"
+                placeholder="Enter your admin password"
+                value={adminPassword}
+                onChange={e => setAdminPassword(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                onClick={() => setShowDelete(false)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                onClick={confirmDelete}
+                disabled={saving || !adminPassword}
+              >
+                {saving ? "Deleting..." : "Delete User"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

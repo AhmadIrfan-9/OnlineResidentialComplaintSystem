@@ -1,32 +1,20 @@
 /**
  * src/lib/ai/rag-chat.ts
  *
- * Hybrid RAG Chat pipeline:
+ * Extractive RAG Chat pipeline (No Generative AI):
  *   1. Detects whether the question needs live DB stats
  *   2. Embeds the question and searches the document vault
  *   3. Optionally queries live complaint DB for statistics
- *   4. Builds a grounded context window and calls OpenAI Chat
+ *   4. Re-ranks chunks using BM25-lite keyword scoring
+ *   5. Returns direct textual extracts from the knowledge base or stats report
  *
  * Access:  all authenticated roles can query
  * Upload:  MANAGEMENT + IT_STAFF_ADMIN only (enforced at API layer)
  */
 
-import OpenAI from "openai";
 import { db } from "@/lib/db";
 import { getEmbedding } from "./embeddings";
 import { searchVault, type VaultChunkResult } from "./rag-vault";
-
-// ─── OpenAI singleton ─────────────────────────────────────────────────────────
-
-let _client: OpenAI | null = null;
-function getClient(): OpenAI {
-  if (!_client) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("[RAG-Chat] OPENAI_API_KEY not set.");
-    _client = new OpenAI({ apiKey });
-  }
-  return _client;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,59 +150,66 @@ export async function fetchLiveStats(
   };
 }
 
-// ─── 3. Context window builder ────────────────────────────────────────────────
+// ─── 3. Keyword Scoring & Extractive Formatting ──────────────────────────────────────
 
-function buildSystemPrompt(): string {
-  return `You are ORCS AI Assistant — the intelligent knowledge helper for UNITEN Residential Complaint System.
-
-You have access to two sources of information:
-1. KNOWLEDGE BASE — uploaded hostel policy documents, SOPs, and handbooks.
-2. LIVE DATA — real-time statistics from the complaint database.
-
-STRICT RULES:
-- Only cite facts that appear in the KNOWLEDGE BASE or LIVE DATA sections below.
-- If neither section contains the answer, say clearly: "I don't have that information in my knowledge base."
-- For numbers/statistics, always reference the LIVE DATA section.
-- For policy, procedures, or regulations, always cite the document title and relevant excerpt.
-- Be concise, professional, and helpful.
-- Respond in the same language the user uses (English or Malay).`;
+function getKeywords(text: string): string[] {
+  const stopWords = new Set(["the", "is", "at", "which", "on", "in", "a", "an", "and", "or", "to", "for", "of", "with", "what", "how", "why", "when", "where", "are"]);
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, "")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
 }
 
-function buildUserMessage(
-  question: string,
+function reRankChunks(chunks: VaultChunkResult[], question: string): VaultChunkResult[] {
+  const keywords = getKeywords(question);
+  
+  return chunks.map(chunk => {
+    let keywordHits = 0;
+    const lowerContent = chunk.content.toLowerCase();
+    for (const kw of keywords) {
+      if (lowerContent.includes(kw)) {
+        keywordHits += 1;
+      }
+    }
+    
+    // Combine semantic similarity with keyword matches for a boosted score
+    const boostedScore = chunk.similarity + (keywordHits * 0.05);
+    return { ...chunk, boostedScore };
+  })
+  .sort((a, b) => (b as any).boostedScore - (a as any).boostedScore)
+  .slice(0, 3); // Take top 3 for the final extractive response
+}
+
+function buildExtractiveResponse(
   chunks: VaultChunkResult[],
   liveStats: LiveStats | null
 ): string {
-  let context = "";
+  let response = "";
 
   if (liveStats) {
-    context += `--- LIVE DATA (as of right now) ---
-Total complaints: ${liveStats.totalComplaints}
-By status: ${Object.entries(liveStats.byStatus).map(([s, n]) => `${s}: ${n}`).join(", ")}
-New today: ${liveStats.pendingToday} | Resolved today: ${liveStats.resolvedToday} | Resolved yesterday: ${liveStats.resolvedYesterday}
-Open & overdue (>30 days): ${liveStats.openOverdue}
-Average resolution time: ${liveStats.avgResolutionDays} days
-Top categories: ${liveStats.topCategories.map((c) => `${c.category} (${c.count})`).join(", ")}
-
-`;
+    response += `**📊 Live Data Report**\n`;
+    response += `- **Total Complaints:** ${liveStats.totalComplaints}\n`;
+    response += `- **New Today:** ${liveStats.pendingToday} | **Resolved Today:** ${liveStats.resolvedToday}\n`;
+    response += `- **Average Resolution:** ${liveStats.avgResolutionDays} days\n`;
+    response += `- **Open & Overdue (>30 days):** ${liveStats.openOverdue}\n`;
+    response += `- **By Status:** ${Object.entries(liveStats.byStatus).map(([s, n]) => `${s}: ${n}`).join(", ")}\n`;
+    response += `- **Top Categories:** ${liveStats.topCategories.map((c) => `${c.category} (${c.count})`).join(", ")}\n\n`;
   }
 
   if (chunks.length > 0) {
-    context += `--- KNOWLEDGE BASE (${chunks.length} relevant sections) ---\n`;
-    context += chunks
-      .map(
-        (c, i) =>
-          `[${i + 1}] From "${c.docTitle}" (similarity: ${(c.similarity * 100).toFixed(0)}%)\n${c.content}`
-      )
-      .join("\n\n");
-    context += "\n\n";
+    response += `**📑 Knowledge Base Extracts**\n\n`;
+    chunks.forEach((c) => {
+      response += `> **From "${c.docTitle}"** (Relevance: ${(c.similarity * 100).toFixed(0)}%)\n`;
+      response += `> ${c.content.replace(/\n/g, "\n> ")}\n\n`;
+    });
   }
 
   if (!liveStats && chunks.length === 0) {
-    context = "No relevant documents or live data available for this question.\n\n";
+    response = "No matching records found in the Knowledge Base or Live Data.";
   }
 
-  return `${context}--- QUESTION ---\n${question}`;
+  return response.trim();
 }
 
 // ─── 4. Full chat pipeline ────────────────────────────────────────────────────
@@ -233,28 +228,17 @@ export async function answerQuestion(
   ]);
 
   const [chunks, liveStats] = await Promise.all([
-    searchVault(embedding, 6, 0.58),
+    searchVault(embedding, 10, 0.50), // Fetch a bit more for keyword re-ranking
     useLive ? fetchLiveStats(userId, role) : Promise.resolve(null),
   ]);
 
-  const userMessage = buildUserMessage(question, chunks, liveStats);
-
-  const completion = await getClient().chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: buildSystemPrompt() },
-      { role: "user",   content: userMessage },
-    ],
-    temperature: 0.2,
-    max_tokens: 800,
-  });
-
-  const answer = completion.choices[0]?.message?.content?.trim() ?? "Sorry, I could not generate a response.";
+  const topChunks = reRankChunks(chunks, question);
+  const answer = buildExtractiveResponse(topChunks, liveStats);
 
   // Deduplicate sources
   const seenDocs = new Set<string>();
   const sources: ChatSource[] = [];
-  for (const c of chunks) {
+  for (const c of topChunks) {
     if (!seenDocs.has(c.documentId)) {
       seenDocs.add(c.documentId);
       sources.push({ docTitle: c.docTitle, docFilename: c.docFilename, similarity: c.similarity });

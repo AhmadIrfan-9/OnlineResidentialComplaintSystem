@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { addComplaintComment, updateComplaint, deleteComplaint } from "@/actions/complaints";
 
 import { Loader2 } from "lucide-react";
@@ -53,6 +54,8 @@ export function StudentComplaintDetailClient({
   const [feedback, setFeedback] = useState("");
   const [isPending, startTransition] = useTransition();
   const canEdit = EDITABLE_STATUSES.has(status);
+
+  const [showDelete, setShowDelete] = useState(false);
 
   const [categoriesList, setCategoriesList] = useState<CategoryOption[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -193,18 +196,22 @@ export function StudentComplaintDetailClient({
   };
 
   const handleDelete = () => {
-    if (!window.confirm("Are you sure you want to delete ticket #" + complaintId.slice(0, 8).toUpperCase() + "? This action cannot be undone. / Adakah anda pasti? Tindakan ini tidak boleh diundur.")) return;
+    setShowDelete(true);
+  };
 
+  const confirmDelete = () => {
     startTransition(async () => {
       try {
         const result = await deleteComplaint(complaintId);
         if (!result.success) {
           throw new Error(result.error || "Failed to delete complaint.");
         }
+        setShowDelete(false);
         router.push("/dashboard/student");
         router.refresh();
       } catch (err) {
         setFeedback(err instanceof Error ? err.message : "An unexpected error occurred.");
+        setShowDelete(false);
       }
     });
   };
@@ -322,6 +329,35 @@ export function StudentComplaintDetailClient({
         </div>
         {feedback ? <p className="mt-2 text-sm text-slate-600">{feedback}</p> : null}
       </div>
+
+      {/* ── Delete Complaint Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent>
+          <DialogTitle>Confirm Delete Complaint</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete ticket <span className="font-semibold text-slate-800">#{complaintId.slice(0, 8).toUpperCase()}</span>? 
+            This action cannot be undone.
+            <br/><br/>
+            Adakah anda pasti? Tindakan ini tidak boleh diundur.
+          </DialogDescription>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={() => setShowDelete(false)}
+              disabled={isPending}
+            >
+              Cancel / Batal
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              onClick={confirmDelete}
+              disabled={isPending}
+            >
+              {isPending ? "Deleting..." : "Delete / Padam"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

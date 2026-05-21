@@ -6,11 +6,7 @@ import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
 
 const CATEGORY_LABEL = (raw: string) => {
   if (raw.toUpperCase() === "OTHER") return "Others";
-  return raw
-    .toLowerCase()
-    .split("_")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(" ");
+  return raw;
 };
 
 export function ComplaintCompressedTable({ items }: { items: QueueItem[] }) {

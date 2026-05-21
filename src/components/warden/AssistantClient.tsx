@@ -176,6 +176,8 @@ export function AssistantClient() {
   const [showInfo, setShowInfo] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [docToDelete, setDocToDelete] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -259,7 +261,16 @@ export function AssistantClient() {
   };
 
   // ── Delete handler ────────────────────────────────────────────────────────
-  const handleRemoveDoc = async (id: string) => {
+  const handleRemoveDoc = (id: string) => {
+    setDocToDelete(id);
+    setShowDelete(true);
+  };
+
+  const confirmRemoveDoc = async () => {
+    if (!docToDelete) return;
+    const id = docToDelete;
+    setShowDelete(false);
+    setDocToDelete(null);
     setDocs((prev) => prev.filter((d) => d.id !== id));
     try {
       await fetch(`/api/rag/documents/${id}`, { method: "DELETE" });
@@ -671,6 +682,31 @@ export function AssistantClient() {
           </div>
         </div>
       </div>
+      
+      {/* ── Delete Document Dialog ───────────────────────────────────────────────── */}
+      <Dialog open={showDelete} onOpenChange={setShowDelete}>
+        <DialogContent>
+          <DialogTitle>Confirm Delete Document</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to delete this document from the Knowledge Base? 
+            This action cannot be undone and will affect AI responses.
+          </DialogDescription>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              onClick={() => setShowDelete(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+              onClick={confirmRemoveDoc}
+            >
+              Delete
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
