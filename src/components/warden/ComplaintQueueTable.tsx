@@ -20,7 +20,7 @@ export interface QueueItem {
   management: string;
   category: string;
   assignedTo: string;
-  priority: "ROUTINE" | "URGENT" | "EMERGENCY";
+  priority: "ROUTINE" | "URGENT" | "EMERGENCY" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   ageBand: "GREEN" | "YELLOW" | "RED";
   evidences: Array<{
     id: string;
@@ -44,8 +44,14 @@ const rowColor = (submitted: string): string => {
 };
 
 const priorityBorder = (priority: QueueItem["priority"]): string => {
+  // New ITIL 4-level priorities
+  if (priority === "CRITICAL") return "border-l-[6px] border-l-red-600 shadow-[inset_4px_0_12px_rgba(220,38,38,0.3)] animate-pulse";
+  if (priority === "HIGH")     return "border-l-[6px] border-l-orange-500 shadow-[inset_4px_0_8px_rgba(249,115,22,0.2)]";
+  if (priority === "MEDIUM")   return "border-l-[6px] border-l-yellow-400";
+  if (priority === "LOW")      return "border-l-[6px] border-l-emerald-400/60";
+  // Legacy priorities (backward compat)
   if (priority === "EMERGENCY") return "border-l-[6px] border-l-red-500 shadow-[inset_4px_0_12px_rgba(239,68,68,0.2)] animate-pulse";
-  if (priority === "URGENT") return "border-l-[6px] border-l-yellow-400";
+  if (priority === "URGENT")    return "border-l-[6px] border-l-yellow-400";
   return "border-l-[6px] border-l-emerald-400/60";
 };
 

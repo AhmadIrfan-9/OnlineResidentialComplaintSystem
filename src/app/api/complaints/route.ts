@@ -6,6 +6,8 @@ import { normalizeRoleKey } from "@/lib/roles";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { createInAppNotification } from "@/lib/notifications";
 import { rateLimit } from "@/lib/rate-limit";
+import { runTriageForComplaint } from "@/app/api/complaints/triage/route";
+
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {
   const cleanUrl = fileUrl.split("?")[0].toLowerCase();
@@ -121,6 +123,12 @@ export async function POST(request: NextRequest) {
         message: "A new complaint was submitted and requires review.",
       });
     }
+
+    // ── Fire-and-forget ITIL triage — runs in background, does not block response ──
+    void runTriageForComplaint(complaint.id, {
+      title: validatedData.title,
+      description: validatedData.description,
+    });
 
     console.log(`[Complaint Created] ${session.user.id} - ${complaint.id}`);
 

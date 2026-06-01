@@ -40,12 +40,24 @@ const STATUS_META: Record<
 };
 
 const PRIORITY_BORDER: Record<QueueItem["priority"], string> = {
+  // New ITIL levels
+  CRITICAL: "border-l-4 border-l-red-600",
+  HIGH:     "border-l-4 border-l-orange-500",
+  MEDIUM:   "border-l-4 border-l-amber-400",
+  LOW:      "border-l-4 border-l-blue-300",
+  // Legacy (backward compat)
   EMERGENCY: "border-l-4 border-l-red-500",
   URGENT:    "border-l-4 border-l-amber-400",
   ROUTINE:   "border-l-4 border-l-blue-300",
 };
 
 const PRIORITY_BADGE: Record<QueueItem["priority"], string> = {
+  // New ITIL levels
+  CRITICAL: "bg-red-100 text-red-700 border border-red-200",
+  HIGH:     "bg-orange-100 text-orange-700 border border-orange-200",
+  MEDIUM:   "bg-amber-100 text-amber-700 border border-amber-200",
+  LOW:      "bg-slate-100 text-slate-600",
+  // Legacy (backward compat)
   EMERGENCY: "bg-red-100 text-red-700 border border-red-200",
   URGENT:    "bg-amber-100 text-amber-700 border border-amber-200",
   ROUTINE:   "bg-slate-100 text-slate-600",
@@ -557,7 +569,15 @@ export function ComplaintKanbanBoard({ items }: { items: QueueItem[] }) {
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold uppercase text-slate-400">Priority</p>
-                        <p className={`text-sm font-bold mt-0.5 ${selectedCard.priority === "EMERGENCY" ? "text-red-600" : selectedCard.priority === "URGENT" ? "text-amber-600" : "text-slate-700"}`}>
+                        <p className={`text-sm font-bold mt-0.5 ${
+                          selectedCard.priority === "CRITICAL" || selectedCard.priority === "EMERGENCY"
+                            ? "text-red-600"
+                            : selectedCard.priority === "HIGH"
+                            ? "text-orange-600"
+                            : selectedCard.priority === "MEDIUM" || selectedCard.priority === "URGENT"
+                            ? "text-amber-600"
+                            : "text-slate-700"
+                        }`}>
                           {selectedCard.priority}
                         </p>
                       </div>

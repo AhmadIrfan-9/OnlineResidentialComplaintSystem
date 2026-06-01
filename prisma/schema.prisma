@@ -98,30 +98,37 @@ model Room {
 }
 
 model Complaint {
-  id               String            @id @default(cuid())
-  title            String
-  description      String
-  locationBlock    String?
-  category         String
-  status           Status            @default(PENDING)
-  isAnonymous      Boolean           @default(false)
-  resolvedAt       DateTime?
-  closedAt         DateTime?
-  deletedAt        DateTime?
-  studentProfileId String?
-  roomId           String
-  hostelId         String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  priority             Priority          @default(ROUTINE)
-  satisfactionRating   Int?              @map("satisfaction_rating")
-  complaintUpdates ComplaintUpdate[]
-  hostel           Hostel            @relation(fields: [hostelId], references: [id], onDelete: Cascade)
-  room             Room              @relation(fields: [roomId], references: [id])
-  studentProfile   StudentProfile?   @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  evidences        Evidence[]
-  notifications    Notification[]
-  supportMessages  SupportMessage[]
+  id                 String            @id @default(cuid())
+  title              String
+  description        String
+  locationBlock      String?
+  category           String
+  status             Status            @default(PENDING)
+  isAnonymous        Boolean           @default(false)
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  deletedAt          DateTime?
+  studentProfileId   String?
+  roomId             String
+  hostelId           String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  priority           Priority          @default(LOW)
+  satisfactionRating Int?              @map("satisfaction_rating")
+  // ─── AI Triage Fields (ITIL Impact-Urgency Matrix) ───────────────────────
+  aiUrgencyScore     Int?              @map("ai_urgency_score")
+  aiImpactScore      Int?              @map("ai_impact_score")
+  aiSlaHours         Int?              @map("ai_sla_hours")
+  aiReasoningEn      String?           @map("ai_reasoning_en")
+  aiReasoningMs      String?           @map("ai_reasoning_ms")
+  // ─────────────────────────────────────────────────────────────────────────
+  complaintUpdates   ComplaintUpdate[]
+  hostel             Hostel            @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  room               Room              @relation(fields: [roomId], references: [id])
+  studentProfile     StudentProfile?   @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  evidences          Evidence[]
+  notifications      Notification[]
+  supportMessages    SupportMessage[]
 
   @@map("complaints")
 }
@@ -261,6 +268,11 @@ enum UserRole {
 }
 
 enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  // Legacy values kept for backward compat during migration
   ROUTINE
   URGENT
   EMERGENCY
