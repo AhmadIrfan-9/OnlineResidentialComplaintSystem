@@ -4,19 +4,26 @@ import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import type { QueueItem } from "@/components/warden/ComplaintQueueTable";
 
-const CATEGORY_LABEL = (raw: string) => {
-  if (raw.toUpperCase() === "OTHER") return "Others";
-  return raw;
-};
+const CATEGORY_LABEL = (raw: string): string =>
+  raw.toUpperCase() === "OTHER" ? "Others" : raw;
+
+const CANONICAL_CATEGORIES = [
+  "Plumbing",
+  "Furniture",
+  "Noise",
+  "Others",
+  "Electrical",
+  "WiFi",
+  "Security",
+  "Water",
+];
 
 export function ComplaintCompressedTable({ items }: { items: QueueItem[] }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  const allCategories = useMemo(() => {
-    const set = new Set(items.map((item) => item.category));
-    return Array.from(set).sort();
-  }, [items]);
+  // Always show the full canonical list — even if a category has 0 complaints
+  const allCategories = CANONICAL_CATEGORIES;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

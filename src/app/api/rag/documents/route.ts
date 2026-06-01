@@ -6,8 +6,8 @@
  *   1. Auth + role check (MANAGEMENT | IT_STAFF_ADMIN)
  *   2. Parse multipart form (file + optional title)
  *   3. Create RagDocument row with status=PROCESSING
- *   4. Store raw file in S3 under rag-documents/{id}/{uuid}.{ext}
- *   5. Extract text, chunk, embed → store chunks
+ *   4. Store raw file in storage under rag-documents/{id}/{uuid}.{ext}
+ *   5. Extract text → chunk → store in DB via FTS (no embeddings)
  *   6. Mark document READY (or ERROR)
  */
 
@@ -124,11 +124,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File storage failed" }, { status: 500 });
   }
 
-  // 3. Extract text, chunk, embed — do this async (fire-and-forget style)
-  // We return the doc immediately so the UI shows PROCESSING, then polls
-  processDocumentAsync(doc.id, buffer, file.type).catch((err) =>
-    console.error(`[RAG-Vault] Processing failed for ${doc.id}:`, err)
-  );
+  // 3. Extract text, chunk, store — synchronous so status is correct on return
+  try {
+    await processDocumentAsync(doc.id, buffer, file.type);
+  } catch (err) {
+    console.error(`[RAG-Vault] Processing failed for ${doc.id}:`, err);
+  }
+
+  // Refetch to return correct status
+  const finalDoc = await db.ragDocument.findUnique({ where: { id: doc.id } });
 
   return NextResponse.json(
     {
@@ -137,8 +141,8 @@ export async function POST(req: NextRequest) {
       fileName: doc.fileName,
       fileSize: doc.fileSize,
       mimeType: doc.mimeType,
-      status: "PROCESSING",
-      chunkCount: 0,
+      status: finalDoc?.status || "PROCESSING",
+      chunkCount: finalDoc?.chunkCount || 0,
       createdAt: doc.createdAt,
     },
     { status: 201 }

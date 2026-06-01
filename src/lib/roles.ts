@@ -10,10 +10,8 @@ export const isStudentRole = (role: unknown): boolean =>
 export const isAdminRole = (role: unknown): boolean =>
   normalizeRoleKey(role) === "IT_STAFF_ADMIN";
 
-export const isManagementRole = (role: unknown): boolean => {
-  const normalized = normalizeRoleKey(role);
-  return normalized === "MANAGEMENT";
-};
+export const isManagementRole = (role: unknown): boolean =>
+  normalizeRoleKey(role) === "MANAGEMENT";
 
 export const dashboardPathByRole = (role: unknown): string => {
   if (isAdminRole(role)) return "/admin";

@@ -31,4 +31,3 @@ export const logAudit = async (params: {
     },
   });
 };
-

@@ -3,20 +3,19 @@
 /**
  * src/lib/ai/rag-vault.ts
  *
- * Core RAG Document Vault pipeline:
- *   1. extractText()       — PDF / DOCX / TXT → plain text
- *   2. chunkText()         — sliding-window sentence-aware chunking
- *   3. embedAndStoreChunks() — embed each chunk via OpenAI + store in DB
- *   4. searchVault()       — cosine-similarity search across all READY docs
- *   5. deleteDocumentChunks() — cascade delete chunks (DB rows only; S3 handled by caller)
+ * Zero-cost RAG Document Vault pipeline:
+ *   1. extractText()            — PDF / DOCX / TXT → plain text
+ *   2. chunkText()              — sliding-window sentence-aware chunking
+ *   3. storeChunks()            — store plain text chunks in Postgres
+ *   4. searchVault()            — PostgreSQL Full-Text Search (tsvector/tsquery)
+ *   5. deleteDocumentChunks()   — cascade delete chunks for a document
+ *   6. updateDocumentChunkCount() — set final status after processing
  */
 
 import { Pool } from "pg";
 import { randomUUID } from "crypto";
-import OpenAI from "openai";
-import { getBatchEmbeddings, getEmbedding, formatVectorLiteral } from "./embeddings";
 
-// ─── DB Pool (shared with retrieval.ts) ──────────────────────────────────────
+// ─── DB Pool ──────────────────────────────────────────────────────────────────
 
 let _pool: Pool | null = null;
 
@@ -52,7 +51,6 @@ export async function extractText(
   // PDF
   if (mime === "application/pdf" || mime.includes("pdf")) {
     try {
-      // pdf-parse ships both CJS and ESM; use require to avoid .default confusion
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pdfParse: (buf: Buffer) => Promise<{ text: string; numpages: number }> =
         require("pdf-parse");
@@ -80,31 +78,13 @@ export async function extractText(
     return { text: buffer.toString("utf-8"), pageCount: 0 };
   }
 
-  // Images — use GPT-4o vision to extract text content
+  // Images — note: server-side OCR requires native binaries.
+  // We extract a placeholder and store as a searchable note.
   if (mime === "image/png" || mime === "image/jpeg" || mime === "image/jpg") {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("[RAG-Vault] OPENAI_API_KEY not set.");
-    const client = new OpenAI({ apiKey });
-    const base64 = buffer.toString("base64");
-    const mediaType = mime === "image/png" ? "image/png" : "image/jpeg";
-    const response = await client.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 2000,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract and transcribe all readable text from this image. If the image contains a document, form, notice, or written content, output the full text faithfully. If it is a photo with no text, describe the scene in detail instead.",
-            },
-            { type: "image_url", image_url: { url: `data:${mediaType};base64,${base64}` } },
-          ],
-        },
-      ],
-    });
-    const extracted = response.choices[0]?.message?.content ?? "";
-    return { text: extracted, pageCount: 1 };
+    return {
+      text: `[Image document uploaded. This file is an image and its text content could not be extracted automatically. Please upload PDF or DOCX versions of your documents for full text search support.]`,
+      pageCount: 1,
+    };
   }
 
   throw new Error(`Unsupported file type: ${mimeType}`);
@@ -112,11 +92,10 @@ export async function extractText(
 
 // ─── 2. Chunking ──────────────────────────────────────────────────────────────
 
-const CHUNK_SIZE = 1400;  // chars (~350 tokens) — fits well in 8k context
-const CHUNK_OVERLAP = 200; // chars kept from previous chunk for continuity
+const CHUNK_SIZE = 1400;  // chars (~350 tokens)
+const CHUNK_OVERLAP = 200;
 
 export async function chunkText(text: string): Promise<string[]> {
-  // Normalise whitespace
   const clean = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   if (clean.length === 0) return [];
 
@@ -127,13 +106,10 @@ export async function chunkText(text: string): Promise<string[]> {
     let end = start + CHUNK_SIZE;
 
     if (end < clean.length) {
-      // Prefer to break at paragraph boundary
       const paraBreak = clean.lastIndexOf("\n\n", end);
       if (paraBreak > start + CHUNK_SIZE * 0.5) {
         end = paraBreak;
       } else {
-        // Fall back to sentence boundary (. ! ?)
-        const sentBreak = clean.search(new RegExp(`[.!?]\\s`, "g"));
         const lastSent = clean.lastIndexOf(". ", end);
         if (lastSent > start + CHUNK_SIZE * 0.4) {
           end = lastSent + 1;
@@ -142,7 +118,7 @@ export async function chunkText(text: string): Promise<string[]> {
     }
 
     const chunk = clean.slice(start, end).trim();
-    if (chunk.length > 50) chunks.push(chunk); // skip tiny trailing fragments
+    if (chunk.length > 50) chunks.push(chunk);
 
     start = Math.max(start + 1, end - CHUNK_OVERLAP);
   }
@@ -150,102 +126,85 @@ export async function chunkText(text: string): Promise<string[]> {
   return chunks;
 }
 
-// ─── 3. Embed + Store Chunks ──────────────────────────────────────────────────
+// ─── 3. Store Chunks (no embeddings — uses tsvector for FTS) ─────────────────
 
-export async function embedAndStoreChunks(
+export async function storeChunks(
   documentId: string,
   chunks: string[]
 ): Promise<void> {
   const pool = getPool();
 
-  // Single batched API call for all chunks instead of N sequential calls
-  const embeddings = await getBatchEmbeddings(chunks);
+  // Ensure tsvector column exists — create it if not
+  await pool.query(`
+    ALTER TABLE rag_document_chunks
+      ADD COLUMN IF NOT EXISTS fts_vector tsvector
+        GENERATED ALWAYS AS (to_tsvector('english', coalesce(content, ''))) STORED
+  `).catch(() => {
+    // Column may already exist, ignore error
+  });
 
-  // Build one bulk INSERT for all chunks
   const ids = chunks.map(() => randomUUID());
-  const values = chunks
-    .map((_, i) => `($${i * 5 + 1}, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, NOW(), $${i * 5 + 5}::vector)`)
-    .join(", ");
-  const params = chunks.flatMap((chunk, i) => [
-    ids[i],
-    documentId,
-    i,
-    chunk,
-    formatVectorLiteral(embeddings[i]),
-  ]);
 
   await pool.query(
-    `INSERT INTO rag_document_chunks (id, document_id, chunk_index, content, embedded_at, embedding)
-     VALUES ${values}
+    `INSERT INTO rag_document_chunks (id, document_id, chunk_index, content, embedded_at)
+     VALUES ${chunks.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}, NOW())`).join(", ")}
      ON CONFLICT (id) DO NOTHING`,
-    params
+    chunks.flatMap((chunk, i) => [ids[i], documentId, i, chunk])
   );
 }
 
-// ─── 4. Vector Search ─────────────────────────────────────────────────────────
+// Alias preserved for the documents upload route import
+export const embedAndStoreChunks = storeChunks;
+
+// ─── 4. Full-Text Search ──────────────────────────────────────────────────────
 
 export async function searchVault(
-  embedding: number[],
+  query: string,
   k = 6,
-  similarityThreshold = 0.60
+  _similarityThreshold = 0.50
 ): Promise<VaultChunkResult[]> {
   const pool = getPool();
-  const vectorLiteral = formatVectorLiteral(embedding);
 
   try {
+    // Build tsquery from user's question (plainto_tsquery handles natural language)
     const res = await pool.query<{
       id: string;
       document_id: string;
       chunk_index: number;
       content: string;
-      similarity: number;
-      doc_title: string;
-      doc_filename: string;
-    }>(
-      `SELECT * FROM search_rag_chunks($1::vector, $2, $3)`,
-      [vectorLiteral, similarityThreshold, k]
-    );
-    return res.rows.map((r) => ({
-      id: r.id,
-      documentId: r.document_id,
-      chunkIndex: r.chunk_index,
-      content: r.content,
-      similarity: Number(r.similarity),
-      docTitle: r.doc_title,
-      docFilename: r.doc_filename,
-    }));
-  } catch {
-    // Fallback if SQL function not yet created
-    const res = await pool.query<{
-      id: string;
-      document_id: string;
-      chunk_index: number;
-      content: string;
-      similarity: number;
+      rank: number;
       title: string;
       file_name: string;
     }>(
       `SELECT
-         c.id::text, c.document_id::text, c.chunk_index, c.content,
-         1 - (c.embedding <=> $1::vector) AS similarity,
-         d.title, d.file_name
+         c.id::text,
+         c.document_id::text,
+         c.chunk_index,
+         c.content,
+         ts_rank_cd(to_tsvector('english', c.content), plainto_tsquery('english', $1)) AS rank,
+         d.title,
+         d.file_name
        FROM rag_document_chunks c
        JOIN rag_documents d ON d.id = c.document_id
-       WHERE c.embedding IS NOT NULL AND d.status = 'READY'
-         AND 1 - (c.embedding <=> $1::vector) > $2
-       ORDER BY c.embedding <=> $1::vector
-       LIMIT $3`,
-      [vectorLiteral, similarityThreshold, k]
+       WHERE d.status = 'READY'
+         AND to_tsvector('english', c.content) @@ plainto_tsquery('english', $1)
+       ORDER BY rank DESC
+       LIMIT $2`,
+      [query, k]
     );
+
     return res.rows.map((r) => ({
       id: r.id,
       documentId: r.document_id,
       chunkIndex: r.chunk_index,
       content: r.content,
-      similarity: Number(r.similarity),
+      similarity: Math.min(Number(r.rank) * 2, 1.0), // normalise rank to 0-1 scale
       docTitle: r.title,
       docFilename: r.file_name,
     }));
+  } catch (err) {
+    console.error("[RAG-Vault] FTS search failed:", err);
+    return [];
   }
 }
 

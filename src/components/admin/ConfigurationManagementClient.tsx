@@ -374,9 +374,6 @@ export function ConfigurationManagementClient() {
               ["Safe Threshold (days)", "safeThresholdDays"],
               ["Warning Threshold (days)", "warningThresholdDays"],
               ["Reminder Frequency (days)", "reminderFrequencyDays"],
-              ["Routine Target (hours)", "routineTargetHours"],
-              ["Urgent Target (hours)", "urgentTargetHours"],
-              ["Emergency Target (hours)", "emergencyTargetHours"],
             ].map(([label, key]) => (
               <label key={key} className="space-y-1 text-sm">
                 <span>{label}</span>

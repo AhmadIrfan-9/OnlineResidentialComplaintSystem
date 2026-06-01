@@ -3,9 +3,9 @@
  *
  * Extractive RAG Chat pipeline (No Generative AI):
  *   1. Detects whether the question needs live DB stats
- *   2. Embeds the question and searches the document vault
+ *   2. Searches the document vault via PostgreSQL Full-Text Search
  *   3. Optionally queries live complaint DB for statistics
- *   4. Re-ranks chunks using BM25-lite keyword scoring
+ *   4. Re-ranks chunks using keyword scoring
  *   5. Returns direct textual extracts from the knowledge base or stats report
  *
  * Access:  all authenticated roles can query
@@ -13,7 +13,6 @@
  */
 
 import { db } from "@/lib/db";
-import { getEmbedding } from "./embeddings";
 import { searchVault, type VaultChunkResult } from "./rag-vault";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -161,24 +160,20 @@ function getKeywords(text: string): string[] {
     .filter(w => w.length > 2 && !stopWords.has(w));
 }
 
+interface RankedChunk extends VaultChunkResult {
+  boostedScore: number;
+}
+
 function reRankChunks(chunks: VaultChunkResult[], question: string): VaultChunkResult[] {
   const keywords = getKeywords(question);
-  
-  return chunks.map(chunk => {
-    let keywordHits = 0;
+
+  return (chunks.map((chunk): RankedChunk => {
     const lowerContent = chunk.content.toLowerCase();
-    for (const kw of keywords) {
-      if (lowerContent.includes(kw)) {
-        keywordHits += 1;
-      }
-    }
-    
-    // Combine semantic similarity with keyword matches for a boosted score
-    const boostedScore = chunk.similarity + (keywordHits * 0.05);
-    return { ...chunk, boostedScore };
-  })
-  .sort((a, b) => (b as any).boostedScore - (a as any).boostedScore)
-  .slice(0, 3); // Take top 3 for the final extractive response
+    const keywordHits = keywords.filter((kw) => lowerContent.includes(kw)).length;
+    return { ...chunk, boostedScore: chunk.similarity + keywordHits * 0.05 };
+  }) as RankedChunk[])
+    .sort((a, b) => b.boostedScore - a.boostedScore)
+    .slice(0, 3);
 }
 
 function buildExtractiveResponse(
@@ -221,14 +216,11 @@ export async function answerQuestion(
 ): Promise<ChatAnswer> {
   const t0 = Date.now();
 
-  // Embed question + search vault in parallel with intent detection
-  const [embedding, useLive] = await Promise.all([
-    getEmbedding(question),
-    Promise.resolve(needsLiveData(question)),
-  ]);
+  // Search vault using question text (PostgreSQL Full-Text Search) + check live data need
+  const useLive = needsLiveData(question);
 
   const [chunks, liveStats] = await Promise.all([
-    searchVault(embedding, 10, 0.50), // Fetch a bit more for keyword re-ranking
+    searchVault(question, 10, 0.50), // Pass question string directly for FTS
     useLive ? fetchLiveStats(userId, role) : Promise.resolve(null),
   ]);
 

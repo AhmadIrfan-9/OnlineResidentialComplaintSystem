@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-
-
-
 // ─── Complaint Status enum ── 4 logical workflow states (matches Prisma) ──────
 //
 //  PENDING      → New ticket or Assigned — awaiting management action
@@ -63,9 +60,6 @@ export const complaintUpdateSchema = z.object({
 });
 
 export type ComplaintUpdateInput = z.infer<typeof complaintUpdateSchema>;
-
-
-
 
 // ─── Status display ────────────────────────────────────────────────────────────
 // Human-friendly labels
