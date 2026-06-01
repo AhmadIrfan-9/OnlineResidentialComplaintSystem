@@ -7,6 +7,7 @@ import { ComplaintCompressedTable } from "@/components/warden/ComplaintCompresse
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { storageService } from "@/lib/storage/StorageService";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const categoryLabel = (value: string): string => {
   if (value.toUpperCase() === "OTHER") return "Others";
@@ -147,20 +148,11 @@ export default async function TableViewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="surface-hero px-6 py-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-              Management Portal
-            </p>
-            <h1 className="text-2xl font-black text-white">Overview</h1>
-            <p className="text-sm text-blue-200 mt-0.5">Residency: {scopeLabel}</p>
-          </div>
-          <div className="flex items-center gap-3 text-xs font-semibold text-blue-200">
-            <span>{items.length} total complaints</span>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        portalType="Management Portal"
+        title="Overview"
+        subtitle={`Residency: ${scopeLabel}`}
+      />
 
       <ComplaintCompressedTable items={items} />
     </div>

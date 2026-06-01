@@ -25,10 +25,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  console.log(`[Middleware Debug] Path: ${pathname}`);
+  const cookiesList = request.cookies.getAll().map(c => `${c.name}=${c.value.slice(0, 10)}...`);
+  console.log("[Middleware Debug] Cookies present:", cookiesList);
+
+  // Determine cookie name for NextAuth v4/v5 compatibility
+  const cookieName = request.cookies.has("authjs.session-token")
+    ? "authjs.session-token"
+    : request.cookies.has("__Secure-authjs.session-token")
+    ? "__Secure-authjs.session-token"
+    : undefined;
+
   // Get the token from the request
   const token = await getToken({
     req: request,
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+    cookieName,
   });
 
   // Public routes that don't require authentication

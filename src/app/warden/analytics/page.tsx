@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { db } from "@/lib/db";
 import { getUnitenSemester } from "@/lib/semester";
+import { PageHeader } from "@/components/shared/PageHeader";
 import {
   CommandCenterClient,
   TrendData,
@@ -289,15 +290,11 @@ export default async function ManagementCommandCenterPage(props: {
 
   return (
     <div className="space-y-6">
-      <div className="surface-hero px-6 py-5">
-        <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-          Management Portal · {displaySemesterName}
-        </p>
-        <h1 className="text-2xl font-black text-white">Management Insights</h1>
-        <p className="text-sm text-blue-200 mt-0.5">
-          Comprehensive oversight of residential trends and SLA performance.
-        </p>
-      </div>
+      <PageHeader
+        portalType={`Management Portal · ${displaySemesterName}`}
+        title="Management Insights"
+        subtitle="Comprehensive oversight of residential trends and SLA performance."
+      />
 
       <CommandCenterClient
         dailyTrendData={dailyTrendData}

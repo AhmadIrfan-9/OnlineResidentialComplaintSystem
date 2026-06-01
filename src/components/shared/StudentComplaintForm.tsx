@@ -160,9 +160,25 @@ export function StudentComplaintForm({
 
   useEffect(() => {
     async function fetchCategories() {
+      const arrangeCategories = (list: CategoryOption[]) => {
+        const others = list.find((c) => c.value.toLowerCase().includes("other"));
+        const rest = list.filter((c) => !c.value.toLowerCase().includes("other"));
+        rest.sort((a, b) => a.label.localeCompare(b.label));
+        if (others) {
+          rest.push(others);
+        }
+        return rest;
+      };
+
       try {
         const res = await fetch("/api/categories/active");
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Invalid response format: expected JSON");
+        }
+        
         const data = await res.json();
         
         let fetchedCategories = data.categories?.map((c: any) => ({
@@ -182,9 +198,11 @@ export function StudentComplaintForm({
             { value: "Others", label: "Others" },
           ];
         }
-        setCategoriesList(fetchedCategories);
+
+        const sortedList = arrangeCategories(fetchedCategories);
+        setCategoriesList(sortedList);
         setCategory((prev) => {
-            if (prev && fetchedCategories.find((c: any) => c.value === prev)) {
+            if (prev && sortedList.find((c: any) => c.value === prev)) {
                 return prev;
             }
             return "";
@@ -201,9 +219,10 @@ export function StudentComplaintForm({
           { value: "Security", label: "Security" },
           { value: "Others", label: "Others" },
         ];
-        setCategoriesList(fallbacks);
+        const sortedList = arrangeCategories(fallbacks);
+        setCategoriesList(sortedList);
         setCategory((prev) => {
-            if (prev && fallbacks.find((c: any) => c.value === prev)) {
+            if (prev && sortedList.find((c: any) => c.value === prev)) {
                 return prev;
             }
             return "";
@@ -231,6 +250,15 @@ export function StudentComplaintForm({
     location: false,
     description: false,
   });
+
+  const handleFilesChange = useCallback((newFiles: File[]) => {
+    setFiles(newFiles);
+    setFileError("");
+  }, []);
+
+  const handleNoiseReport = useCallback((report: NoiseReport | null) => {
+    setNoiseReport(report);
+  }, []);
 
   const titleValid = title.trim().length >= 5;
   const descriptionCount = description.length;
@@ -313,6 +341,13 @@ export function StudentComplaintForm({
           isAnonymous: mode === "ANONYMOUS",
         }),
       });
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        setSubmitMessage("Your session has expired. Please refresh the page and log in again.");
+        setIsSubmitting(false);
+        return;
+      }
 
       const payload = await response.json();
       if (!response.ok) {
@@ -463,7 +498,7 @@ export function StudentComplaintForm({
                 {categoryValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
               </div>
               <Select
-                value={category}
+                value={category || ""}
                 onValueChange={(value) => {
                   setCategory(value);
                   setTouched((prev) => ({ ...prev, category: true }));
@@ -493,7 +528,7 @@ export function StudentComplaintForm({
 
             <div className="space-y-2">
               <Label>Hostel</Label>
-              <Select value={hostelName}>
+              <Select value={hostelName || ""} onValueChange={() => {}}>
                 <SelectTrigger className="border-slate-300">
                   <SelectValue placeholder="Select hostel" />
                 </SelectTrigger>
@@ -533,7 +568,7 @@ export function StudentComplaintForm({
               
               <div>
                 <Label className="mb-2 block">Room (Optional)</Label>
-                <Select value={roomNumber} onValueChange={setRoomNumber}>
+                <Select value={roomNumber || ""} onValueChange={(val) => setRoomNumber(val)}>
                   <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="Select room" />
                   </SelectTrigger>
@@ -592,11 +627,8 @@ export function StudentComplaintForm({
               accept={ACCEPTED_TYPES}
               disabled={isSubmitting}
               locationBlock={locationBlock}
-              onNoiseReport={(report) => setNoiseReport(report)}
-              onFilesChange={(newFiles) => {
-                setFiles(newFiles);
-                setFileError("");
-              }}
+              onNoiseReport={handleNoiseReport}
+              onFilesChange={handleFilesChange}
             />
 
             {fileError && (

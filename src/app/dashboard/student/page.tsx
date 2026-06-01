@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ProfileMissingRecovery } from "@/components/shared/ProfileMissingRecovery";
 import { RecentComplaintsTableClient } from "@/components/student/RecentComplaintsTableClient";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const OPEN_STATUSES: Status[] = ["PENDING", "IN_PROGRESS"];
 const RESOLVED_STATUSES: Status[] = ["RESOLVED", "CLOSED"];
@@ -122,16 +123,11 @@ export default async function StudentDashboardPage() {
   return (
     <div className="space-y-6 pb-12">
 
-      {/* ── Page header banner ── */}
-      <div className="surface-hero px-6 py-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-            Student Portal
-          </p>
-          <h1 className="text-2xl font-black text-white">Welcome, {firstName}</h1>
-          <p className="text-sm text-blue-200 mt-0.5">Track and manage your residential complaints.</p>
-        </div>
-      </div>
+      <PageHeader
+        portalType="Student Portal"
+        title={`Welcome, ${firstName}`}
+        subtitle="Track and manage your residential complaints."
+      />
 
       {/* ── Metric cards ── */}
       <section className="grid gap-4 grid-cols-1 sm:grid-cols-3">

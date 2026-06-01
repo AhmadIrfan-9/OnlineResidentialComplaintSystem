@@ -10,6 +10,7 @@ import {
   statusColors,
   type ComplaintStatus,
 } from "@/lib/validations";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Loader2, Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -65,19 +66,19 @@ export default function StudentComplaintsPage() {
   return (
     <div className="min-h-screen">
       <header className="mx-auto mt-4 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="surface-hero px-5 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">Student Portal</p>
-            <h1 className="text-xl font-black text-white">My Complaints</h1>
-            <p className="mt-0.5 text-sm text-blue-200">Track all submissions, responses, and progress in one place.</p>
-          </div>
-          <Link href="/complaints/new">
-            <Button className="bg-white/15 hover:bg-white/25 text-white border-0 shadow-none font-semibold text-sm">
-              <Plus className="mr-2 h-4 w-4" />
-              New Complaint
-            </Button>
-          </Link>
-        </div>
+        <PageHeader
+          portalType="Student Portal"
+          title="My Complaints"
+          subtitle="Track all submissions, responses, and progress in one place."
+          action={
+            <Link href="/complaints/new">
+              <Button className="bg-white/15 hover:bg-white/25 text-white border-0 shadow-none font-semibold text-sm">
+                <Plus className="mr-2 h-4 w-4" />
+                New Complaint
+              </Button>
+            </Link>
+          }
+        />
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

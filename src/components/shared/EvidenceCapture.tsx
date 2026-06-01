@@ -140,10 +140,27 @@ export function EvidenceCapture({
     }
   }, [onNoiseReport]);
 
-  // Notify parent whenever captured changes
-  const notifyParent = useCallback((list: CapturedFile[]) => {
-    onFilesChange(list.map((c) => c.file));
+  const onFilesChangeRef = useRef(onFilesChange);
+  const onNoiseReportRef = useRef(onNoiseReport);
+
+  useEffect(() => {
+    onFilesChangeRef.current = onFilesChange;
   }, [onFilesChange]);
+
+  useEffect(() => {
+    onNoiseReportRef.current = onNoiseReport;
+  }, [onNoiseReport]);
+
+  useEffect(() => {
+    // Defer the parent state synchronization execution to the next tick
+    onFilesChangeRef.current(captured.map((c) => c.file));
+
+    // Clear noise report if no more videos exist in the captured files
+    if (!captured.some((c) => c.isVideo)) {
+      setNoiseReport(null);
+      onNoiseReportRef.current?.(null);
+    }
+  }, [captured]);
 
   const addFiles = useCallback(async (incoming: File[]) => {
     setFileError("");
@@ -175,25 +192,18 @@ export function EvidenceCapture({
     if (firstVideo) runNoiseAnalysis(firstVideo.file);
     setCaptured((prev) => {
       const next = [...prev, ...validated].slice(0, maxFiles);
-      notifyParent(next);
       return next;
     });
-  }, [accept, captured.length, maxFiles, notifyParent]);
+  }, [accept, captured.length, maxFiles]);
 
   const removeFile = useCallback((id: string) => {
     setCaptured((prev) => {
       const next = prev.filter((c) => c.id !== id);
       const removed = prev.find((c) => c.id === id);
       if (removed) URL.revokeObjectURL(removed.previewUrl);
-      notifyParent(next);
-      // Clear noise report if no more videos
-      if (!next.some((c) => c.isVideo)) {
-        setNoiseReport(null);
-        onNoiseReport?.(null);
-      }
       return next;
     });
-  }, [notifyParent, onNoiseReport]);
+  }, []);
 
   // Clean up blob URLs on unmount
   useEffect(() => {

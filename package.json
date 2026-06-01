@@ -19,7 +19,8 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.999.0",
+    "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/credential-provider-env": "^3.972.41",
     "@aws-sdk/s3-request-presigner": "^3.999.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/adapter-pg": "^7.4.0",

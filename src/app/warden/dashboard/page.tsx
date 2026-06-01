@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isAdminRole, isManagementRole, normalizeRoleKey } from "@/lib/roles";
 import { getUnitenSemester } from "@/lib/semester";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const STATUS_OPEN: Status[] = ["PENDING", "IN_PROGRESS"];
 const asDays = (ms: number): number => ms / (1000 * 60 * 60 * 24);
@@ -243,30 +244,27 @@ export default async function ManagementDashboardPage() {
   return (
     <div className="space-y-6 pb-24">
 
-      {/* ── Page header banner ─────────────────────────────────────────── */}
-      <div className="surface-hero px-6 py-5 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-            Management Portal · {semester.name}
-          </p>
-          <h1 className="text-2xl font-black text-white">Dashboard</h1>
-          <p className="text-sm text-blue-200 mt-0.5">Residency: {scopeLabel}</p>
-        </div>
-        <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/warden/queue"
-            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
-          >
-            <ClipboardList className="h-4 w-4" /> Queue
-          </Link>
-          <Link
-            href="/warden/analytics"
-            className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
-          >
-            <BarChart2 className="h-4 w-4" /> Insights
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        portalType={`Management Portal · ${semester.name}`}
+        title="Dashboard"
+        subtitle={`Residency: ${scopeLabel}`}
+        action={
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/warden/queue"
+              className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+            >
+              <ClipboardList className="h-4 w-4" /> Queue
+            </Link>
+            <Link
+              href="/warden/analytics"
+              className="flex items-center gap-2 rounded-lg bg-white/15 hover:bg-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors"
+            >
+              <BarChart2 className="h-4 w-4" /> Insights
+            </Link>
+          </div>
+        }
+      />
 
       {/* ── Metric cards ──────────────────────────────────────────────── */}
       <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">

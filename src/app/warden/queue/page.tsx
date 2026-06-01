@@ -8,6 +8,7 @@ import { ComplaintKanbanBoard } from "@/components/warden/ComplaintKanbanBoard";
 import { parseAssignmentText, toAgeBand, toPendingDays } from "@/lib/complaints";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { storageService } from "@/lib/storage/StorageService";
+import { PageHeader } from "@/components/shared/PageHeader";
 
 const categoryLabel = (value: string): string => {
   if (value.toUpperCase() === "OTHER") return "Others";
@@ -172,21 +173,16 @@ export default async function ComplaintQueuePage() {
 
   return (
     <div className="space-y-6">
-      {/* Blue/red themed page banner */}
-      <div className="surface-hero px-6 py-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-200 mb-1">
-              Management Portal
-            </p>
-            <h1 className="text-2xl font-black text-white">Complaint Queue</h1>
-            <p className="text-sm text-blue-200 mt-0.5">Residency: {scopeLabel}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+      <PageHeader
+        portalType="Management Portal"
+        title="Complaint Queue"
+        subtitle={`Residency: ${scopeLabel}`}
+        action={
+          <>
             <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
               <div className="flex items-center gap-1.5 text-emerald-200">
                 <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                <span className="font-bold">0–2 days</span>
+                <span className="font-bold text-xs">0–2 days</span>
                 <span className="ml-1 rounded-full bg-emerald-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-200">On Track</span>
               </div>
               <p className="mt-0.5 text-[10px] text-white/50">Complaint is within safe response window.</p>
@@ -194,7 +190,7 @@ export default async function ComplaintQueuePage() {
             <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
               <div className="flex items-center gap-1.5 text-amber-200">
                 <span className="h-2 w-2 rounded-full bg-amber-400" />
-                <span className="font-bold">3–7 days</span>
+                <span className="font-bold text-xs">3–7 days</span>
                 <span className="ml-1 rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-200">Warning</span>
               </div>
               <p className="mt-0.5 text-[10px] text-white/50">Needs attention — response overdue soon.</p>
@@ -202,14 +198,14 @@ export default async function ComplaintQueuePage() {
             <div className="flex flex-col items-start rounded-lg bg-white/15 px-3 py-2">
               <div className="flex items-center gap-1.5 text-red-200">
                 <span className="h-2 w-2 rounded-full bg-red-400" />
-                <span className="font-bold">8+ days</span>
+                <span className="font-bold text-xs">8+ days</span>
                 <span className="ml-1 rounded-full bg-red-400/20 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-red-200">Critical</span>
               </div>
               <p className="mt-0.5 text-[10px] text-white/50">SLA breached — immediate action required.</p>
             </div>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <ComplaintKanbanBoard items={items} />
     </div>
