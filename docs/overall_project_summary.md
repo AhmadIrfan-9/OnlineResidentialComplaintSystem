@@ -1,9 +1,9 @@
 # Student's Overall Summary of the Project: Online Residential Complaint System (ORCS)
 
 ## 1. Overall Summary Sentence & Explanation
-**Summary:** The Online Residential Complaint System (UNITEN ORCS) is a decoupled, type-safe, production-ready full-stack web application designed for the Universiti Tenaga Nasional (UNITEN) College of Computing and Informatics (CCI) to manage the complete lifecycle of hostel complaints from submission through resolution. 
+**Summary:** The Online Residential Complaint System (UNITEN ORCS) is a decoupled, type-safe, production-ready full-stack web application designed for the Universiti Tenaga Nasional (UNITEN) College of Computing and Informatics (CCI) to manage the complete lifecycle of hostel complaints, systematically classifying them into **Routine**, **Urgent**, and **Emergency** categories for resolution.
 
-**Explanation:** The system replaces static processes with an intelligent, responsive portal featuring role-based dashboards for Students, Wardens, and IT Administrators. It optimizes complaint resolution through automated ITIL-based severity and SLA mapping, utilizes real-time notifications via WebSockets, and leverages artificial intelligence (GPT-4o) with a Retrieval-Augmented Generation (RAG) document vault to triage complaints and assist management with policy-grounded decision making.
+**Explanation:** The system replaces manual processes with role-based dashboards for Students, Wardens, and IT Administrators. It optimizes complaint resolution through automated ITIL-based severity and SLA mapping, utilizes real-time notifications via WebSockets, and leverages artificial intelligence (GPT-4o) with a Retrieval-Augmented Generation (RAG) document vault to triage complaints and assist management with policy-grounded decision making. (Note: AI Image Validation has been completely removed from the system).
 
 ---
 
@@ -20,7 +20,7 @@ The modular system design isolates layers of responsibility to ensure transactio
         │                │                │
         ▼                ▼                ▼
 [Database Layer]  [Cache Layer]   [AI Inference Layer]
-Relational DB      Redis Cache     Multimodal ITIL Triage
+Relational DB      Redis Cache     ITIL Triage Engine
 (Prisma / PG)     (Notification)    (GPT-4o RAG Vault)
 ```
 
@@ -28,7 +28,7 @@ Relational DB      Redis Cache     Multimodal ITIL Triage
 *   **Application Layer:** Next.js Serverless API Route Handlers process incoming client requests and coordinate database operations, real-time caching, and AI logic.
 *   **Database Layer:** Managed by Prisma ORM connecting to a hosted PostgreSQL relational database on Supabase.
 *   **Cache Layer:** Uses Redis to manage real-time in-app notification queues.
-*   **AI Inference Layer:** Employs multimodal ITIL triage and a GPT-4o policy-grounded RAG vault.
+*   **AI Inference Layer:** Employs ITIL triage and a GPT-4o policy-grounded RAG vault.
 
 ---
 
@@ -41,8 +41,8 @@ Relational DB      Redis Cache     Multimodal ITIL Triage
 *   **Database ORM:** Prisma ORM.
 *   **Database Host:** PostgreSQL on Supabase.
 *   **Real-time Engine:** Socket.io utilizing Node server processes with Redis publisher/subscriber.
-*   **AI Models:** OpenAI GPT-4o (multimodal inputs) and `text-embedding-3-small` (generating 1536-dimensional embeddings for pgvector).
-*   **Text Extraction:** `pdf-parse` (for PDF files), `mammoth` (for DOCX files), and GPT-4o Vision OCR (for image extraction).
+*   **AI Models:** OpenAI GPT-4o (text input for triage and RAG) and `text-embedding-3-small` (generating 1536-dimensional embeddings for pgvector).
+*   **Text Extraction:** `pdf-parse` (for PDF files), `mammoth` (for DOCX files), and GPT-4o Vision OCR (for image extraction within the RAG document vault).
 
 ---
 
@@ -63,9 +63,9 @@ Relational DB      Redis Cache     Multimodal ITIL Triage
     ```
 *   **Security:** Checks `isActive` flag, updates `lastLoginAt`, logs audit trails, locks account for the remainder of a 15-minute window after 5 failed login attempts (brute-force protection), and uses `randomBytes` (10-character base64url) for default passwords, requiring user change on onboarding.
 
-### 4.2. Multi-Modal Student Complaint Form
+### 4.2. Student Complaint Form
 *   **Visual Design:** Normalized 3-tier side-by-side dropdown selectors for Block, Floor, and Unit. The evidence dropzone features a dashed accent border and shows an inline thumbnail grid of selected images with absolute-positioned deletion indicators.
-*   **Operation:** Restricts inputs to database-verified room inventories. Prevents page layout shifting by toggling empty states and thumbnail previews. Combines JSON payloads and binary evidence files into a structured multipart payload.
+*   **Operation:** Restricts inputs to database-verified room inventories. Prevents page layout shifting by toggling empty states and thumbnail previews. Combines JSON payloads and evidence files into a structured payload. (No AI image validation is performed on upload).
 
 ### 4.3. Warden Analytics & Triage Command Center
 *   **Visual Design:** 50/50 horizontal split grid optimizing visual density. The left side tracks active tickets, and the right tracks resolved closures. A `CategoryDistributionChart` pie graphic displays contrasting slices representing category weights.
@@ -77,31 +77,37 @@ Relational DB      Redis Cache     Multimodal ITIL Triage
 
 ---
 
-## 5. Algorithmic and Decision Logic (ITIL Triage)
+## 5. Algorithmic, Priority, and Urgency Classification (ITIL Triage)
 
 ORCS enforces objective prioritization using an automated server-side implementation of the standard **Information Technology Infrastructure Library (ITIL) Framework**. Priority is calculated deterministically:
 
 $$\text{Priority} = \text{Impact} \times \text{Urgency}$$
 
-### 5.1. Evaluation Metric Scoring
+### 5.1. Priority Levels and SLA Target Hours
+The database and application map the calculated priority metrics to three core operational levels configured via `AdminSlaSetting`:
+
+1.  **EMERGENCY (Critical):** 
+    *   *Definition:* Immediate safety risk, hazardous conditions, or severe structural degradation (e.g., sparking wire, pipe bursting causing flooding).
+    *   *SLA Target:* **4-Hour Resolution** (`emergencyTargetHours`). Triggers immediate emergency technician dispatch.
+2.  **URGENT (High):**
+    *   *Definition:* Damaged core utility without immediate hazard, or issue causing room/property damage (e.g., clogged drain, broken locks).
+    *   *SLA Target:* **24-Hour Resolution** (`urgentTargetHours`). Triggers queue escalation.
+3.  **ROUTINE (Low/Medium):**
+    *   *Definition:* Cosmetic or convenience-related issue that does not compromise safety or utility (e.g., loose cupboard hinge, single-room Wi-Fi delay).
+    *   *SLA Target:* **72-Hour / 3-to-5 Day Resolution** (`routineTargetHours`). Standard maintenance queue.
+
+### 5.2. AI-to-Database Mapping Pipeline
+When the AI assistant processes an incoming complaint, it generates a structured metadata response. The AI's suggested classification maps directly to the database `Priority` enum values:
+*   `HIGH` $\rightarrow$ **EMERGENCY** (4-Hour Target)
+*   `MEDIUM` $\rightarrow$ **URGENT** (24-Hour Target)
+*   `LOW` $\rightarrow$ **ROUTINE** (72-Hour Target)
+
+### 5.3. ITIL Impact-Urgency Evaluation Matrix
 
 | Metric | Score 1 (Low) | Score 2 (Medium) | Score 3 (High) |
 | :--- | :--- | :--- | :--- |
-| **Urgency** *(Structural Risk)* | Cosmetic or convenience issue (e.g., loose hinge) | Damaged core utility without hazard (e.g., clogged drain) | Immediate safety risk or structural degradation (e.g., sparking wire) |
-| **Impact** *(Scope Affected)* | Isolated strictly to a single individual's personal space | Affects a full apartment unit shared by multiple roommates | Affects a whole floor layout, building wing, or entire block |
-
-### 5.2. Priority & SLA Target Mapping Matrix
-
-| Impact \ Urgency | Score Level 1 (Low) | Score Level 2 (Medium) | Score Level 3 (High) |
-| :--- | :--- | :--- | :--- |
-| **Score Level 3 (High)** | **Medium Priority** (48h) | **High Priority** (12h) | **Critical Priority** (4h) |
-| **Score Level 2 (Medium)** | **Medium Priority** (48h) | **Medium Priority** (48h) | **High Priority** (12h) |
-| **Score Level 1 (Low)** | **Low Priority** (120h) | **Low Priority** (120h) | **Medium Priority** (48h) |
-
-*   **Critical Priority:** 4-Hour SLA Target (Immediate emergency technician dispatch).
-*   **High Priority:** 12-Hour SLA Target (Operational queue escalation).
-*   **Medium Priority:** 48-Hour SLA Target (Standard maintenance window).
-*   **Low Priority:** 120-Hour / 5-Day SLA Target (General cosmetic queue).
+| **Urgency** *(Structural Risk)* | Cosmetic or convenience issue | Damaged core utility without hazard | Immediate safety risk or structural degradation |
+| **Impact** *(Scope Affected)* | Isolated strictly to a single individual's personal space | Affects a full apartment unit shared by roommates | Affects a whole floor, building wing, or entire block |
 
 ---
 
@@ -162,9 +168,9 @@ A formal QA audit evaluated the system across **25+ pages**, **30+ API routes**,
 *   **BUG-001 (Change Password Page):** Full functional form implemented with session updates, resolving the redirection loop.
 *   **BUG-002 (Anonymous Messaging Crash):** Messaging returns a 422 payload for anonymous complaints with an explicit UI notification; GET APIs return an empty list with `anonymous: true`.
 *   **BUG-003 (Status State Machine):** Enforced a strict forward-only transition sequence:
-    *   `PENDING` → `IN_PROGRESS` or `CLOSED`
-    *   `IN_PROGRESS` → `RESOLVED`, `PENDING`, or `CLOSED`
-    *   `RESOLVED` → `CLOSED` or `IN_PROGRESS`
+    *   `PENDING` $\rightarrow$ `IN_PROGRESS` or `CLOSED`
+    *   `IN_PROGRESS` $\rightarrow$ `RESOLVED`, `PENDING`, or `CLOSED`
+    *   `RESOLVED` $\rightarrow$ `CLOSED` or `IN_PROGRESS`
     *   `CLOSED` is a terminal state (no transitions allowed).
 *   **BUG-004 (Category Deletion):** Blocked category deletion (returns 409) if complaints are active under it.
 *   **BUG-005 (Default Password Leak):** Replaced hardcoded "123456" with `randomBytes` (10-char base64url) displayed only once to admin on user creation.
@@ -180,6 +186,7 @@ A formal QA audit evaluated the system across **25+ pages**, **30+ API routes**,
 *   **M-004 (Warden Deletion Limits):** Allowed wardens to delete complaints belonging strictly to their assigned hostel scope.
 *   **M-005 (PDF Export Failures):** Surfaced clear error messages advising users to utilize browser print fallback tools when generation fails.
 *   **M-006 (Admin Redirects):** Configured automated redirects from `/admin/configuration` to `/admin/system`.
+*   **M-007 (Room Verification):** Room verified against DB in complaint creation paths.
 *   **M-008 (Mandatory Closure Reason):** Status transition to `CLOSED` requires a `closureNote` (minimum 10 characters) which is recorded as a `ComplaintUpdate`.
 *   **M-009 (Anonymous Identity Masking):** API nulls student profiles for MANAGEMENT callers, and the UI displays an `EyeOff` banner for masked complaints.
 *   **L-003 ("Back" Link):** Re-labeled to "Back to My Complaints".
@@ -194,5 +201,5 @@ These items constitute the post-launch development backlog:
 *   **Offline Queue Cache (`src/components/shared/StudentComplaintForm.tsx`):** Lack of offline service worker queuing with IndexedDB to cache file records during network disruptions.
 *   **Email Integration:** Admin email templates are stored, but active mail service SMTP is not configured.
 *   **Student Acknowledgement:** No student-initiated closure or satisfaction survey (1-5 star ratings) exists.
-*   **Bulk Actions:** Warden interface lack bulk-status updates for efficient ticket clearance.
+*   **Bulk Actions:** Warden interface lacks bulk-status updates for efficient ticket clearance.
 *   **Database/Admin Cleanup:** Clean up unused models and JWT claims (`hostelId` in token, `AdminDepartment` model and API, `PolicyChunk` table, and `ComplaintEmbedding` metadata without active vector storage).
