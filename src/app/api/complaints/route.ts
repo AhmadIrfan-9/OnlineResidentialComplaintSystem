@@ -6,7 +6,7 @@ import { normalizeRoleKey } from "@/lib/roles";
 import { resolveEvidenceListUrls } from "@/lib/storage/evidence";
 import { createInAppNotification } from "@/lib/notifications";
 import { rateLimit } from "@/lib/rate-limit";
-import { runTriageForComplaint } from "@/app/api/complaints/triage/route";
+import { runTriageForComplaint } from "@/lib/ai/triage";
 
 
 const inferFileTypeFromUrl = (fileUrl: string): string => {

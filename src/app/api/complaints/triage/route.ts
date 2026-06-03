@@ -133,48 +133,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── Internal Helper — fire-and-forget from complaint submission ──────────────
 
-/**
- * Runs ITIL triage for an existing complaint record and persists the result.
- * Designed for non-blocking fire-and-forget use: errors are caught and logged
- * without propagating, so they never interrupt the submission response.
- *
- * @param complaintId - The DB id of the newly created complaint
- * @param input       - Title, description, and optional image analysis summary
- */
-export async function runTriageForComplaint(
-  complaintId: string,
-  input: { title: string; description: string; imageAnalysisSummary?: string | null }
-): Promise<void> {
-  try {
-    const triageResult = await triageComplaint({
-      title: input.title,
-      description: input.description,
-      imageAnalysisSummary: input.imageAnalysisSummary ?? null,
-    });
-
-    const dbPriority = mapToPriority(triageResult.final_priority);
-
-    await db.complaint.update({
-      where: { id: complaintId },
-      data: {
-        priority: dbPriority,
-        aiUrgencyScore: triageResult.calculated_urgency,
-        aiImpactScore: triageResult.calculated_impact,
-        aiSlaHours: triageResult.sla_hours_target,
-        aiReasoningEn: triageResult.ai_reasoning_en,
-        aiReasoningMs: triageResult.ai_reasoning_ms,
-      },
-    });
-
-    console.log(
-      `[Triage:Auto] Complaint ${complaintId} → Priority: ${triageResult.final_priority} | ` +
-        `Urgency: ${triageResult.calculated_urgency} | Impact: ${triageResult.calculated_impact} | ` +
-        `SLA: ${triageResult.sla_hours_target}h`
-    );
-  } catch (err) {
-    // Non-blocking: log but never throw — submission must not fail due to triage error
-    console.error(`[Triage:Auto] Failed for complaint ${complaintId}:`, err);
-  }
-}

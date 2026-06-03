@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import jsPDF from "jspdf";
+import { PriorityBadge } from "@/components/shared/PriorityBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export type OverdueComplaint = {
   hostel: { name: string };
   status: string;
   createdAt: Date;
+  priority?: string | null;
 };
 export type StatusCounts = {
   PENDING: number;
@@ -660,7 +662,7 @@ export function CommandCenterClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50 text-left">
-                {["Ref ID", "Complaint Title", "Block", "Days Overdue", "Status"].map((h) => (
+                {["Ref ID", "Complaint Title", "Block", "Priority", "Days Overdue", "Status"].map((h) => (
                   <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{h}</th>
                 ))}
               </tr>
@@ -680,6 +682,7 @@ export function CommandCenterClient({
                       <td className="px-5 py-3 font-mono text-xs font-bold text-slate-400">#{c.id.slice(0, 6)}</td>
                       <td className="px-5 py-3 font-semibold text-slate-700 text-xs">{c.title}</td>
                       <td className="px-5 py-3"><span className="rounded-lg bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{c.hostel.name}</span></td>
+                      <td className="px-5 py-3"><PriorityBadge priority={c.priority} /></td>
                       <td className="px-5 py-3"><span className="text-xs font-extrabold text-rose-600">{aging}d</span></td>
                       <td className="px-5 py-3"><span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-extrabold uppercase text-rose-700 ring-1 ring-rose-200">{c.status}</span></td>
                     </tr>

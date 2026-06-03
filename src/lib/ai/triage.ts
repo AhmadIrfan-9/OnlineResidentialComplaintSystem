@@ -13,6 +13,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { Priority } from "@prisma/client";
+import { db } from "@/lib/db";
 
 // ─── ITIL System Prompt ───────────────────────────────────────────────────────
 
@@ -72,6 +73,74 @@ SLA Targets:
 - Common Malay hostel terms: sinki=sink, tandas=toilet, paip=pipe, lampu=light, kipas=fan, siling=ceiling, dinding=wall, bilik=room, almari=wardrobe, tingkap=window, soket=socket, wayar=wire, pintu digital=digital lock, penyaman udara/aircond=air conditioner
 - Always produce ai_reasoning_en in clear English.
 - Always produce ai_reasoning_ms in natural Bahasa Melayu (not a word-for-word machine translation).
+
+[Few-Shot Exemplar Examples]
+Compare all incoming student submissions against these 5 bilingual UNITEN-specific exemplars to calibrate urgency, impact, and priority calculations:
+
+Example 1: Critical Priority (Urgency 3, Impact 3, SLA 4)
+- Title: Burnt DB board in Corridor / Panel DB asrama meletup & terbakar
+- Description: Panel elektrik utama dekat koridor Blok C1 aras 4 tiba-tiba ada bunyi letupan kecil dan bau hangit terbakar yang kuat. Sekarang satu aras 4 total blackout! Ini sangat bahaya kalau ada litar pintas atau api marak.
+- Result:
+  {
+    "calculated_urgency": 3,
+    "calculated_impact": 3,
+    "final_priority": "Critical",
+    "sla_hours_target": 4,
+    "ai_reasoning_en": "Immediate safety hazard due to electrical fire risk and total floor blackout, affecting multiple units.",
+    "ai_reasoning_ms": "Bahaya keselamatan serta-merta akibat risiko kebakaran elektrik dan gangguan bekalan kuasa seluruh aras yang menjejaskan banyak unit."
+  }
+
+Example 2: High Priority (Urgency 3, Impact 1, SLA 12)
+- Title: Burst water pipe spraying water inside room / Paip pecah air memancut dalam bilik
+- Description: Paip bekalan air ke sinki dalam bilik asrama saya pecah tiba-tiba, air memancut keluar dengan laju sampai membanjiri lantai dan merosakkan barang. Saya dah tutup kepala paip tapi air masih keluar.
+- Result:
+  {
+    "calculated_urgency": 3,
+    "calculated_impact": 1,
+    "final_priority": "High",
+    "sla_hours_target": 12,
+    "ai_reasoning_en": "Water pipe rupture causing localized flooding in a single room, creating high urgency but low overall impact.",
+    "ai_reasoning_ms": "Paip air pecah menyebabkan banjir setempat di dalam sebuah bilik, mewujudkan kecemasan tinggi tetapi impak keseluruhan yang rendah."
+  }
+
+Example 3: Medium Priority (Urgency 2, Impact 2, SLA 48)
+- Title: Clogged common bathroom toilet bowl / Tandas tersumbat teruk melimpah
+- Description: Mangkuk tandas dalam bilik air kongsi unit kami tersumbat sepenuhnya dan air kumbahan melimpah keluar bila di-flush. Sangat berbau busuk dan tak boleh guna langsung oleh 5 orang ahli unit.
+- Result:
+  {
+    "calculated_urgency": 2,
+    "calculated_impact": 2,
+    "final_priority": "Medium",
+    "sla_hours_target": 48,
+    "ai_reasoning_en": "Clogged toilet disrupting core hygiene utilities for an entire shared unit apartment.",
+    "ai_reasoning_ms": "Tandas tersumbat menjejaskan kemudahan kebersihan utama untuk seluruh unit berkongsi pangsapuri."
+  }
+
+Example 4: Medium Priority (Urgency 2, Impact 1, SLA 48)
+- Title: Tripped electrical breaker in single bedroom / Power trip satu bilik tidur sahaja
+- Description: Socket electrical trip dalam bilik tidur personal saya sahaja selepas saya plug in laptop charger. Roommate lain dalam unit yang sama semua ada letrik, bilik air pun ada power. Kipas bilik saya tak pusing.
+- Result:
+  {
+    "calculated_urgency": 2,
+    "calculated_impact": 1,
+    "final_priority": "Medium",
+    "sla_hours_target": 48,
+    "ai_reasoning_en": "Tripped power breaker affecting a single student's bedroom, disrupting core utilities but limited in impact scope.",
+    "ai_reasoning_ms": "Pemicu litar elektrik terpelanting menjejaskan bilik tidur seorang pelajar, mengganggu kemudahan utama tetapi terhad dalam skop impak."
+  }
+
+Example 5: Low Priority (Urgency 1, Impact 1, SLA 120)
+- Title: Wardrobe handle loose / Pemegang almari longgar nak tercabut
+- Description: Pemegang pintu almari baju dalam bilik saya longgar gila dan skrunya macam nak tercabut. Sangat susah nak buka pintu almari untuk ambil baju.
+- Result:
+  {
+    "calculated_urgency": 1,
+    "calculated_impact": 1,
+    "final_priority": "Low",
+    "sla_hours_target": 120,
+    "ai_reasoning_en": "Minor furniture convenience issue isolated strictly to a single resident's private wardrobe.",
+    "ai_reasoning_ms": "Isu kemudahan perabot kecil yang terpencil hanya kepada almari peribadi seorang pemastautin."
+  }
 
 [Output]
 Return ONLY a single valid JSON object with NO markdown, NO code blocks, NO extra explanation:
@@ -211,4 +280,50 @@ function buildFallback(): TriageResult {
     ai_reasoning_ms:
       "Penilaian AI tidak dapat diselesaikan. Aduan telah ditetapkan keutamaan Rendah dan menunggu semakan manual oleh warden.",
   };
+}
+
+// ─── Internal Helper — fire-and-forget from complaint submission ──────────────
+
+/**
+ * Runs ITIL triage for an existing complaint record and persists the result.
+ * Designed for non-blocking fire-and-forget use: errors are caught and logged
+ * without propagating, so they never interrupt the submission response.
+ *
+ * @param complaintId - The DB id of the newly created complaint
+ * @param input       - Title, description, and optional image analysis summary
+ */
+export async function runTriageForComplaint(
+  complaintId: string,
+  input: { title: string; description: string; imageAnalysisSummary?: string | null }
+): Promise<void> {
+  try {
+    const triageResult = await triageComplaint({
+      title: input.title,
+      description: input.description,
+      imageAnalysisSummary: input.imageAnalysisSummary ?? null,
+    });
+
+    const dbPriority = mapToPriority(triageResult.final_priority);
+
+    await db.complaint.update({
+      where: { id: complaintId },
+      data: {
+        priority: dbPriority,
+        aiUrgencyScore: triageResult.calculated_urgency,
+        aiImpactScore: triageResult.calculated_impact,
+        aiSlaHours: triageResult.sla_hours_target,
+        aiReasoningEn: triageResult.ai_reasoning_en,
+        aiReasoningMs: triageResult.ai_reasoning_ms,
+      },
+    });
+
+    console.log(
+      `[Triage:Auto] Complaint ${complaintId} → Priority: ${triageResult.final_priority} | ` +
+        `Urgency: ${triageResult.calculated_urgency} | Impact: ${triageResult.calculated_impact} | ` +
+        `SLA: ${triageResult.sla_hours_target}h`
+    );
+  } catch (err) {
+    // Non-blocking: log but never throw — submission must not fail due to triage error
+    console.error(`[Triage:Auto] Failed for complaint ${complaintId}:`, err);
+  }
 }

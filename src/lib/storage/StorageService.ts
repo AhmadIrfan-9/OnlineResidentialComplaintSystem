@@ -233,7 +233,7 @@ class StorageService {
       }
 
       const signedUrl = await getSignedUrl(
-        this.client!,
+        this.client as any,
         new GetObjectCommand({
           Bucket: this.config.bucket,
           Key: parsed.key,

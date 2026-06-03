@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus, Copy, KeyRound } from "lucide-react";
+import { Trash2, Search, ChevronLeft, ChevronRight, CheckCircle2, X, UserPlus, Copy, KeyRound, Pencil } from "lucide-react";
 
 type Role = "STUDENT" | "MANAGEMENT" | "IT_STAFF_ADMIN";
 type UserRow = {
@@ -84,6 +84,21 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
   const [roomFloor, setRoomFloor] = useState("");
   const [roomUnit, setRoomUnit] = useState("");
 
+  const [showEdit,    setShowEdit]    = useState(false);
+  const [editUser,    setEditUser]    = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    hostelId: string;
+    roomLabel: string;
+    isActive: boolean;
+    resetPassword?: boolean;
+  } | null>(null);
+  const [editBlock,   setEditBlock]   = useState("");
+  const [editFloor,   setEditFloor]   = useState("");
+  const [editUnit,    setEditUnit]    = useState("");
+
   useEffect(() => {
     if (roomBlock && roomFloor && roomUnit) {
       setNewUser(p => ({ ...p, roomLabel: `${roomBlock}-${roomFloor}-${roomUnit}` }));
@@ -140,12 +155,16 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
     if (!newUser.name || !newUser.email) { setNotice("Name and email are required."); return; }
     if (newUser.role === "MANAGEMENT" && !newUser.hostelId) { setNotice("Hostel is required for management."); return; }
     if (newUser.role === "STUDENT"    && !newUser.roomLabel)  { setNotice("Room is required for student."); return; }
+    if (!adminPassword) { setNotice("Admin password is required."); return; }
 
     setSaving(true);
     try {
       const res  = await fetch("/api/admin/users", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Password": adminPassword,
+        },
         body: JSON.stringify({
           name:       newUser.name,
           email:      newUser.email,
@@ -161,9 +180,85 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
       setShowCreate(false);
       setNewUser({ name: "", email: "", role: "STUDENT", roomLabel: "", hostelId: "", isActive: true });
       setRoomBlock(""); setRoomFloor(""); setRoomUnit("");
+      setAdminPassword("");
       setToast("User created successfully.");
       await loadUsers();
     } finally { setSaving(false); }
+  };
+
+  const startEdit = (user: UserRow) => {
+    setAdminPassword("");
+    setNotice("");
+    setEditUser({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      hostelId: user.hostelId || "",
+      roomLabel: user.roomLabel || "",
+      isActive: user.status === "Active",
+      resetPassword: false,
+    });
+    if (user.role === "STUDENT" && user.roomLabel) {
+      const parts = user.roomLabel.split("-");
+      if (parts.length === 3) {
+        setEditBlock(parts[0]);
+        setEditFloor(parts[1]);
+        setEditUnit(parts[2]);
+      } else {
+        setEditBlock("");
+        setEditFloor("");
+        setEditUnit("");
+      }
+    } else {
+      setEditBlock("");
+      setEditFloor("");
+      setEditUnit("");
+    }
+    setShowEdit(true);
+  };
+
+  const updateUser = async () => {
+    if (!editUser) return;
+    if (!editUser.name || !editUser.email) { setNotice("Name and email are required."); return; }
+    if (editUser.role === "MANAGEMENT" && !editUser.hostelId) { setNotice("Hostel is required for management."); return; }
+    if (editUser.role === "STUDENT" && (!editBlock || !editFloor || !editUnit)) { setNotice("Room is required for student."); return; }
+    if (!adminPassword) { setNotice("Admin password is required."); return; }
+
+    setSaving(true);
+    try {
+      const roomLabel = editUser.role === "STUDENT" ? `${editBlock}-${editFloor}-${editUnit}` : undefined;
+      const res = await fetch(`/api/admin/users/${editUser.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Password": adminPassword,
+        },
+        body: JSON.stringify({
+          name: editUser.name,
+          email: editUser.email,
+          role: editUser.role,
+          isActive: editUser.isActive,
+          hostelId: editUser.role === "IT_STAFF_ADMIN" ? null : (editUser.hostelId || null),
+          roomLabel,
+          resetPassword: editUser.resetPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) { setNotice(data.message ?? "Failed to update user"); return; }
+
+      setShowEdit(false);
+      setEditUser(null);
+      setAdminPassword("");
+      setToast("User updated successfully.");
+      await loadUsers();
+    } catch (error) {
+      console.error(error);
+      setNotice("An error occurred while updating user.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteUser = (id: string) => {
@@ -222,7 +317,7 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                 <UserPlus className="h-5 w-5 text-blue-600" />
                 <h2 className="text-lg font-bold text-slate-900">New User</h2>
               </div>
-              <button type="button" onClick={() => setShowCreate(false)}
+              <button type="button" onClick={() => { setShowCreate(false); setAdminPassword(""); setNotice(""); }}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
                 <X className="h-5 w-5" />
               </button>
@@ -276,12 +371,17 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                     </div>
                   </div>
                 )}
+                <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                  <label className={labelCls}>Admin Password * <span className="text-slate-400 font-normal normal-case">(Required to verify changes)</span></label>
+                  <input type="password" className={fieldCls} placeholder="Enter your admin password" value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)} />
+                </div>
                 <div className="flex items-center gap-3 pt-1 md:col-span-2">
                   <button className={btnPrimary} onClick={createUser}
-                    disabled={saving || (newUser.role === "STUDENT" && (!roomBlock || !roomFloor || !roomUnit))}>
+                    disabled={saving || !adminPassword || (newUser.role === "STUDENT" && (!roomBlock || !roomFloor || !roomUnit))}>
                     {saving ? "Creating…" : "Create User"}
                   </button>
-                  <button className={btnGhost} onClick={() => setShowCreate(false)}>Cancel</button>
+                  <button className={btnGhost} onClick={() => { setShowCreate(false); setAdminPassword(""); setNotice(""); }}>Cancel</button>
                 </div>
               </div>
             </div>
@@ -289,6 +389,113 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
         </div>,
         document.body
       ) /* end add-user portal */}
+
+      {/* ── Edit User modal ───────────────────────────────────────────────── */}
+      {mounted && showEdit && editUser && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="mx-4 w-full max-w-2xl rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            {/* Modal header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-blue-600" />
+                <h2 className="text-lg font-bold text-slate-900">Edit User</h2>
+              </div>
+              <button type="button" onClick={() => { setShowEdit(false); setEditUser(null); setAdminPassword(""); setNotice(""); }}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Modal body */}
+            <div className="px-6 py-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className={labelCls}>Full Name *</label>
+                  <input className={fieldCls} placeholder="e.g. Ahmad Razali" value={editUser.name}
+                    onChange={e => setEditUser(p => p ? { ...p, name: e.target.value } : null)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Student/Staff Email *</label>
+                  <input className={fieldCls} placeholder="e.g. SW01084216@student.uniten.edu.my" value={editUser.email}
+                    onChange={e => setEditUser(p => p ? { ...p, email: e.target.value } : null)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Role *</label>
+                  <select className={fieldCls} value={editUser.role}
+                    onChange={e => {
+                      const nextRole = e.target.value as Role;
+                      setEditUser(p => p ? {
+                        ...p,
+                        role: nextRole,
+                        roomLabel: nextRole === "STUDENT" ? p.roomLabel : "",
+                        hostelId: nextRole === "IT_STAFF_ADMIN" ? "" : p.hostelId,
+                      } : null);
+                    }}>
+                    <option value="STUDENT">Student</option>
+                    <option value="MANAGEMENT">Management</option>
+                    <option value="IT_STAFF_ADMIN">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Residency {editUser.role === "IT_STAFF_ADMIN" ? "(N/A)" : "*"}</label>
+                  <select className={fieldCls} value={editUser.hostelId} disabled={editUser.role === "IT_STAFF_ADMIN"}
+                    onChange={e => setEditUser(p => p ? { ...p, hostelId: e.target.value } : null)}>
+                    <option value="">{editUser.role === "IT_STAFF_ADMIN" ? "Not required" : "Select hostel"}</option>
+                    {hostels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
+                  </select>
+                </div>
+                {editUser.role === "STUDENT" && (
+                  <div className="md:col-span-2">
+                    <label className={labelCls}>Room Assignment * <span className="text-slate-400 font-normal normal-case">(Block-Floor-Unit)</span></label>
+                    <div className="flex flex-row gap-2">
+                      <select className={fieldCls} value={editBlock} onChange={e => setEditBlock(e.target.value)}>
+                        <option value="">Block</option>
+                        {BLOCKS.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                      <select className={fieldCls} value={editFloor} onChange={e => setEditFloor(e.target.value)}>
+                        <option value="">Floor</option>
+                        {FLOORS.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                      <select className={fieldCls} value={editUnit} onChange={e => setEditUnit(e.target.value)}>
+                        <option value="">Unit</option>
+                        {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className={labelCls}>Status *</label>
+                  <select className={fieldCls} value={editUser.isActive ? "Active" : "Inactive"}
+                    onChange={e => setEditUser(p => p ? { ...p, isActive: e.target.value === "Active" } : null)}>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-center pt-6">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer select-none">
+                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      checked={!!editUser.resetPassword}
+                      onChange={e => setEditUser(p => p ? { ...p, resetPassword: e.target.checked } : null)} />
+                    Reset Password to <span className="font-mono text-xs font-bold text-red-600 bg-red-50 px-1 py-0.5 rounded">ChangeMe123!</span>
+                  </label>
+                </div>
+                <div className="md:col-span-2 border-t border-slate-100 pt-4">
+                  <label className={labelCls}>Admin Password * <span className="text-slate-400 font-normal normal-case">(Required to verify changes)</span></label>
+                  <input type="password" className={fieldCls} placeholder="Enter your admin password" value={adminPassword}
+                    onChange={e => setAdminPassword(e.target.value)} />
+                </div>
+                <div className="flex items-center gap-3 pt-1 md:col-span-2">
+                  <button className={btnPrimary} onClick={updateUser}
+                    disabled={saving || !adminPassword || (editUser.role === "STUDENT" && (!editBlock || !editFloor || !editUnit))}>
+                    {saving ? "Saving…" : "Save Changes"}
+                  </button>
+                  <button className={btnGhost} onClick={() => { setShowEdit(false); setEditUser(null); setAdminPassword(""); setNotice(""); }}>Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       <section className="surface-card p-5">
         {/* ── Filters ──────────────────────────────────────────────────── */}
@@ -368,6 +575,10 @@ export function UserManagementClient({ hostels }: { hostels: HostelOption[] }) {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="relative inline-flex items-center justify-end gap-1">
+                          <button className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-all"
+                            onClick={e => { e.stopPropagation(); startEdit(u); }} title="Edit">
+                            <Pencil className="h-4 w-4" />
+                          </button>
                           <button className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all"
                             onClick={e => { e.stopPropagation(); deleteUser(u.id); }} title="Delete">
                             <Trash2 className="h-4 w-4" />

@@ -13,6 +13,7 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Loader2, Plus, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import { PriorityBadge } from "@/components/shared/PriorityBadge";
 
 interface Complaint {
   id: string;
@@ -20,6 +21,7 @@ interface Complaint {
   description: string;
   category: string;
   status: ComplaintStatus;
+  priority?: string | null;
   createdAt: string;
   room: {
     roomNumber: string;
@@ -118,14 +120,19 @@ export default function StudentComplaintsPage() {
                 {/* ── Mobile Card (<md): Compact vertical stack ──── */}
                 <div className="surface-card cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md rounded-xl border border-slate-200 bg-white shadow-sm md:hidden">
                   <div className="px-4 pt-4 pb-3 flex flex-col gap-2">
-                    {/* Ticket ID */}
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      #{complaint.id.slice(0, 8).toUpperCase()}
-                    </p>
+                    {/* Ticket ID & Priority */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        #{complaint.id.slice(0, 8).toUpperCase()}
+                      </p>
+                      <PriorityBadge priority={complaint.priority} />
+                    </div>
                     {/* Status Badge */}
-                    <Badge className={statusColors[complaint.status]}>
-                      {statusLabels[complaint.status]}
-                    </Badge>
+                    <div className="flex">
+                      <Badge className={statusColors[complaint.status]}>
+                        {statusLabels[complaint.status]}
+                      </Badge>
+                    </div>
                     {/* Date */}
                     <p className="text-xs text-slate-500">
                       {new Date(complaint.createdAt).toLocaleDateString("en-GB", {
@@ -156,6 +163,7 @@ export default function StudentComplaintsPage() {
                             >
                               {statusLabels[complaint.status]}
                             </Badge>
+                            <PriorityBadge priority={complaint.priority} />
                           </div>
 
                           <p className="mt-2 line-clamp-2 text-sm text-slate-600">

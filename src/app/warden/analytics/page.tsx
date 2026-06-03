@@ -109,6 +109,7 @@ export default async function ManagementCommandCenterPage(props: {
       resolvedAt: true,
       closedAt: true,
       updatedAt: true,
+      priority: true,
       hostel: { select: { name: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -256,6 +257,7 @@ export default async function ManagementCommandCenterPage(props: {
       hostel: c.hostel,
       status: c.status,
       createdAt: c.createdAt,
+      priority: c.priority,
     })) as OverdueComplaint[];
 
   // ── Histogram Data ──────────────────────────────────────────────────────────

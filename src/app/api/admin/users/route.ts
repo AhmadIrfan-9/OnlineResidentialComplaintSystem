@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { z } from "zod";
-import { hash } from "bcryptjs";
+import { hash, compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { logAudit, requireAdminUser } from "@/lib/admin";
 import { normalizeLoginIdentifier } from "@/lib/identity";
@@ -63,6 +63,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const admin = await requireAdminUser();
   if (!admin) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+  const adminPassword = request.headers.get("X-Admin-Password");
+  if (!adminPassword) {
+    return NextResponse.json({ message: "Admin password required" }, { status: 400 });
+  }
+
+  const adminUser = await db.user.findUnique({ where: { id: admin.id } });
+  if (!adminUser || !(await compare(adminPassword, adminUser.password))) {
+    return NextResponse.json({ message: "Invalid admin password" }, { status: 401 });
+  }
+
   try {
     const payload = createSchema.parse(await request.json());
     const email = normalizeLoginIdentifier(payload.email, payload.role);
